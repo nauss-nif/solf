@@ -8,27 +8,61 @@ const CURRENCIES = [
   { code: 'EUR', name: 'يورو' },
 ]
 
-export default function SettlementForm({ loan }: { loan: any }) {
+type Invoice = {
+  amount?: number | string
+  currency?: string
+  sar?: number
+}
+
+type SettlementItem = {
+  category: string
+  budget: number
+  invoices: Invoice[]
+}
+
+type LoanItem = {
+  category: string
+  amount: number
+}
+
+type Loan = {
+  id: string
+  amount: number
+  items: LoanItem[]
+}
+
+export default function SettlementForm({ loan }: { loan: Loan }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
-  const [items, setItems] = useState(
-    (loan.items || []).map((item: any) => ({
+  const [items, setItems] = useState<SettlementItem[]>(
+    (loan.items || []).map((item) => ({
       category: item.category,
       budget: item.amount,
-      invoices: [] as Array<{ amount?: number | string; currency?: string; sar?: number }>,
+      invoices: [],
     })),
   )
 
   const [rates, setRates] = useState({ USD: 3.75, EUR: 4.1 })
 
-  const handleInvoiceChange = (itemIndex: number, invoiceIndex: number, field: string, value: any) => {
+  const handleInvoiceChange = (
+    itemIndex: number,
+    invoiceIndex: number,
+    field: keyof Invoice,
+    value: number | string,
+  ) => {
     const newItems = [...items]
-    if (!newItems[itemIndex].invoices[invoiceIndex]) newItems[itemIndex].invoices[invoiceIndex] = {}
-    newItems[itemIndex].invoices[invoiceIndex][field as 'amount'] = value
+
+    if (!newItems[itemIndex].invoices[invoiceIndex]) {
+      newItems[itemIndex].invoices[invoiceIndex] = {}
+    }
+
+    newItems[itemIndex].invoices[invoiceIndex][field] = value
 
     const inv = newItems[itemIndex].invoices[invoiceIndex]
-    const rate = inv.currency === 'USD' ? rates.USD : inv.currency === 'EUR' ? rates.EUR : 1
+    const rate =
+      inv.currency === 'USD' ? rates.USD : inv.currency === 'EUR' ? rates.EUR : 1
+
     inv.sar = (parseFloat(String(inv.amount || 0)) || 0) * rate
 
     setItems(newItems)
@@ -36,14 +70,21 @@ export default function SettlementForm({ loan }: { loan: any }) {
 
   const addInvoice = (itemIndex: number) => {
     const newItems = [...items]
-    if (!newItems[itemIndex].invoices) newItems[itemIndex].invoices = []
     newItems[itemIndex].invoices.push({ amount: 0, currency: 'ر.س', sar: 0 })
     setItems(newItems)
   }
 
-  const calculations = items.reduce(
+  const calculations = items.reduce<{
+    total: number
+    supported: number
+    unsupported: number
+  }>(
     (acc, item) => {
-      const totalItem = item.invoices.reduce((sum, inv) => sum + (inv.sar || 0), 0)
+      const totalItem = item.invoices.reduce<number>(
+        (sum, inv) => sum + (inv.sar || 0),
+        0,
+      )
+
       const isNath = item.category.includes('نثريات')
 
       acc.total += totalItem
@@ -58,7 +99,7 @@ export default function SettlementForm({ loan }: { loan: any }) {
   const savings = Math.max(0, loan.amount - calculations.total)
   const overage = Math.max(0, calculations.total - loan.amount)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
 
@@ -96,10 +137,12 @@ export default function SettlementForm({ loan }: { loan: any }) {
           <span className="text-gray-500">المبلغ المعتمد:</span> <b>{loan.amount}</b>
         </div>
         <div>
-          <span className="text-gray-500">المصروف:</span> <b className="text-primary">{calculations.total.toFixed(2)}</b>
+          <span className="text-gray-500">المصروف:</span>{' '}
+          <b className="text-primary">{calculations.total.toFixed(2)}</b>
         </div>
         <div>
-          <span className="text-gray-500">الوفر:</span> <b className="text-success">{savings.toFixed(2)}</b>
+          <span className="text-gray-500">الوفر:</span>{' '}
+          <b className="text-success">{savings.toFixed(2)}</b>
         </div>
       </div>
 
@@ -110,7 +153,9 @@ export default function SettlementForm({ loan }: { loan: any }) {
             type="number"
             step="0.01"
             value={rates.USD}
-            onChange={(e) => setRates((prev) => ({ ...prev, USD: parseFloat(e.target.value || '0') }))}
+            onChange={(e) =>
+              setRates((prev) => ({ ...prev, USD: parseFloat(e.target.value || '0') }))
+            }
             className="w-full rounded border p-2"
           />
         </div>
@@ -120,7 +165,9 @@ export default function SettlementForm({ loan }: { loan: any }) {
             type="number"
             step="0.01"
             value={rates.EUR}
-            onChange={(e) => setRates((prev) => ({ ...prev, EUR: parseFloat(e.target.value || '0') }))}
+            onChange={(e) =>
+              setRates((prev) => ({ ...prev, EUR: parseFloat(e.target.value || '0') }))
+            }
             className="w-full rounded border p-2"
           />
         </div>
@@ -134,7 +181,11 @@ export default function SettlementForm({ loan }: { loan: any }) {
           </div>
 
           {!item.category.includes('نثريات') && (
-            <button type="button" onClick={() => addInvoice(idx)} className="mb-2 rounded bg-gray-200 px-2 py-1 text-xs">
+            <button
+              type="button"
+              onClick={() => addInvoice(idx)}
+              className="mb-2 rounded bg-gray-200 px-2 py-1 text-xs"
+            >
               + إضافة فاتورة
             </button>
           )}
@@ -157,12 +208,16 @@ export default function SettlementForm({ loan }: { loan: any }) {
                     type="number"
                     placeholder="المبلغ"
                     className="rounded border p-1"
-                    onChange={(e) => handleInvoiceChange(idx, invIdx, 'amount', e.target.value)}
+                    onChange={(e) =>
+                      handleInvoiceChange(idx, invIdx, 'amount', e.target.value)
+                    }
                   />
                   <select
                     className="rounded border p-1"
-                    defaultValue={inv.currency || 'ر.س'}
-                    onChange={(e) => handleInvoiceChange(idx, invIdx, 'currency', e.target.value)}
+                    value={inv.currency || 'ر.س'}
+                    onChange={(e) =>
+                      handleInvoiceChange(idx, invIdx, 'currency', e.target.value)
+                    }
                   >
                     {CURRENCIES.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -170,7 +225,12 @@ export default function SettlementForm({ loan }: { loan: any }) {
                       </option>
                     ))}
                   </select>
-                  <input type="text" readOnly value={inv.sar?.toFixed(2) || '0'} className="rounded border bg-gray-100 p-1" />
+                  <input
+                    type="text"
+                    readOnly
+                    value={inv.sar?.toFixed(2) || '0'}
+                    className="rounded border bg-gray-100 p-1"
+                  />
                   <button
                     type="button"
                     className="text-xs text-red-500"
@@ -191,13 +251,25 @@ export default function SettlementForm({ loan }: { loan: any }) {
         </div>
       ))}
 
-      {items.length === 0 && <div className="rounded border p-4 text-sm text-gray-500">لا توجد بنود مرتبطة بهذه السلفة.</div>}
+      {items.length === 0 && (
+        <div className="rounded border p-4 text-sm text-gray-500">
+          لا توجد بنود مرتبطة بهذه السلفة.
+        </div>
+      )}
 
       <div className="flex justify-end gap-2 pt-4">
-        <button type="button" onClick={() => router.back()} className="rounded border px-4 py-2 text-sm">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="rounded border px-4 py-2 text-sm"
+        >
           إلغاء
         </button>
-        <button type="submit" disabled={loading} className="rounded bg-success px-4 py-2 font-bold text-white disabled:opacity-50">
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded bg-success px-4 py-2 font-bold text-white disabled:opacity-50"
+        >
           {loading ? 'جاري الحفظ...' : 'تأكيد التسوية'}
         </button>
       </div>
