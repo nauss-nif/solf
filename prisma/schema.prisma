@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Loan {
+  id          String       @id @default(uuid())
+  refNumber   String       @unique
+  employee    String
+  activity    String
+  location    String?
+  amount      Float
+  startDate   DateTime
+  endDate     DateTime
+  files       Json?
+  isSettled   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+
+  settlement  Settlement?
+  items       LoanItem[]
+
+  @@map("loans")
+}
+
+model LoanItem {
+  id       String @id @default(uuid())
+  category String
+  amount   Float
+  loanId   String
+  loan     Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
+
+  @@map("loan_items")
+}
+
+model Settlement {
+  id             String   @id @default(uuid())
+  supported      Float    @default(0)
+  unsupported    Float    @default(0)
+  total          Float    @default(0)
+  savings        Float    @default(0)
+  overage        Float    @default(0)
+  invoices       Json?
+  loanId         String   @unique
+  loan           Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@map("settlements")
+}
