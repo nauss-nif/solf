@@ -8,10 +8,12 @@ const CURRENCIES = [
   { code: 'EUR', name: 'يورو' },
 ]
 
+type CurrencyCode = 'ر.س' | 'USD' | 'EUR'
+
 type Invoice = {
-  amount?: number | string
-  currency?: string
-  sar?: number
+  amount: number | string
+  currency: CurrencyCode
+  sar: number
 }
 
 type SettlementItem = {
@@ -31,6 +33,12 @@ type Loan = {
   items: LoanItem[]
 }
 
+type Calculations = {
+  total: number
+  supported: number
+  unsupported: number
+}
+
 export default function SettlementForm({ loan }: { loan: Loan }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -43,53 +51,76 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
     })),
   )
 
-  const [rates, setRates] = useState({ USD: 3.75, EUR: 4.1 })
+  const [rates, setRates] = useState<{ USD: number; EUR: number }>({
+    USD: 3.75,
+    EUR: 4.1,
+  })
+
+  const calculateSar = (amount: number | string, currency: CurrencyCode): number => {
+    const numericAmount = parseFloat(String(amount || 0)) || 0
+    const rate = currency === 'USD' ? rates.USD : currency === 'EUR' ? rates.EUR : 1
+    return numericAmount * rate
+  }
 
   const handleInvoiceChange = (
     itemIndex: number,
     invoiceIndex: number,
-    field: keyof Invoice,
+    field: 'amount' | 'currency',
     value: number | string,
   ) => {
     const newItems = [...items]
 
     if (!newItems[itemIndex].invoices[invoiceIndex]) {
-      newItems[itemIndex].invoices[invoiceIndex] = {}
+      newItems[itemIndex].invoices[invoiceIndex] = {
+        amount: 0,
+        currency: 'ر.س',
+        sar: 0,
+      }
     }
 
-    newItems[itemIndex].invoices[invoiceIndex][field] = value
+    const currentInvoice = newItems[itemIndex].invoices[invoiceIndex]
 
-    const inv = newItems[itemIndex].invoices[invoiceIndex]
-    const rate =
-      inv.currency === 'USD' ? rates.USD : inv.currency === 'EUR' ? rates.EUR : 1
+    if (field === 'amount') {
+      currentInvoice.amount = value
+    }
 
-    inv.sar = (parseFloat(String(inv.amount || 0)) || 0) * rate
+    if (field === 'currency') {
+      currentInvoice.currency = value as CurrencyCode
+    }
+
+    currentInvoice.sar = calculateSar(currentInvoice.amount, currentInvoice.currency)
 
     setItems(newItems)
   }
 
   const addInvoice = (itemIndex: number) => {
     const newItems = [...items]
-    newItems[itemIndex].invoices.push({ amount: 0, currency: 'ر.س', sar: 0 })
+    newItems[itemIndex].invoices.push({
+      amount: 0,
+      currency: 'ر.س',
+      sar: 0,
+    })
     setItems(newItems)
   }
 
-  const calculations = items.reduce<{
-    total: number
-    supported: number
-    unsupported: number
-  }>(
-    (acc, item) => {
-      const totalItem = item.invoices.reduce<number>(
-        (sum, inv) => sum + (inv.sar || 0),
-        0,
-      )
+  const removeInvoice = (itemIndex: number, invoiceIndex: number) => {
+    const newItems = [...items]
+    newItems[itemIndex].invoices.splice(invoiceIndex, 1)
+    setItems(newItems)
+  }
 
+  const calculations = items.reduce<Calculations>(
+    (acc, item) => {
+      const totalItem = item.invoices.reduce<number>((sum, inv) => sum + inv.sar, 0)
       const isNath = item.category.includes('نثريات')
 
       acc.total += totalItem
-      if (isNath) acc.unsupported += totalItem
-      else acc.supported += totalItem
+
+      if (isNath) {
+        acc.unsupported += totalItem
+      } else {
+        acc.supported += totalItem
+      }
 
       return acc
     },
@@ -122,10 +153,11 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
     if (res.ok) {
       alert('تمت التسوية بنجاح')
       router.push('/')
-    } else {
-      alert('حدث خطأ أثناء الحفظ')
-      setLoading(false)
+      return
     }
+
+    alert('حدث خطأ أثناء الحفظ')
+    setLoading(false)
   }
 
   return (
@@ -154,11 +186,15 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
             step="0.01"
             value={rates.USD}
             onChange={(e) =>
-              setRates((prev) => ({ ...prev, USD: parseFloat(e.target.value || '0') }))
+              setRates((prev) => ({
+                ...prev,
+                USD: parseFloat(e.target.value || '0') || 0,
+              }))
             }
             className="w-full rounded border p-2"
           />
         </div>
+
         <div>
           <label className="mb-1 block text-xs">سعر صرف اليورو</label>
           <input
@@ -166,7 +202,10 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
             step="0.01"
             value={rates.EUR}
             onChange={(e) =>
-              setRates((prev) => ({ ...prev, EUR: parseFloat(e.target.value || '0') }))
+              setRates((prev) => ({
+                ...prev,
+                EUR: parseFloat(e.target.value || '0') || 0,
+              }))
             }
             className="w-full rounded border p-2"
           />
@@ -196,10 +235,7 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
                 type="number"
                 placeholder="مبلغ النثريات"
                 className="w-full rounded border p-2"
-                onChange={(e) => {
-                  handleInvoiceChange(idx, 0, 'amount', e.target.value)
-                  handleInvoiceChange(idx, 0, 'currency', 'ر.س')
-                }}
+                onChange={(e) => handleInvoiceChange(idx, 0, 'amount', e.target.value)}
               />
             ) : item.invoices.length > 0 ? (
               item.invoices.map((inv, invIdx) => (
@@ -208,13 +244,13 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
                     type="number"
                     placeholder="المبلغ"
                     className="rounded border p-1"
-                    onChange={(e) =>
-                      handleInvoiceChange(idx, invIdx, 'amount', e.target.value)
-                    }
+                    value={inv.amount}
+                    onChange={(e) => handleInvoiceChange(idx, invIdx, 'amount', e.target.value)}
                   />
+
                   <select
                     className="rounded border p-1"
-                    value={inv.currency || 'ر.س'}
+                    value={inv.currency}
                     onChange={(e) =>
                       handleInvoiceChange(idx, invIdx, 'currency', e.target.value)
                     }
@@ -225,20 +261,18 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
                       </option>
                     ))}
                   </select>
+
                   <input
                     type="text"
                     readOnly
-                    value={inv.sar?.toFixed(2) || '0'}
+                    value={inv.sar.toFixed(2)}
                     className="rounded border bg-gray-100 p-1"
                   />
+
                   <button
                     type="button"
                     className="text-xs text-red-500"
-                    onClick={() => {
-                      const newItems = [...items]
-                      newItems[idx].invoices.splice(invIdx, 1)
-                      setItems(newItems)
-                    }}
+                    onClick={() => removeInvoice(idx, invIdx)}
                   >
                     حذف
                   </button>
@@ -265,6 +299,7 @@ export default function SettlementForm({ loan }: { loan: Loan }) {
         >
           إلغاء
         </button>
+
         <button
           type="submit"
           disabled={loading}
