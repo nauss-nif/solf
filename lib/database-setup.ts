@@ -19,8 +19,74 @@ async function runSetup() {
   `)
 
   await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "loans" (
+      "id" TEXT PRIMARY KEY,
+      "refNumber" TEXT NOT NULL UNIQUE,
+      "userId" TEXT,
+      "employee" TEXT NOT NULL,
+      "activity" TEXT NOT NULL,
+      "location" TEXT,
+      "amount" DOUBLE PRECISION NOT NULL,
+      "startDate" TIMESTAMP(3) NOT NULL,
+      "endDate" TIMESTAMP(3) NOT NULL,
+      "files" JSONB,
+      "isSettled" BOOLEAN NOT NULL DEFAULT FALSE,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `)
+
+  await prisma.$executeRawUnsafe(`
     ALTER TABLE "loans"
     ADD COLUMN IF NOT EXISTS "userId" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "employee" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "activity" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "location" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "amount" DOUBLE PRECISION;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3);
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "endDate" TIMESTAMP(3);
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "files" JSONB;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "isSettled" BOOLEAN NOT NULL DEFAULT FALSE;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "loans_refNumber_key" ON "loans"("refNumber");
   `)
 
   await prisma.$executeRawUnsafe(`
@@ -44,6 +110,10 @@ async function runSetup() {
       "loanId" TEXT NOT NULL UNIQUE REFERENCES "loans"("id") ON DELETE CASCADE,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "settlements_loanId_key" ON "settlements"("loanId");
   `)
 }
 
