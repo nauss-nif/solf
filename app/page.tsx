@@ -1,8 +1,28 @@
 import Link from 'next/link'
 import { prisma } from '@/lib/prisma'
 
+export const dynamic = 'force-dynamic'
+
+type LoanRow = {
+  id: string
+  refNumber: string
+  employee: string
+  amount: number
+  isSettled: boolean
+}
+
 export default async function Home() {
-  const loans = await prisma.loan.findMany({ orderBy: { createdAt: 'desc' } })
+  let loans: LoanRow[] = []
+
+  try {
+    loans = await prisma.loan.findMany({
+      orderBy: { createdAt: 'desc' },
+    })
+  } catch (error) {
+    console.error('Database not ready yet:', error)
+    loans = []
+  }
+
   const stats = {
     total: loans.length,
     active: loans.filter((l) => !l.isSettled).length,
@@ -54,7 +74,9 @@ export default async function Home() {
                   <td className="p-2">{loan.amount.toLocaleString()} ر.س</td>
                   <td className="p-2">
                     <span
-                      className={`rounded px-2 py-0.5 text-xs ${loan.isSettled ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}
+                      className={`rounded px-2 py-0.5 text-xs ${
+                        loan.isSettled ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                      }`}
                     >
                       {loan.isSettled ? 'مسواة' : 'فعالة'}
                     </span>
@@ -66,10 +88,11 @@ export default async function Home() {
                   </td>
                 </tr>
               ))}
+
               {loans.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-gray-500">
-                    لا توجد سلف مسجلة حالياً
+                    لا توجد بيانات حالياً أو أن قاعدة البيانات لم تُهيأ بعد
                   </td>
                 </tr>
               )}
