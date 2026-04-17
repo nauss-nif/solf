@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { numberToArabicWords } from '@/lib/utils'
 
@@ -130,6 +130,9 @@ export default function DashboardClient({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans)
+  const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
+  const [loadError, setLoadError] = useState('')
   const [activeTab, setActiveTab] = useState<'requests' | 'archive' | 'reports' | 'guide'>(
     'requests',
   )
@@ -151,7 +154,67 @@ export default function DashboardClient({
   const [settlementItems, setSettlementItems] = useState<SettlementDraft[]>([])
   const [rates, setRates] = useState({ USD: 3.75, EUR: 4.1 })
 
-  const loans = initialLoans
+  useEffect(() => {
+    let isCancelled = false
+
+    async function loadLoans() {
+      try {
+        setIsLoadingLoans(true)
+        setLoadError('')
+
+        const response = await fetch('/api/loans', { cache: 'no-store' })
+        if (!response.ok) {
+          throw new Error('LOAD_FAILED')
+        }
+
+        const data = (await response.json()) as Array<{
+          id: string
+          refNumber: string
+          employee: string
+          activity: string
+          location: string | null
+          amount: number
+          startDate: string
+          endDate: string
+          createdAt: string
+          isSettled: boolean
+          items: LoanItemRecord[]
+          settlement: {
+            id: string
+            supported: number
+            unsupported: number
+            total: number
+            savings: number
+            overage: number
+            createdAt: string
+            invoices: unknown
+          } | null
+        }>
+
+        if (isCancelled) return
+
+        setLoans(
+          data.map((loan) => ({
+            ...loan,
+            location: loan.location ?? '',
+          })),
+        )
+      } catch {
+        if (isCancelled) return
+        setLoadError('تعذر تحميل بيانات السلف من الخادم.')
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingLoans(false)
+        }
+      }
+    }
+
+    loadLoans()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
 
   const filteredLoans = useMemo(() => {
     const normalized = search.trim().toLowerCase()
@@ -472,6 +535,12 @@ export default function DashboardClient({
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+        {loadError && (
+          <div className="mb-4 rounded-2xl bg-danger/10 px-4 py-3 text-sm text-danger">
+            {loadError}
+          </div>
+        )}
+
         <section className="dashboard-hero mb-6 rounded-[28px] p-6 text-white shadow-soft md:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
             <div>
@@ -559,13 +628,19 @@ export default function DashboardClient({
                 قائمة السلف
               </div>
               <div className="divide-y divide-slate-100">
+                {isLoadingLoans && (
+                  <div className="px-6 py-12 text-center text-sm text-slate-500">
+                    جاري تحميل السلف...
+                  </div>
+                )}
                 {filteredLoans.length === 0 && (
                   <div className="px-6 py-12 text-center text-sm text-slate-500">
                     لا توجد معاملات مطابقة لنتيجة البحث الحالية.
                   </div>
                 )}
 
-                {filteredLoans.map((loan) => {
+                {!isLoadingLoans &&
+                  filteredLoans.map((loan) => {
                   const overdueDays = Math.max(0, workDaysSince(loan.endDate) - 15)
 
                   return (
