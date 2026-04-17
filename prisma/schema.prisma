@@ -3,13 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Loan {
-  id          String       @id @default(uuid())
-  refNumber   String       @unique
+  id          String   @id @default(uuid())
+  refNumber   String   @unique
   employee    String
   activity    String
   location    String?
@@ -17,9 +18,9 @@ model Loan {
   startDate   DateTime
   endDate     DateTime
   files       Json?
-  isSettled   Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-
+  isSettled   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
   settlement  Settlement?
   items       LoanItem[]
 
@@ -32,7 +33,7 @@ model LoanItem {
   amount   Float
   loanId   String
   loan     Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
-
+  
   @@map("loan_items")
 }
 

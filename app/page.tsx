@@ -2,7 +2,13 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { numberToArabicWords } from '@/lib/utils';
 
-// أيقونات SVG مدمجة مباشرة لتجنب المكتبات الخارجية
+// ==========================================================
+// هذا السطر يمنع حدوث خطأ "Prerender Error" في Vercel
+// ويجعل الصفحة تعمل كـ Dynamic Server Component
+// ==========================================================
+export const dynamic = 'force-dynamic';
+
+// أيقونات SVG مدمجة لتصميم احترافي بدون مكتبات خارجية
 const Icons = {
   Wallet: () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12h.01"/></svg>
@@ -25,18 +31,26 @@ const Icons = {
 };
 
 export default async function Home() {
-  // جلب البيانات
-  const loans = await prisma.loan.findMany({ 
-    orderBy: { createdAt: 'desc' },
-    take: 5 // أحدث 5 سلف لعرضها
-  });
-  
-  const stats = {
-    total: loans.length,
-    active: loans.filter(l => !l.isSettled).length,
-    settled: loans.filter(l => l.isSettled).length,
-    totalAmount: loans.reduce((sum, l) => sum + l.amount, 0),
-  };
+  // 1. جلب البيانات من قاعدة البيانات
+  let loans = [];
+  let stats = { total: 0, active: 0, settled: 0, totalAmount: 0 };
+
+  try {
+    loans = await prisma.loan.findMany({ 
+      orderBy: { createdAt: 'desc' },
+      take: 5 
+    });
+
+    stats = {
+      total: loans.length,
+      active: loans.filter(l => !l.isSettled).length,
+      settled: loans.filter(l => l.isSettled).length,
+      totalAmount: loans.reduce((sum, l) => sum + l.amount, 0),
+    };
+  } catch (error) {
+    console.error("Database Connection Error:", error);
+    // في حال فشل الاتصال، ستبقى المصفوفات فارغة ولن يتعطل الموقع
+  }
 
   const today = new Date().toLocaleDateString('ar-SA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -44,7 +58,7 @@ export default async function Home() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800">
       
       {/* --- الهيدر العلوي --- */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-primary tracking-tight">نظام السلف النقدية</h1>
@@ -164,36 +178,37 @@ export default async function Home() {
 
           {/* عمود اليمين: إجراءات سريعة */}
           <div className="space-y-6">
+            
             {/* بطاقة التسوية */}
             <div className="bg-gradient-to-br from-secondary/10 to-orange-50 border border-secondary/20 rounded-2xl p-6">
               <h3 className="font-bold text-secondary mb-2">تسوية سلفة</h3>
               <p className="text-sm text-slate-600 mb-4 leading-relaxed">
-                هل لديك سلفة فعالة تريد تسويتها؟ أدخل الرقم المرجعي للبدء.
+                هل لديك سلفة فعالة تريد تسويتها؟ اضغط أدناه للبحث والبدء.
               </p>
               <Link 
                 href="/loans" 
                 className="block w-full text-center bg-secondary text-white py-2.5 rounded-xl font-bold text-sm hover:bg-secondary/90 transition-colors shadow-sm"
               >
-                البحث عن سلفة للتسوية
+                البحث عن سلفة
               </Link>
             </div>
 
-            {/* بطاقة التنبيهات (مثال) */}
+            {/* بطاقة التنبيهات */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6">
-              <h3 className="font-bold text-slate-700 mb-4">تنبيهات النظام</h3>
+              <h3 className="font-bold text-slate-700 mb-4">تنبيهات هامة</h3>
               <div className="space-y-3">
                 <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 shrink-0"></div>
                   <div>
-                    <p className="text-sm font-medium text-blue-900">نظام محدث</p>
-                    <p className="text-xs text-blue-700">تم إضافة دعم العملات الأجنبية.</p>
+                    <p className="text-sm font-medium text-blue-900">تذكير نظامي</p>
+                    <p className="text-xs text-blue-700">يجب تسوية السلف خلال 15 يوم عمل من تاريخ انتهاء النشاط.</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 bg-green-50 p-3 rounded-xl">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2 shrink-0"></div>
                   <div>
-                    <p className="text-sm font-medium text-green-900">تذكير</p>
-                    <p className="text-xs text-green-700">تأكد من تسوية السلف خلال 15 يوم عمل.</p>
+                    <p className="text-sm font-medium text-green-900">تحديثات</p>
+                    <p className="text-xs text-green-700">تم إضافة دعم العملات الأجنبية في نموذج التسوية.</p>
                   </div>
                 </div>
               </div>
