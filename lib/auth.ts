@@ -1,7 +1,6 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import type { UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 
@@ -12,7 +11,7 @@ export type SessionUser = {
   userId: string
   fullName: string
   email: string
-  role: UserRole
+  role: 'EMPLOYEE' | 'ADMIN'
 }
 
 function toBase64Url(value: string) {

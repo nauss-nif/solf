@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       userId: user.id,
       fullName: user.fullName,
       email: user.email,
-      role: user.role,
+      role: user.role as 'EMPLOYEE' | 'ADMIN',
     })
 
     return NextResponse.json({ success: true, role: user.role })
