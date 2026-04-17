@@ -1,4 +1,8 @@
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
+
+// هذا السطر ضروري لمنع الخطأ
+export const dynamic = 'force-dynamic';
 
 // بيانات تجريبية للعرض فقط (بدون قاعدة بيانات)
 const demoLoans = [
