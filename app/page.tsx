@@ -37,7 +37,9 @@ export default async function Home() {
           savings: loan.settlement.savings,
           overage: loan.settlement.overage,
           createdAt: loan.settlement.createdAt.toISOString(),
-          invoices: loan.settlement.invoices,
+          invoices: loan.settlement.invoices
+            ? JSON.parse(JSON.stringify(loan.settlement.invoices))
+            : null,
         }
       : null,
   }))
