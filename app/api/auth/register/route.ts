@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureDefaultAdmin, hashPassword, setSessionCookie } from '@/lib/auth'
-import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function POST(request: Request) {
   try {
-    await ensureDatabaseSetup()
+    await ensureAuthSetup()
     await ensureDefaultAdmin()
     const body = await request.json()
 

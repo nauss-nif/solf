@@ -4,12 +4,12 @@ import './globals.css'
 
 const cairo = Cairo({
   subsets: ['arabic'],
-  weight: ['400', '500', '600'],
+  weight: ['400', '500'],
 })
 
 export const metadata: Metadata = {
   title: 'منصة طلب السلف المؤقتة',
-  description: 'وكالة التدريب بجامعة نايف العربية للعلوم الأمنية',
+  description: 'وكالة التدريب بجامعة نايف العربية للعلوم الامنية',
 }
 
 export default function RootLayout({

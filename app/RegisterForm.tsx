@@ -97,9 +97,9 @@ export default function RegisterForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+        className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-medium text-white disabled:opacity-60"
       >
-        {isPending ? 'جاري إنشاء الحساب...' : 'إنشاء حساب جديد'}
+        {isPending ? 'جارٍ إنشاء الحساب...' : 'إنشاء حساب جديد'}
       </button>
     </form>
   )
@@ -108,7 +108,7 @@ export default function RegisterForm() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-sm font-semibold text-slate-600">{label}</span>
+      <span className="mb-2 block text-sm font-normal text-slate-600">{label}</span>
       {children}
     </label>
   )

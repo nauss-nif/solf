@@ -36,7 +36,7 @@ export default function LoginForm() {
       }}
     >
       <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-600">البريد الرسمي</label>
+        <label className="mb-2 block text-sm font-normal text-slate-600">البريد الرسمي</label>
         <input
           type="email"
           value={email}
@@ -47,7 +47,7 @@ export default function LoginForm() {
       </div>
 
       <div>
-        <label className="mb-2 block text-sm font-semibold text-slate-600">كلمة المرور</label>
+        <label className="mb-2 block text-sm font-normal text-slate-600">كلمة المرور</label>
         <input
           type="password"
           value={password}
@@ -61,9 +61,9 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+        className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-medium text-white disabled:opacity-60"
       >
-        {isPending ? 'جاري الدخول...' : 'تسجيل الدخول'}
+        {isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
       </button>
     </form>
   )

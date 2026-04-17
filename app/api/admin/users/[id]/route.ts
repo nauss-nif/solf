@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser, hashPassword } from '@/lib/auth'
-import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
 ) {
   try {
-    await ensureDatabaseSetup()
+    await ensureAuthSetup()
     const currentUser = getSessionUser()
     if (!currentUser || currentUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -53,7 +53,7 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   try {
-    await ensureDatabaseSetup()
+    await ensureAuthSetup()
     const currentUser = getSessionUser()
     if (!currentUser || currentUser.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

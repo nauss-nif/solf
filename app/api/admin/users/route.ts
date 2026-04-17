@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureDefaultAdmin, getSessionUser } from '@/lib/auth'
-import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function GET() {
   try {
-    await ensureDatabaseSetup()
+    await ensureAuthSetup()
     await ensureDefaultAdmin()
     const currentUser = getSessionUser()
     if (!currentUser || currentUser.role !== 'ADMIN') {

@@ -1,8 +1,9 @@
 import { prisma } from '@/lib/prisma'
 
 let setupPromise: Promise<void> | null = null
+let authSetupPromise: Promise<void> | null = null
 
-async function runSetup() {
+async function runAuthSetup() {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "users" (
       "id" TEXT PRIMARY KEY,
@@ -19,6 +20,20 @@ async function runSetup() {
   `)
 
   await prisma.$executeRawUnsafe(`
+    ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'EMPLOYEE';
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'ACTIVE';
+  `)
+}
+
+async function runSetup() {
+  await runAuthSetup()
+
+  await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "loans" (
       "id" TEXT PRIMARY KEY,
       "refNumber" TEXT NOT NULL UNIQUE,
@@ -33,56 +48,6 @@ async function runSetup() {
       "isSettled" BOOLEAN NOT NULL DEFAULT FALSE,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "userId" TEXT;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "employee" TEXT;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "activity" TEXT;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "location" TEXT;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "amount" DOUBLE PRECISION;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "startDate" TIMESTAMP(3);
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "endDate" TIMESTAMP(3);
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "files" JSONB;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "isSettled" BOOLEAN NOT NULL DEFAULT FALSE;
-  `)
-
-  await prisma.$executeRawUnsafe(`
-    ALTER TABLE "loans"
-    ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
   `)
 
   await prisma.$executeRawUnsafe(`
@@ -115,6 +80,17 @@ async function runSetup() {
   await prisma.$executeRawUnsafe(`
     CREATE UNIQUE INDEX IF NOT EXISTS "settlements_loanId_key" ON "settlements"("loanId");
   `)
+}
+
+export async function ensureAuthSetup() {
+  if (!authSetupPromise) {
+    authSetupPromise = runAuthSetup().catch((error) => {
+      authSetupPromise = null
+      throw error
+    })
+  }
+
+  await authSetupPromise
 }
 
 export async function ensureDatabaseSetup() {
