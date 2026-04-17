@@ -1,7 +1,15 @@
+import { requireSessionUser } from '@/lib/auth'
 import DashboardClient, { type LoanDashboardRecord } from './DashboardClient'
 
 export const dynamic = 'force-dynamic'
 
 export default function Home() {
-  return <DashboardClient initialLoans={[] as LoanDashboardRecord[]} />
+  const currentUser = requireSessionUser()
+
+  return (
+    <DashboardClient
+      currentUser={currentUser}
+      initialLoans={[] as LoanDashboardRecord[]}
+    />
+  )
 }

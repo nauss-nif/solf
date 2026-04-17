@@ -1,23 +1,43 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSessionUser } from '@/lib/auth'
+import { ensureDatabaseSetup } from '@/lib/database-setup'
 
 export async function GET() {
-  const loans = await prisma.loan.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { items: true, settlement: true },
-  })
-  return NextResponse.json(loans)
+  try {
+    await ensureDatabaseSetup()
+    const currentUser = getSessionUser()
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const loans = await prisma.loan.findMany({
+      where: currentUser.role === 'ADMIN' ? undefined : { userId: currentUser.userId },
+      orderBy: { createdAt: 'desc' },
+      include: { items: true, settlement: true },
+    })
+    return NextResponse.json(loans)
+  } catch {
+    return NextResponse.json({ error: 'Failed to load loans' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseSetup()
+    const currentUser = getSessionUser()
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
     const items = Array.isArray(body.items) ? body.items : []
 
     const loan = await prisma.loan.create({
       data: {
         refNumber: body.refNumber,
-        employee: body.employee,
+        userId: currentUser.userId,
+        employee: currentUser.fullName,
         activity: body.activity,
         location: body.location,
         amount: body.amount,
@@ -34,7 +54,10 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json(loan)
-  } catch {
-    return NextResponse.json({ error: 'Error creating loan' }, { status: 500 })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Error creating loan' },
+      { status: 500 },
+    )
   }
 }

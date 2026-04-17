@@ -8,9 +8,37 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+enum UserRole {
+  EMPLOYEE
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  fullName     String
+  email        String     @unique
+  mobile       String
+  extension    String
+  passwordHash String
+  role         UserRole   @default(EMPLOYEE)
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  loans        Loan[]
+
+  @@map("users")
+}
+
 model Loan {
   id          String   @id @default(uuid())
   refNumber   String   @unique
+  userId      String?
   employee    String
   activity    String
   location    String?
@@ -21,6 +49,7 @@ model Loan {
   isSettled   Boolean  @default(false)
   createdAt   DateTime @default(now())
   
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   settlement  Settlement?
   items       LoanItem[]
 

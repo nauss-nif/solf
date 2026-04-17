@@ -36,6 +36,13 @@ export type LoanDashboardRecord = {
   settlement: SettlementRecord | null
 }
 
+type CurrentUser = {
+  userId: string
+  fullName: string
+  email: string
+  role: 'EMPLOYEE' | 'ADMIN'
+}
+
 type ExpenseDraft = {
   category: string
   amount: string
@@ -124,8 +131,10 @@ function generateRef(loans: LoanDashboardRecord[]) {
 }
 
 export default function DashboardClient({
+  currentUser,
   initialLoans,
 }: {
+  currentUser: CurrentUser
   initialLoans: LoanDashboardRecord[]
 }) {
   const router = useRouter()
@@ -144,7 +153,7 @@ export default function DashboardClient({
   const [settlementError, setSettlementError] = useState('')
   const [loanForm, setLoanForm] = useState({
     refNumber: generateRef(initialLoans),
-    employee: '',
+    employee: currentUser.fullName,
     activity: '',
     location: '',
     startDate: '',
@@ -324,7 +333,7 @@ export default function DashboardClient({
     setLoanError('')
     setLoanForm({
       refNumber: generateRef(loans),
-      employee: '',
+      employee: currentUser.fullName,
       activity: '',
       location: '',
       startDate: '',
@@ -528,8 +537,31 @@ export default function DashboardClient({
             </div>
           </div>
 
-          <div className="rounded-full border border-primary/10 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary md:text-sm">
-            جامعة نايف العربية للعلوم الأمنية
+          <div className="flex items-center gap-3">
+            {currentUser.role === 'ADMIN' && (
+              <button
+                type="button"
+                onClick={() => router.push('/admin')}
+                className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-bold text-primary"
+              >
+                إدارة النظام
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch('/api/auth/logout', { method: 'POST' })
+                router.push('/login')
+                router.refresh()
+              }}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600"
+            >
+              تسجيل الخروج
+            </button>
+            <div className="rounded-full border border-primary/10 bg-primary/5 px-4 py-2 text-right text-xs font-semibold text-primary md:text-sm">
+              <div>{currentUser.fullName}</div>
+              <div className="text-[11px] text-slate-500">{currentUser.email}</div>
+            </div>
           </div>
         </div>
       </header>
@@ -544,15 +576,9 @@ export default function DashboardClient({
         <section className="dashboard-hero mb-6 rounded-[28px] p-6 text-white shadow-soft md:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
             <div>
-              <p className="mb-3 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">
-                لوحة حديثة مبنية على المرجع الأصلي
-              </p>
-              <h2 className="mb-3 text-2xl font-bold md:text-4xl">
-                اطلب السلفة وسوِّها من نفس الشاشة
-              </h2>
+              <h2 className="mb-2 text-2xl font-bold md:text-4xl">لوحة السلف المؤقتة</h2>
               <p className="max-w-2xl text-sm leading-7 text-white/85 md:text-base">
-                تم حذف مراحل الاعتماد بالكامل وتحويل التجربة إلى واجهة موظف مباشرة، مع
-                الحفاظ على بنية التبويبات، الملخصات، والمودالات الكبيرة بأسلوب مؤسسي حديث.
+                إدارة الطلبات والتسويات من حساب الموظف.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button
@@ -600,18 +626,14 @@ export default function DashboardClient({
                 className="rounded-[24px] bg-primary p-5 text-right text-white shadow-soft transition hover:-translate-y-0.5"
               >
                 <p className="text-lg font-bold">نموذج 18 - طلب سلفة</p>
-                <p className="mt-2 text-sm text-white/80">
-                  إنشاء طلب جديد مع أوجه الصرف والمبلغ الإجمالي بشكل مباشر.
-                </p>
+                <p className="mt-2 text-sm text-white/80">طلب جديد</p>
               </button>
 
               <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-soft">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h3 className="text-base font-bold text-slate-900">طلبات الموظف</h3>
-                    <p className="text-sm text-slate-500">
-                      جميع الطلبات والتسويات من شاشة واحدة
-                    </p>
+                    <p className="text-sm text-slate-500">قائمة الطلبات والسلف المسجلة</p>
                   </div>
                   <input
                     value={search}
@@ -860,9 +882,7 @@ export default function DashboardClient({
           <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-soft">
             <div className="mb-4 rounded-[24px] bg-primary px-5 py-4 text-white">
               <h3 className="text-lg font-bold">تعليمات عامة</h3>
-              <p className="mt-1 text-sm text-white/80">
-                نسخة مبسطة للموظف فقط بدون اعتماد متعدد المراحل.
-              </p>
+              <p className="mt-1 text-sm text-white/80">إرشادات مختصرة للاستخدام.</p>
             </div>
 
             <div className="space-y-4">
@@ -889,7 +909,7 @@ export default function DashboardClient({
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
               <div>
                 <h3 className="text-lg font-bold text-primary">نموذج 18 - طلب سلفة</h3>
-                <p className="text-sm text-slate-500">إدخال البيانات وأوجه الصرف من نافذة واحدة</p>
+                <p className="text-sm text-slate-500">إدخال بيانات الطلب</p>
               </div>
               <button
                 type="button"
@@ -906,13 +926,7 @@ export default function DashboardClient({
                   <input value={loanForm.refNumber} readOnly className="input-shell bg-slate-100" />
                 </Field>
                 <Field label="اسم الموظف">
-                  <input
-                    value={loanForm.employee}
-                    onChange={(event) =>
-                      setLoanForm((current) => ({ ...current, employee: event.target.value }))
-                    }
-                    className="input-shell"
-                  />
+                  <input value={loanForm.employee} readOnly className="input-shell bg-slate-100" />
                 </Field>
                 <Field label="مكان التنفيذ">
                   <input
