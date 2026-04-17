@@ -2,6 +2,78 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: #f3f4f6;
+  color: #0f172a;
+}
+
+.bg-app-gradient {
+  background:
+    radial-gradient(circle at top right, rgba(1, 101, 100, 0.16), transparent 30%),
+    radial-gradient(circle at top left, rgba(208, 178, 132, 0.16), transparent 24%),
+    linear-gradient(180deg, #f8fbfb 0%, #f2f5f5 100%);
+}
+
+.dashboard-hero {
+  background:
+    linear-gradient(135deg, rgba(1, 101, 100, 0.98), rgba(1, 77, 76, 0.94)),
+    linear-gradient(45deg, rgba(208, 178, 132, 0.3), transparent 60%);
+}
+
+.shadow-soft {
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 24px;
+  backdrop-filter: blur(8px);
+}
+
+.modal-overlay.active {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 1100px;
+  overflow: hidden;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
+}
+
+.input-shell {
+  width: 100%;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0.875rem 1rem;
+  font-size: 0.95rem;
+  color: #0f172a;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.input-shell:focus {
+  border-color: #016564;
+  box-shadow: 0 0 0 4px rgba(1, 101, 100, 0.12);
+}
+
+.input-shell::placeholder {
+  color: #94a3b8;
 }
