@@ -31,6 +31,8 @@ export type LoanDashboardRecord = {
   startDate: string
   endDate: string
   createdAt: string
+  updatedAt?: string
+  printedAt: string | null
   isSettled: boolean
   items: LoanItemRecord[]
   settlement: SettlementRecord | null
@@ -154,6 +156,8 @@ function normalizeLoanRecord(loan: {
   startDate: string
   endDate: string
   createdAt: string
+  updatedAt?: string
+  printedAt?: string | null
   isSettled: boolean
   items: LoanItemRecord[]
   settlement: SettlementRecord | null
@@ -161,6 +165,7 @@ function normalizeLoanRecord(loan: {
   return {
     ...loan,
     location: loan.location ?? '',
+    printedAt: loan.printedAt ?? null,
   }
 }
 
@@ -185,6 +190,7 @@ export default function DashboardClient({
   const [loanModalOpen, setLoanModalOpen] = useState(false)
   const [settlementModalOpen, setSettlementModalOpen] = useState(false)
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null)
+  const [editingLoanId, setEditingLoanId] = useState<string | null>(null)
   const [loanError, setLoanError] = useState('')
   const [settlementError, setSettlementError] = useState('')
   const [savedDocument, setSavedDocument] = useState<null | {
@@ -226,6 +232,8 @@ export default function DashboardClient({
           startDate: string
           endDate: string
           createdAt: string
+          updatedAt?: string
+          printedAt?: string | null
           isSettled: boolean
           items: LoanItemRecord[]
           settlement: {
@@ -310,6 +318,16 @@ export default function DashboardClient({
     }
   }, [loans])
 
+  const loanTotals = useMemo(() => {
+    const totalLoanAmount = loans.reduce((sum, loan) => sum + loan.amount, 0)
+    const totalSettledAmount = loans.reduce((sum, loan) => sum + (loan.settlement?.total ?? 0), 0)
+
+    return {
+      totalLoanAmount,
+      totalSettledAmount,
+    }
+  }, [loans])
+
   const categoryReport = useMemo(() => {
     const totals = new Map<string, number>()
 
@@ -376,6 +394,7 @@ export default function DashboardClient({
   function openLoanModal() {
     setLoanError('')
     setSavedDocument(null)
+    setEditingLoanId(null)
     setLoanForm({
       refNumber: generateRef(loans),
       employee: currentUser.fullName,
@@ -385,6 +404,32 @@ export default function DashboardClient({
       endDate: '',
     })
     setExpenses([{ category: '', amount: '' }])
+    setLoanModalOpen(true)
+  }
+
+  function openEditLoanModal(loanId: string) {
+    const loan = loans.find((item) => item.id === loanId)
+    if (!loan || loan.printedAt || loan.isSettled) return
+
+    setLoanError('')
+    setSavedDocument(null)
+    setEditingLoanId(loan.id)
+    setLoanForm({
+      refNumber: loan.refNumber,
+      employee: loan.employee,
+      activity: loan.activity,
+      location: loan.location,
+      startDate: loan.startDate.slice(0, 10),
+      endDate: loan.endDate.slice(0, 10),
+    })
+    setExpenses(
+      loan.items.length > 0
+        ? loan.items.map((item) => ({
+            category: item.category,
+            amount: String(item.amount),
+          }))
+        : [{ category: '', amount: '' }],
+    )
     setLoanModalOpen(true)
   }
 
@@ -409,17 +454,62 @@ export default function DashboardClient({
   }
 
   function openPrintDocument(kind: 'loan' | 'settlement', loanId: string) {
+    if (kind === 'loan') {
+      setLoans((current) =>
+        current.map((loan) =>
+          loan.id === loanId && !loan.printedAt
+            ? { ...loan, printedAt: new Date().toISOString() }
+            : loan,
+        ),
+      )
+    }
+
     const href =
       kind === 'loan' ? `/print/loans/${loanId}` : `/print/settlements/${loanId}`
 
     window.open(href, '_blank', 'noopener,noreferrer')
+    router.refresh()
   }
 
   function exportWordDocument(kind: 'loan' | 'settlement', loanId: string) {
+    if (kind === 'loan') {
+      setLoans((current) =>
+        current.map((loan) =>
+          loan.id === loanId && !loan.printedAt
+            ? { ...loan, printedAt: new Date().toISOString() }
+            : loan,
+        ),
+      )
+    }
+
     const href =
       kind === 'loan' ? `/api/loans/${loanId}/word` : `/api/settlements/${loanId}/word`
 
     window.open(href, '_blank', 'noopener,noreferrer')
+    router.refresh()
+  }
+
+  async function deleteLoan(loanId: string) {
+    const confirmed = window.confirm('سيتم حذف طلب السلفة نهائيًا قبل طباعته. هل تريد المتابعة؟')
+    if (!confirmed) return
+
+    startTransition(async () => {
+      const response = await fetch(`/api/loans/${loanId}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setLoadError(
+          typeof data?.error === 'string' ? data.error : 'تعذر حذف طلب السلفة.',
+        )
+        return
+      }
+
+      setLoadError('')
+      setLoans((current) => current.filter((loan) => loan.id !== loanId))
+      router.refresh()
+    })
   }
 
   function updateExpense(index: number, field: keyof ExpenseDraft, value: string) {
@@ -464,8 +554,9 @@ export default function DashboardClient({
     const total = cleanExpenses.reduce((sum, item) => sum + item.amount, 0)
 
     startTransition(async () => {
-      const response = await fetch('/api/loans', {
-        method: 'POST',
+      const isEditing = Boolean(editingLoanId)
+      const response = await fetch(isEditing ? `/api/loans/${editingLoanId}` : '/api/loans', {
+        method: isEditing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...loanForm,
@@ -490,10 +581,15 @@ export default function DashboardClient({
       }
 
       if (createdLoan) {
-        setLoans((current) => [createdLoan, ...current])
+        setLoans((current) =>
+          isEditing
+            ? current.map((loan) => (loan.id === createdLoan.id ? createdLoan : loan))
+            : [createdLoan, ...current],
+        )
         setSavedDocument({ kind: 'loan', loanId: createdLoan.id })
       }
 
+      setEditingLoanId(null)
       setLoanModalOpen(false)
       setLoanError('')
       router.refresh()
@@ -695,7 +791,15 @@ export default function DashboardClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <MiniStat
+                label="إجمالي السلف المؤقتة"
+                value={`${loanTotals.totalLoanAmount.toLocaleString()} ر.س`}
+              />
+              <MiniStat
+                label="إجمالي ما تمت تسويته"
+                value={`${loanTotals.totalSettledAmount.toLocaleString()} ر.س`}
+              />
               <StatCard label="إجمالي السلف" value={stats.total} accent="primary" />
               <StatCard label="نشطة" value={stats.pending} accent="warning" />
               <StatCard label="مسوّاة" value={stats.settled} accent="success" />
@@ -857,6 +961,24 @@ export default function DashboardClient({
                         >
                           تنزيل Word
                         </button>
+                        {!loan.printedAt && !loan.isSettled && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openEditLoanModal(loan.id)}
+                              className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-2 text-xs font-medium text-primary transition hover:bg-primary/10"
+                            >
+                              تعديل
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteLoan(loan.id)}
+                              className="rounded-2xl border border-danger/20 bg-danger/5 px-4 py-2 text-xs font-medium text-danger transition hover:bg-danger/10"
+                            >
+                              حذف
+                            </button>
+                          </>
+                        )}
                         {!loan.isSettled && (
                           <button
                             type="button"

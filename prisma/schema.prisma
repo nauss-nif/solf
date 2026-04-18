@@ -38,6 +38,8 @@ model Loan {
   files       Json?
   isSettled   Boolean  @default(false)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  printedAt   DateTime?
   
   user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   settlement  Settlement?

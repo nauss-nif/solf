@@ -12,6 +12,8 @@ function serializeLoanRecord(loan: any): LoanDashboardRecord {
     startDate: new Date(loan.startDate).toISOString(),
     endDate: new Date(loan.endDate).toISOString(),
     createdAt: new Date(loan.createdAt).toISOString(),
+    updatedAt: loan.updatedAt ? new Date(loan.updatedAt).toISOString() : undefined,
+    printedAt: loan.printedAt ? new Date(loan.printedAt).toISOString() : null,
     settlement: loan.settlement
       ? {
           ...loan.settlement,

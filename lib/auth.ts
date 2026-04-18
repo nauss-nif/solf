@@ -6,6 +6,7 @@ import { ensureAuthSetup } from '@/lib/database-setup'
 
 const SESSION_COOKIE = 'naif_session'
 const AUTH_SECRET = process.env.AUTH_SECRET ?? 'change-this-auth-secret'
+let defaultAdminPromise: Promise<void> | null = null
 
 export type SessionUser = {
   userId: string
@@ -96,24 +97,33 @@ export function clearSessionCookie() {
 }
 
 export async function ensureDefaultAdmin() {
-  await ensureAuthSetup()
-  const adminEmail = 'od@nauss.edu.sa'
-  const existing = await prisma.user.findUnique({
-    where: { email: adminEmail },
-    select: { id: true },
-  })
+  if (!defaultAdminPromise) {
+    defaultAdminPromise = (async () => {
+      await ensureAuthSetup()
+      const adminEmail = 'od@nauss.edu.sa'
+      const existing = await prisma.user.findUnique({
+        where: { email: adminEmail },
+        select: { id: true },
+      })
 
-  if (existing) return
+      if (existing) return
 
-  await prisma.user.create({
-    data: {
-      fullName: 'مدير النظام',
-      email: adminEmail,
-      mobile: '0500000000',
-      extension: '0000',
-      passwordHash: hashPassword('Zx.321321'),
-      role: 'ADMIN',
-      status: 'ACTIVE',
-    },
-  })
+      await prisma.user.create({
+        data: {
+          fullName: 'مدير النظام',
+          email: adminEmail,
+          mobile: '0500000000',
+          extension: '0000',
+          passwordHash: hashPassword('Zx.321321'),
+          role: 'ADMIN',
+          status: 'ACTIVE',
+        },
+      })
+    })().catch((error) => {
+      defaultAdminPromise = null
+      throw error
+    })
+  }
+
+  await defaultAdminPromise
 }

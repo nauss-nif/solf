@@ -46,8 +46,20 @@ async function runSetup() {
       "endDate" TIMESTAMP(3) NOT NULL,
       "files" JSONB,
       "isSettled" BOOLEAN NOT NULL DEFAULT FALSE,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "printedAt" TIMESTAMP(3)
     );
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "printedAt" TIMESTAMP(3);
   `)
 
   await prisma.$executeRawUnsafe(`

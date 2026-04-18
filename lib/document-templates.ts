@@ -84,77 +84,171 @@ function formatNumber(value: number) {
   }).format(value)
 }
 
-function documentShell(title: string, body: string) {
-  return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <title>${escapeHtml(title)}</title>
+function printShell(body: string) {
+  return `
   <style>
-    @page { size: A4; margin: 16mm 12mm; }
-    body {
-      margin: 0;
-      font-family: "Cairo", Tahoma, Arial, sans-serif;
-      direction: rtl;
+    @page { size: A4; margin: 10mm; }
+    .print-sheet {
+      width: 190mm;
+      min-height: 277mm;
+      margin: 0 auto;
+      background: #fff;
       color: #111827;
-      background: #ffffff;
-      font-size: 13px;
+      font-family: "Cairo", Tahoma, Arial, sans-serif;
+      font-size: 14px;
       line-height: 1.7;
     }
-    .page {
-      width: 100%;
-      max-width: 185mm;
-      margin: 0 auto;
-    }
-    .title {
+    .print-title {
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      font-weight: 700;
     }
-    .title h1,
-    .title h2,
-    .title p {
+    .print-title h1,
+    .print-title h2 {
       margin: 0;
-      font-weight: 400;
+      font-size: 18px;
+      line-height: 1.5;
     }
-    .title h1 { font-size: 22px; margin-bottom: 3px; }
-    .title h2 { font-size: 18px; margin-bottom: 4px; }
-    .section { margin-bottom: 12px; }
-    .text { margin: 0 0 6px; }
-    table.grid {
+    .print-title p {
+      margin: 2px 0 0;
+      font-size: 13px;
+    }
+    .reference-line {
+      text-align: right;
+      margin: 8px 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .formal-text {
+      text-align: right;
+      margin-bottom: 10px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .formal-text p {
+      margin: 0 0 4px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 24px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .meta-label {
+      font-weight: 700;
+    }
+    .meta-value {
+      flex: 1;
+      text-align: right;
+      border-bottom: 1px dotted #111827;
+      min-height: 20px;
+      padding-inline: 4px;
+    }
+    .choice-line {
+      display: flex;
+      gap: 28px;
+      margin: 4px 0 10px;
+      font-size: 14px;
+    }
+    .choice-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .box {
+      width: 14px;
+      height: 14px;
+      border: 1px solid #111827;
+      display: inline-block;
+    }
+    table.form-grid {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 12px;
-    }
-    table.grid td,
-    table.grid th {
-      border: 1px solid #111827;
-      padding: 6px 8px;
-      vertical-align: top;
-      font-weight: 400;
-    }
-    table.grid th {
-      text-align: center;
-      background: #f8fafc;
-    }
-    .inline-field {
-      display: inline-block;
-      min-width: 140px;
-      border-bottom: 1px dotted #111827;
-      padding: 0 4px 2px;
-      margin-inline: 3px;
-    }
-    .signature {
       margin-top: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    table.form-grid th,
+    table.form-grid td {
+      border: 1px solid #111827;
+      padding: 4px 6px;
+      vertical-align: middle;
+      text-align: center;
+    }
+    table.form-grid th {
+      background: #ececec;
+      font-weight: 700;
+    }
+    .text-right { text-align: right !important; }
+    .totals-table {
+      margin-top: 12px;
+      margin-right: auto;
+      width: 54%;
+    }
+    .official-inline {
+      display: grid;
+      grid-template-columns: 1.2fr 1.5fr 1fr;
+      gap: 8px;
+      align-items: center;
+      margin: 10px 0 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .official-panel {
+      border: 1px solid #b9b9b9;
+      background: #dedede;
+      border-radius: 14px;
+      padding: 12px 16px;
+      margin-top: 8px;
+      min-height: 118px;
+    }
+    .official-panel h3 {
+      margin: 0 0 10px;
+      text-align: right;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .official-panel p {
+      margin: 0 0 8px;
+    }
+    .official-panel .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .signature-line {
+      display: inline-block;
+      min-width: 120px;
+      border-bottom: 1px dotted #111827;
+      height: 20px;
+      vertical-align: middle;
+    }
+    .approval-choice {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-inline-start: 14px;
+    }
+    .spacer-sm {
+      height: 6px;
+    }
+    @media print {
+      .print-sheet {
+        width: 100%;
+        min-height: auto;
+      }
     }
   </style>
-</head>
-<body>
-  <div class="page">
-    ${body}
-  </div>
-</body>
-</html>`
+  <div class="print-sheet">${body}</div>`
 }
 
 function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
@@ -275,67 +369,104 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
     .map(
       (item) => `
         <tr>
-          <td style="width:40px; text-align:center;">${item.index}</td>
-          <td style="width:120px; text-align:center;">${item.amount}</td>
-          <td>${escapeHtml(item.category)}</td>
-          <td style="width:170px;"></td>
+          <td style="width:5%;">${item.index}.</td>
+          <td style="width:15%;">${item.amount}</td>
+          <td class="text-right">${escapeHtml(item.category)}</td>
+          <td style="width:28%;"></td>
         </tr>
       `,
     )
     .join('')
 
   const body = `
-    <div class="title">
+    <div class="print-title">
       <h2>نموذج رقم 18</h2>
       <h1>طلب صرف سلفة مؤقتة للعمل</h1>
-      <p>الرقم المرجعي: ${escapeHtml(loan.refNumber)}</p>
+    </div>
+    <div class="reference-line">رقم مرجعي: ${escapeHtml(loan.refNumber)}</div>
+
+    <div class="formal-text">
+      <p>معالي رئيس الجامعة</p>
+      <p>السلام عليكم ورحمة الله وبركاته</p>
+      <p>آمل الموافقة على صرف سلفة نقدية مؤقتة وفق ما يلي:</p>
     </div>
 
-    <div class="section">
-      <p class="text">معالي رئيس الجامعة</p>
-      <p class="text">السلام عليكم ورحمة الله وبركاته،</p>
-      <p class="text">آمل الموافقة على صرف سلفة نقدية مؤقتة وفق البيانات التالية:</p>
+    <div class="meta-grid">
+      <div class="meta-row"><span class="meta-label">مبلغ السلفة رقمًا:</span><span class="meta-value">${formatNumber(loan.amount)}</span></div>
+      <div class="meta-row"><span class="meta-label">كتابة:</span><span class="meta-value">${escapeHtml(numberToArabicWords(loan.amount))} ريال</span></div>
+      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
+      <div class="choice-line">
+        <span class="choice-item"><span class="box"></span>معتمد في الموازنة</span>
+        <span class="choice-item"><span class="box"></span>غير معتمد</span>
+      </div>
+      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
+      <div class="spacer-sm"></div>
+      <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '—')}</span></div>
+      <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
+      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
     </div>
 
-    <table class="grid">
-      <tr>
-        <td><strong>مبلغ السلفة رقمًا:</strong> ${formatNumber(loan.amount)} ريال</td>
-        <td><strong>كتابة:</strong> ${escapeHtml(numberToArabicWords(loan.amount))}</td>
-      </tr>
-      <tr>
-        <td><strong>اسم النشاط:</strong> ${escapeHtml(loan.activity)}</td>
-        <td><strong>الجهة المنفذة:</strong> وكالة التدريب</td>
-      </tr>
-      <tr>
-        <td><strong>فترة التنفيذ:</strong> من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</td>
-        <td><strong>مكان التنفيذ:</strong> ${escapeHtml(loan.location ?? '—')}</td>
-      </tr>
-      <tr>
-        <td colspan="2"><strong>السلفة باسم الموظف:</strong> ${escapeHtml(loan.employee)}</td>
-      </tr>
-    </table>
-
-    <table class="grid">
+    <table class="form-grid">
       <thead>
         <tr>
-          <th style="width:40px;">م</th>
-          <th style="width:120px;">المبلغ</th>
+          <th style="width:5%;">م</th>
+          <th style="width:15%;">المبلغ</th>
           <th>أوجه الصرف</th>
-          <th style="width:170px;">الملاحظات</th>
+          <th style="width:28%;">الملاحظات</th>
         </tr>
       </thead>
       <tbody>
         ${rows}
+        <tr>
+          <td> </td>
+          <td> </td>
+          <td class="text-right"> </td>
+          <td> </td>
+        </tr>
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="4" style="text-align:left;"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
+          <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
         </tr>
       </tfoot>
     </table>
+
+    <div class="official-inline">
+      <span>مسؤول الجهة:</span>
+      <span>وكيل الجامعة للتدريب</span>
+      <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
+    </div>
+
+    <div class="official-panel">
+      <h3>رأي المراقب المالي:</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>مستوفي</span>
+        <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
+      </p>
+      <div class="row" style="margin-top: 28px;">
+        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+      </div>
+    </div>
+
+    <div class="official-panel">
+      <h3>اعتماد رئيس الجامعة</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>نوافق</span>
+        <span class="approval-choice"><span class="box"></span>لا نوافق</span>
+      </p>
+      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
+      <div class="row" style="margin-top: 28px;">
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 160px;"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+      </div>
+    </div>
   `
 
-  return documentShell(`نموذج 18 - ${loan.refNumber}`, body)
+  return printShell(body)
 }
 
 export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
@@ -344,56 +475,61 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
     .map(
       (row) => `
         <tr>
-          <td style="width:40px; text-align:center;">${row.index}</td>
-          <td>${escapeHtml(row.category)}</td>
-          <td style="width:95px; text-align:center;">${row.amount}</td>
-          <td style="width:110px; text-align:center;">${escapeHtml(row.documentType || '—')}</td>
-          <td style="width:110px; text-align:center;">${escapeHtml(row.documentDate || '—')}</td>
-          <td style="width:160px; text-align:center;">${escapeHtml(row.issuer || '—')}</td>
+          <td style="width:5%;">${row.index}.</td>
+          <td class="text-right">${escapeHtml(row.category)}</td>
+          <td style="width:12%;">${row.amount}</td>
+          <td style="width:11%;">${escapeHtml(row.documentType || '')}</td>
+          <td style="width:14%;">${escapeHtml(row.documentDate || '')}</td>
+          <td style="width:21%;">${escapeHtml(row.issuer || '')}</td>
         </tr>
       `,
     )
     .join('')
 
   const body = `
-    <div class="title">
+    <div class="print-title">
       <h2>نموذج رقم 19</h2>
       <h1>طلب تسوية سلفة مؤقتة</h1>
-      <p>الرقم المرجعي: ${escapeHtml(loan.refNumber)}</p>
+    </div>
+    <div class="reference-line">رقم المرجع: ${escapeHtml(loan.refNumber)}</div>
+
+    <div class="formal-text">
+      <p>لمعالي رئيس الجامعة مع الاحترام والتقدير</p>
+      <p>السلام عليكم ورحمة الله وبركاته</p>
+      <p>آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:</p>
     </div>
 
-    <table class="grid">
-      <tr>
-        <td><strong>اسم النشاط:</strong> ${escapeHtml(loan.activity)}</td>
-        <td><strong>مكان التنفيذ:</strong> ${escapeHtml(loan.location ?? '—')}</td>
-      </tr>
-      <tr>
-        <td><strong>الجهة المنفذة:</strong> وكالة التدريب</td>
-        <td><strong>اسم الموظف:</strong> ${escapeHtml(loan.employee)}</td>
-      </tr>
-      <tr>
-        <td><strong>بداية النشاط:</strong> ${formatDate(loan.startDate)}</td>
-        <td><strong>نهاية النشاط:</strong> ${formatDate(loan.endDate)}</td>
-      </tr>
-    </table>
+    <div class="meta-grid">
+      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '—')}</span></div>
+      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
+      <div></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية النشاط</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية الصرف</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+    </div>
 
-    <table class="grid">
+    <table class="form-grid">
       <thead>
         <tr>
-          <th style="width:40px;">م</th>
+          <th style="width:5%;">م</th>
           <th>أوجه الصرف الفعلية</th>
-          <th style="width:95px;">المبلغ</th>
-          <th style="width:110px;">نوع المستند</th>
-          <th style="width:110px;">التاريخ</th>
-          <th style="width:160px;">الجهة المصدرة</th>
+          <th style="width:12%;">المبلغ<br />الريال</th>
+          <th style="width:11%;">نوعه</th>
+          <th style="width:14%;">تاريخه</th>
+          <th style="width:21%;">الجهة المصدرة له</th>
         </tr>
       </thead>
       <tbody>
         ${rows}
+        <tr><td> </td><td class="text-right"></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td> </td><td class="text-right"></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td> </td><td class="text-right"></td><td></td><td></td><td></td><td></td></tr>
       </tbody>
     </table>
 
-    <table class="grid">
+    <table class="form-grid totals-table">
       <tr>
         <td>المصروفات المؤيدة بمستندات</td>
         <td>${formatNumber(Number(settlement?.supported ?? 0))}</td>
@@ -419,7 +555,48 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
         <td>${formatNumber(Number(settlement?.savings ?? 0))}</td>
       </tr>
     </table>
+
+    <div class="official-inline" style="grid-template-columns: 1.3fr 1fr 0.8fr 1fr;">
+      <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
+      <span>رقم سند القبض</span>
+      <span></span>
+      <span>تاريخه</span>
+    </div>
+    <div class="official-inline" style="grid-template-columns: 1.2fr 1fr 1fr;">
+      <span>وكيل الجامعة للتدريب</span>
+      <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
+    </div>
+
+    <div class="official-panel">
+      <h3>رأي المراقب المالي:</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>المعاملة مستوفية للمتطلبات النظامية للتسوية</span>
+      </p>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</span>
+      </p>
+      <div class="row" style="margin-top: 30px;">
+        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+      </div>
+    </div>
+
+    <div class="official-panel">
+      <h3>اعتماد رئيس الجامعة</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
+        <span class="approval-choice"><span class="box"></span>لا أوافق</span>
+      </p>
+      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
+      <div class="row" style="margin-top: 30px;">
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 160px;"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+      </div>
+    </div>
   `
 
-  return documentShell(`نموذج 19 - ${loan.refNumber}`, body)
+  return printShell(body)
 }

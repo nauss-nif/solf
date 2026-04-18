@@ -4,12 +4,13 @@
 
 html {
   scroll-behavior: smooth;
+  font-family: "Cairo", Tahoma, Arial, sans-serif;
 }
 
 body {
   background-color: #f3f4f6;
   color: #0f172a;
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: "Cairo", Tahoma, Arial, sans-serif;
 }
 
 .bg-app-gradient {

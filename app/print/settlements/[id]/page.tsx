@@ -19,13 +19,10 @@ export default async function SettlementPrintPage({
   const html = buildSettlementWordHtml(loan)
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">
+      <div className="mx-auto max-w-[210mm]">
         <PrintActions wordHref={`/api/settlements/${loan.id}/word`} />
-        <div
-          className="rounded-3xl bg-white p-4 shadow-soft"
-          dangerouslySetInnerHTML={{ __html: html }}
-        />
+        <div className="bg-white p-2 print:p-0" dangerouslySetInnerHTML={{ __html: html }} />
       </div>
     </main>
   )

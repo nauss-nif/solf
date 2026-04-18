@@ -6,7 +6,7 @@ export async function GET(
   _: Request,
   { params }: { params: { id: string } },
 ) {
-  const loan = await getAuthorizedLoan(params.id)
+  const loan = await getAuthorizedLoan(params.id, { markPrinted: true })
   const file = await buildLoanRequestDocx(loan)
 
   return new NextResponse(file, {
