@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { dashboardLoanInclude } from '@/lib/loan-selects'
 
 async function getNextLoanRefNumber() {
   const loans = await prisma.loan.findMany({
@@ -30,7 +31,7 @@ export async function GET() {
     const loans = await prisma.loan.findMany({
       where: currentUser.role === 'ADMIN' ? undefined : { userId: currentUser.userId },
       orderBy: { createdAt: 'desc' },
-      include: { items: true, settlement: true },
+      include: dashboardLoanInclude,
     })
     return NextResponse.json(loans)
   } catch {
@@ -67,6 +68,9 @@ export async function POST(request: Request) {
         activity: body.activity,
         location: body.location,
         amount: body.amount,
+        budgetApproved:
+          typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
+        files: body.files ?? undefined,
         startDate: new Date(body.startDate),
         endDate: new Date(body.endDate),
         items: {
@@ -76,7 +80,7 @@ export async function POST(request: Request) {
           })),
         },
       },
-      include: { items: true, settlement: true },
+      include: dashboardLoanInclude,
     })
 
     return NextResponse.json(loan)

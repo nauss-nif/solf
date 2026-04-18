@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { dashboardLoanInclude } from '@/lib/loan-selects'
 
 async function getEditableLoan(id: string) {
   await ensureDatabaseSetup()
@@ -12,7 +13,7 @@ async function getEditableLoan(id: string) {
 
   const loan = await prisma.loan.findUnique({
     where: { id },
-    include: { items: true, settlement: true },
+    include: dashboardLoanInclude,
   })
 
   if (!loan) {
@@ -64,6 +65,9 @@ export async function PATCH(
           activity: String(body.activity ?? '').trim(),
           location: String(body.location ?? '').trim(),
           amount: Number(body.amount ?? 0),
+          budgetApproved:
+            typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
+          files: body.files ?? undefined,
           startDate: new Date(body.startDate),
           endDate: new Date(body.endDate),
           items: {
@@ -73,7 +77,7 @@ export async function PATCH(
             })),
           },
         },
-        include: { items: true, settlement: true },
+        include: dashboardLoanInclude,
       })
     })
 

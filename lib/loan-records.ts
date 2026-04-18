@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { fullLoanInclude } from '@/lib/loan-selects'
 
 export async function getAuthorizedLoan(
   loanId: string,
@@ -12,7 +13,7 @@ export async function getAuthorizedLoan(
 
   const loan = await prisma.loan.findUnique({
     where: { id: loanId },
-    include: { items: true, settlement: true },
+    include: fullLoanInclude,
   })
 
   if (!loan) {
@@ -27,7 +28,7 @@ export async function getAuthorizedLoan(
     const updatedLoan = await prisma.loan.update({
       where: { id: loanId },
       data: { printedAt: new Date() },
-      include: { items: true, settlement: true },
+      include: fullLoanInclude,
     })
 
     return updatedLoan

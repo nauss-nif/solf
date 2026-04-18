@@ -13,12 +13,11 @@ export async function GET(
   }
 
   const file = await buildSettlementDocx(loan)
-  const filename = `settlement-${loan.refNumber.replaceAll('/', '-')}.docx`
+  const filename = `settlement-${loan.refNumber.replaceAll('/', '-')}.doc`
 
   return new NextResponse(file, {
     headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Type': 'application/msword; charset=utf-8',
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': String(file.byteLength),
       'Cache-Control': 'no-store, max-age=0',

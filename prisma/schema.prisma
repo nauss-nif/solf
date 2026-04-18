@@ -33,6 +33,7 @@ model Loan {
   activity    String
   location    String?
   amount      Float
+  budgetApproved Boolean?
   startDate   DateTime
   endDate     DateTime
   files       Json?

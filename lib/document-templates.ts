@@ -1,8 +1,9 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-import Docxtemplater from 'docxtemplater'
-import PizZip from 'pizzip'
-import { numberToArabicWords } from '@/lib/utils'
+import {
+  type LoanRequestFiles,
+  type SettlementDetailRecord,
+  type StoredFile,
+} from '@/lib/loan-form-options'
+import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
 type LoanItemLike = {
   category: string
@@ -12,10 +13,15 @@ type LoanItemLike = {
 type SettlementInvoiceLike = {
   amount?: number
   currency?: string
+  currencyCode?: string
+  exchangeRate?: number
   sar?: number
   type?: string
+  documentType?: string
   date?: string
+  invoiceDate?: string
   issuer?: string
+  attachment?: StoredFile | null
 }
 
 type SettlementDetailLike = {
@@ -40,6 +46,8 @@ export type LoanDocumentRecord = {
   activity: string
   location: string | null
   amount: number
+  budgetApproved?: boolean | null
+  files?: unknown
   startDate: Date | string
   endDate: Date | string
   createdAt: Date | string
@@ -84,14 +92,19 @@ function escapeHtml(value: string) {
 
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return ''
-  return new Date(value).toLocaleDateString('ar-SA')
+  const date = new Date(value)
+
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}/${date.getFullYear()}`
 }
 
 function formatNumber(value: number) {
-  return new Intl.NumberFormat('ar-SA', {
+  return formatEnglishNumber(value, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value)
+  })
 }
 
 function formatDateOrBlank(value: string) {
@@ -99,12 +112,11 @@ function formatDateOrBlank(value: string) {
 }
 
 function joinValues(values: Array<string | undefined>, separator = '<br />') {
-  const filtered = values
+  return values
     .map((value) => value?.trim() ?? '')
     .filter(Boolean)
     .map((value) => escapeHtml(value))
-
-  return filtered.join(separator)
+    .join(separator)
 }
 
 function printShell(body: string, options: PrintShellOptions) {
@@ -125,35 +137,33 @@ function printShell(body: string, options: PrintShellOptions) {
       background: #fff;
       color: #111827;
     }
+    body {
+      font-family: ${fontFamily};
+      font-size: ${fontSize};
+      line-height: ${lineHeight};
+      direction: rtl;
+    }
     .print-sheet {
       width: ${sheetWidth};
       min-height: ${sheetMinHeight};
       margin: 0 auto;
       background: #fff;
       color: #111827;
-      font-family: ${fontFamily};
-      font-size: ${fontSize};
-      line-height: ${lineHeight};
-      direction: rtl;
     }
     .print-title {
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-weight: 700;
     }
     .print-title h1,
     .print-title h2 {
       margin: 0;
       font-size: 18px;
-      line-height: 1.4;
-    }
-    .print-title p {
-      margin: 2px 0 0;
-      font-size: 13px;
+      line-height: 1.45;
     }
     .reference-line {
       text-align: right;
-      margin: 0 0 10px;
+      margin: 10px 0 12px;
       font-size: 15px;
       font-weight: 700;
     }
@@ -163,66 +173,63 @@ function printShell(body: string, options: PrintShellOptions) {
       font-size: 15px;
       font-weight: 600;
     }
-    .formal-text p {
-      margin: 0 0 4px;
-    }
+    .formal-text p { margin: 0 0 4px; }
     .meta-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px 24px;
-      margin-bottom: 10px;
+      gap: 8px 20px;
+      margin-bottom: 12px;
       font-size: 14px;
-      align-items: start;
     }
     .meta-row {
       display: flex;
       justify-content: space-between;
-      gap: 8px;
-      white-space: nowrap;
       align-items: baseline;
+      gap: 8px;
     }
-    .meta-label {
-      font-weight: 700;
-    }
+    .meta-label { font-weight: 700; }
     .meta-value {
       flex: 1;
-      text-align: right;
-      border-bottom: 1px dotted #111827;
-      min-height: 20px;
+      min-height: 18px;
+      border-bottom: 1px solid #111827;
       padding-inline: 4px;
+      text-align: right;
     }
     .choice-line {
       display: flex;
       gap: 28px;
-      margin: 0;
-      font-size: 14px;
       align-items: center;
+      min-height: 32px;
     }
     .choice-item {
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      font-weight: 600;
     }
     .box {
-      width: 14px;
-      height: 14px;
+      width: 18px;
+      height: 18px;
       border: 1px solid #111827;
-      display: inline-block;
-      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
     }
     table.form-grid {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 8px;
-      margin-bottom: 8px;
+      margin-top: 10px;
+      margin-bottom: 10px;
       font-size: 14px;
     }
     table.form-grid th,
     table.form-grid td {
       border: 1px solid #111827;
-      padding: 4px 6px;
-      vertical-align: middle;
+      padding: 6px 8px;
       text-align: center;
+      vertical-align: middle;
     }
     table.form-grid th {
       background: #d9d9d9;
@@ -230,111 +237,186 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
-    .totals-table {
-      margin-top: 10px;
-      margin-right: auto;
-      width: 56%;
-    }
     .official-inline {
       display: grid;
-      gap: 8px;
-      align-items: center;
+      gap: 10px;
       margin: 10px 0 12px;
+      align-items: center;
       font-size: 14px;
       font-weight: 700;
     }
+    .signature-line {
+      display: inline-block;
+      min-width: 140px;
+      border-bottom: 1px solid #111827;
+      height: 18px;
+      vertical-align: middle;
+    }
     .official-panel {
-      border: 1px solid #a7a7a7;
+      border: 1px solid #ababab;
       background: #d9d9d9;
-      border-radius: 14px;
-      padding: 12px 16px;
-      margin-top: 8px;
-      min-height: 118px;
+      border-radius: 16px;
+      padding: 14px 18px;
+      margin-top: 10px;
+      min-height: 128px;
     }
     .official-panel h3 {
-      margin: 0 0 10px;
+      margin: 0 0 14px;
       text-align: right;
       font-size: 15px;
       font-weight: 700;
     }
-    .official-panel p {
-      margin: 0 0 8px;
-    }
+    .official-panel p { margin: 0 0 10px; }
     .official-panel .row {
       display: flex;
       justify-content: space-between;
-      gap: 14px;
+      gap: 16px;
       align-items: center;
       flex-wrap: wrap;
-    }
-    .signature-line {
-      display: inline-block;
-      min-width: 120px;
-      border-bottom: 1px dotted #111827;
-      height: 20px;
-      vertical-align: middle;
     }
     .approval-choice {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
       margin-inline-start: 14px;
     }
-    .spacer-sm {
-      height: 6px;
+    .totals-table {
+      margin-top: 10px;
+      margin-right: auto;
+      width: 58%;
     }
-    .compact-grid {
-      grid-template-columns: 1.3fr 1fr 0.8fr 0.8fr;
+    .attachment-page {
+      page-break-before: always;
+      min-height: 250mm;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .attachment-page h2 {
+      margin: 0;
+      font-size: 18px;
+      text-align: right;
+    }
+    .attachment-page p {
+      margin: 0;
+      font-size: 13px;
+      color: #475569;
+    }
+    .attachment-preview {
+      border: 1px solid #d1d5db;
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 190mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+    }
+    .attachment-preview img {
+      max-width: 100%;
+      max-height: 180mm;
+      object-fit: contain;
+    }
+    .attachment-note {
+      border: 1px dashed #94a3b8;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      color: #475569;
+      background: #f8fafc;
     }
     @media print {
-      html, body {
-        background: #fff;
-      }
-      .print-sheet {
-        width: 100%;
-        min-height: auto;
-      }
+      html, body { background: #fff; }
+      .print-sheet { width: 100%; min-height: auto; }
     }
   </style>
   <div class="print-sheet">${body}</div>`
 }
 
+function createWordCompatibleDocument(html: string) {
+  return Buffer.from(
+    `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8" /></head><body>${html}</body></html>`,
+    'utf8',
+  )
+}
+
+function normalizeStoredFile(value: unknown): StoredFile | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Partial<StoredFile>
+
+  if (
+    typeof candidate.name !== 'string' ||
+    typeof candidate.type !== 'string' ||
+    typeof candidate.dataUrl !== 'string'
+  ) {
+    return null
+  }
+
+  return {
+    name: candidate.name,
+    type: candidate.type,
+    dataUrl: candidate.dataUrl,
+    size: typeof candidate.size === 'number' ? candidate.size : 0,
+  }
+}
+
+function normalizeLoanFiles(value: unknown): LoanRequestFiles {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+
+  const source = value as Record<string, unknown>
+
+  return {
+    grandApproval: normalizeStoredFile(source.grandApproval),
+    nomineeAdjustment: normalizeStoredFile(source.nomineeAdjustment),
+  }
+}
+
 function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
-  if (!Array.isArray(raw)) return []
+  const source = Array.isArray(raw)
+    ? raw
+    : raw && typeof raw === 'object' && Array.isArray((raw as { details?: unknown[] }).details)
+      ? (raw as { details: SettlementDetailRecord[] }).details
+      : []
 
-  return raw.map((detail) => {
+  return source.map((detail) => {
     const item = detail as SettlementDetailLike
-
     return {
       category: String(item.category ?? ''),
       budget: Number(item.budget ?? 0),
       invoices: Array.isArray(item.invoices)
         ? item.invoices.map((invoice) => ({
             amount: Number(invoice.amount ?? 0),
-            currency: String(invoice.currency ?? 'ر.س'),
+            currency: String(invoice.currency ?? invoice.currencyCode ?? 'SAR'),
+            exchangeRate: Number(invoice.exchangeRate ?? 0),
             sar: Number(invoice.sar ?? invoice.amount ?? 0),
-            type: invoice.type ? String(invoice.type) : '',
-            date: invoice.date ? String(invoice.date) : '',
+            type: invoice.type ? String(invoice.type) : String(invoice.documentType ?? ''),
+            date: invoice.date ? String(invoice.date) : String(invoice.invoiceDate ?? ''),
             issuer: invoice.issuer ? String(invoice.issuer) : '',
+            attachment: invoice.attachment ?? null,
           }))
         : [],
     }
   })
 }
 
-function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] {
-  if (loan.items.length === 0) {
-    return [
-      {
-        index: 1,
-        amount: formatNumber(loan.amount),
-        category: 'سلفة مؤقتة',
-        notes: '',
-      },
-    ]
-  }
+function getLoanAttachmentsText(loan: LoanDocumentRecord) {
+  const files = normalizeLoanFiles(loan.files)
 
-  return loan.items.map((item, index) => ({
+  return {
+    grandApproval: files.grandApproval ? 'مرفق' : 'غير مرفق',
+    nomineeAdjustment: files.nomineeAdjustment ? 'مرفق' : 'غير مرفق',
+  }
+}
+
+function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] {
+  const items = loan.items.length > 0 ? loan.items : [{ category: 'سلفة مؤقتة', amount: loan.amount }]
+
+  return items.map((item, index) => ({
     index: index + 1,
     amount: formatNumber(item.amount),
     category: item.category,
@@ -377,69 +459,53 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
       ]
 }
 
-async function renderDocxTemplate(templateName: string, data: Record<string, unknown>) {
-  const templatePath = path.join(process.cwd(), 'templates', templateName)
-  const content = await readFile(templatePath)
-  const zip = new PizZip(content)
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-  })
+function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
+  const details = normalizeSettlementDetails(loan.settlement?.invoices)
+  const attachments = details.flatMap((detail) =>
+    (detail.invoices ?? [])
+      .filter((invoice) => invoice.attachment)
+      .map((invoice, index) => ({
+        category: detail.category?.trim() || 'بند صرف',
+        index: index + 1,
+        documentType: invoice.type || '',
+        issuer: invoice.issuer || '',
+        attachment: invoice.attachment as StoredFile,
+      })),
+  )
 
-  try {
-    doc.render(data)
-  } catch (error) {
-    const details =
-      error instanceof Error
-        ? error.message
-        : typeof error === 'object'
-          ? JSON.stringify(error)
-          : String(error)
+  return attachments
+    .map(({ category, index, documentType, issuer, attachment }) => {
+      const preview = attachment.type.startsWith('image/')
+        ? `<div class="attachment-preview"><img src="${attachment.dataUrl}" alt="${escapeHtml(
+            attachment.name,
+          )}" /></div>`
+        : `<div class="attachment-note">تم إرفاق الملف: ${escapeHtml(
+            attachment.name,
+          )}<br />نوع المستند: ${escapeHtml(documentType || 'مرفق')}</div>`
 
-    throw new Error(`Failed to render ${templateName}: ${details}`)
-  }
-
-  return Buffer.from(doc.getZip().generate({ type: 'nodebuffer' }))
+      return `
+        <section class="attachment-page">
+          <h2>مرفق فاتورة ${index}</h2>
+          <p>البند: ${escapeHtml(category)}</p>
+          <p>نوع المستند: ${escapeHtml(documentType || '-')}</p>
+          <p>الجهة المصدرة له: ${escapeHtml(issuer || '-')}</p>
+          ${preview}
+        </section>
+      `
+    })
+    .join('')
 }
 
 export async function buildLoanRequestDocx(loan: LoanDocumentRecord) {
-  return renderDocxTemplate('loan-form-18.docx', {
-    referenceNumber: loan.refNumber,
-    amountNumber: formatNumber(loan.amount),
-    amountWords: numberToArabicWords(loan.amount),
-    activity: loan.activity,
-    location: loan.location ?? '',
-    startDate: formatDate(loan.startDate),
-    endDate: formatDate(loan.endDate),
-    employee: loan.employee,
-    expenseRows: normalizeLoanTemplateRows(loan),
-    totalAmount: formatNumber(loan.amount),
-  })
+  return createWordCompatibleDocument(buildLoanRequestWordHtml(loan))
 }
 
 export async function buildSettlementDocx(loan: LoanDocumentRecord) {
-  const settlement = loan.settlement
-
-  return renderDocxTemplate('settlement-form-19.docx', {
-    referenceNumber: loan.refNumber,
-    activity: loan.activity,
-    location: loan.location ?? '',
-    startDate: formatDate(loan.startDate),
-    endDate: formatDate(loan.endDate),
-    settlementRows: normalizeSettlementTemplateRows(loan),
-    supportedAmount: formatNumber(Number(settlement?.supported ?? 0)),
-    unsupportedAmount: formatNumber(Number(settlement?.unsupported ?? 0)),
-    totalAmount: formatNumber(Number(settlement?.total ?? 0)),
-    loanAmount: formatNumber(loan.amount),
-    overageAmount: formatNumber(Number(settlement?.overage ?? 0)),
-    savingsAmount: formatNumber(Number(settlement?.savings ?? 0)),
-    receiptNumber: '',
-    receiptDate: '',
-    employee: loan.employee,
-  })
+  return createWordCompatibleDocument(buildSettlementWordHtml(loan))
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
+  const attachments = getLoanAttachmentsText(loan)
   const rows = normalizeLoanTemplateRows(loan)
     .map(
       (item) => `
@@ -453,11 +519,15 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
     )
     .join('')
 
+  const budgetApproved = loan.budgetApproved === true
+  const budgetRejected = loan.budgetApproved === false
+
   const body = `
     <div class="print-title">
       <h2>نموذج رقم 18</h2>
       <h1>طلب صرف سلفة مؤقتة للعمل</h1>
     </div>
+
     <div class="reference-line">رقم مرجعي: ${escapeHtml(loan.refNumber)}</div>
 
     <div class="formal-text">
@@ -468,14 +538,14 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
 
     <div class="meta-grid">
       <div class="meta-row"><span class="meta-label">مبلغ السلفة رقمًا:</span><span class="meta-value">${formatNumber(loan.amount)}</span></div>
-      <div class="meta-row"><span class="meta-label">كتابة:</span><span class="meta-value">${escapeHtml(numberToArabicWords(loan.amount))} ريال</span></div>
+      <div class="meta-row"><span class="meta-label">كتابة:</span><span class="meta-value">${escapeHtml(numberToArabicWords(loan.amount))}</span></div>
       <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
       <div class="choice-line">
-        <span class="choice-item"><span class="box"></span>معتمد في الموازنة</span>
-        <span class="choice-item"><span class="box"></span>غير معتمد</span>
+        <span class="choice-item"><span class="box">${budgetApproved ? '✓' : ''}</span>معتمد في الموازنة</span>
+        <span class="choice-item"><span class="box">${budgetRejected ? '✓' : ''}</span>غير معتمد</span>
       </div>
       <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
-      <div class="spacer-sm"></div>
+      <div></div>
       <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
@@ -501,11 +571,31 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       </tfoot>
     </table>
 
-    <div class="official-inline" style="grid-template-columns: 1.15fr 1fr 1.35fr;">
+    <div class="official-inline" style="grid-template-columns: 1fr 1.15fr 1.6fr 1fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
     </div>
+
+    <table class="form-grid" style="margin-top: 14px;">
+      <thead>
+        <tr>
+          <th>المرفقات</th>
+          <th style="width: 22%;">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="text-right">موافقة المعالي على الانتداب</td>
+          <td>${attachments.grandApproval}</td>
+        </tr>
+        <tr>
+          <td class="text-right">موافقة الوكيل على تعديل المرشح</td>
+          <td>${attachments.nomineeAdjustment}</td>
+        </tr>
+      </tbody>
+    </table>
 
     <div class="official-panel">
       <h3>رأي المراقب المالي:</h3>
@@ -513,7 +603,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>مستوفي</span>
         <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
       </p>
-      <div class="row" style="margin-top: 28px;">
+      <div class="row" style="margin-top: 30px;">
         <span>الاسم: شريف محمد مصطفى الغزولي</span>
         <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
@@ -527,8 +617,8 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>لا نوافق</span>
       </p>
       <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
-      <div class="row" style="margin-top: 28px;">
-        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 160px;"></span></span>
+      <div class="row" style="margin-top: 30px;">
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
         <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
       </div>
@@ -536,12 +626,12 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
   `
 
   return printShell(body, {
-    pageMargins: '40mm 15mm 25mm 15mm',
+    pageMargins: '38mm 16mm 24mm 16mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '14pt',
-    lineHeight: '1.55',
-    sheetWidth: '180mm',
-    sheetMinHeight: '232mm',
+    lineHeight: '1.52',
+    sheetWidth: '182mm',
+    sheetMinHeight: '235mm',
     fontFaceCss: `
       @font-face {
         font-family: "BoutrosJazirahTextLight";
@@ -569,6 +659,8 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       `,
     )
     .join('')
+
+  const attachmentPages = buildSettlementAttachmentPages(loan)
 
   const body = `
     <div class="print-title">
@@ -599,7 +691,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
         <tr>
           <th style="width:5%;">م</th>
           <th>أوجه الصرف الفعلية</th>
-          <th style="width:12%;">المبلغ<br />الريال</th>
+          <th style="width:12%;">المبلغ<br />بالريال</th>
           <th style="width:11%;">نوعه</th>
           <th style="width:14%;">تاريخه</th>
           <th style="width:21%;">الجهة المصدرة له</th>
@@ -637,13 +729,14 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </tr>
     </table>
 
-    <div class="official-inline compact-grid">
+    <div class="official-inline" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.7fr;">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
       <span>رقم سند القبض</span>
       <span></span>
       <span>تاريخه</span>
     </div>
-    <div class="official-inline" style="grid-template-columns: 1.2fr 1fr 1fr;">
+
+    <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">
       <span>وكيل الجامعة للتدريب</span>
       <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
       <span>التوقيع: <span class="signature-line"></span></span>
@@ -672,16 +765,17 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </p>
       <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
       <div class="row" style="margin-top: 30px;">
-        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 160px;"></span></span>
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
         <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
       </div>
     </div>
+    ${attachmentPages}
   `
 
   return printShell(body, {
-    pageMargins: '40mm 25mm 25mm 25mm',
-    sheetWidth: '160mm',
-    sheetMinHeight: '232mm',
+    pageMargins: '38mm 24mm 24mm 24mm',
+    sheetWidth: '162mm',
+    sheetMinHeight: '235mm',
   })
 }

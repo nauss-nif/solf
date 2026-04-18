@@ -2,6 +2,7 @@ import { requireSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { prisma } from '@/lib/prisma'
 import DashboardClient, { type LoanDashboardRecord } from './DashboardClient'
+import { dashboardLoanInclude } from '@/lib/loan-selects'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +10,8 @@ function serializeLoanRecord(loan: any): LoanDashboardRecord {
   return {
     ...loan,
     location: loan.location ?? '',
+    budgetApproved:
+      typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null,
     startDate: new Date(loan.startDate).toISOString(),
     endDate: new Date(loan.endDate).toISOString(),
     createdAt: new Date(loan.createdAt).toISOString(),
@@ -30,7 +33,7 @@ export default async function Home() {
   const loans = await prisma.loan.findMany({
     where: currentUser.role === 'ADMIN' ? undefined : { userId: currentUser.userId },
     orderBy: { createdAt: 'desc' },
-    include: { items: true, settlement: true },
+    include: dashboardLoanInclude,
   })
 
   return (

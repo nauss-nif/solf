@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
+import { dashboardLoanInclude } from '@/lib/loan-selects'
 
 export async function POST(request: Request) {
   try {
@@ -35,7 +36,11 @@ export async function POST(request: Request) {
           total: body.total,
           savings: body.savings,
           overage: body.overage,
-          invoices: body.details,
+          invoices: {
+            settlementDate: new Date().toISOString(),
+            currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
+            details: Array.isArray(body.details) ? body.details : [],
+          },
         },
       }),
       prisma.loan.update({
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
 
     const updatedLoan = await prisma.loan.findUnique({
       where: { id: body.loanId },
-      include: { items: true, settlement: true },
+      include: dashboardLoanInclude,
     })
 
     return NextResponse.json(updatedLoan)

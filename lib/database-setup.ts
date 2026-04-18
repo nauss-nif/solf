@@ -42,6 +42,7 @@ async function runSetup() {
       "activity" TEXT NOT NULL,
       "location" TEXT,
       "amount" DOUBLE PRECISION NOT NULL,
+      "budgetApproved" BOOLEAN,
       "startDate" TIMESTAMP(3) NOT NULL,
       "endDate" TIMESTAMP(3) NOT NULL,
       "files" JSONB,
@@ -60,6 +61,11 @@ async function runSetup() {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "loans"
     ADD COLUMN IF NOT EXISTS "printedAt" TIMESTAMP(3);
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "budgetApproved" BOOLEAN;
   `)
 
   await prisma.$executeRawUnsafe(`

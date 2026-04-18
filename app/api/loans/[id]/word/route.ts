@@ -8,12 +8,11 @@ export async function GET(
 ) {
   const loan = await getAuthorizedLoan(params.id, { markPrinted: true })
   const file = await buildLoanRequestDocx(loan)
-  const filename = `loan-${loan.refNumber.replaceAll('/', '-')}.docx`
+  const filename = `loan-${loan.refNumber.replaceAll('/', '-')}.doc`
 
   return new NextResponse(file, {
     headers: {
-      'Content-Type':
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'Content-Type': 'application/msword; charset=utf-8',
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Length': String(file.byteLength),
       'Cache-Control': 'no-store, max-age=0',
