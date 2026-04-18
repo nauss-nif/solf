@@ -63,6 +63,16 @@ type SettlementTemplateRow = {
   issuer: string
 }
 
+type PrintShellOptions = {
+  pageMargins: string
+  fontFamily?: string
+  fontSize?: string
+  fontFaceCss?: string
+  lineHeight?: string
+  sheetWidth?: string
+  sheetMinHeight?: string
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll('&', '&amp;')
@@ -73,7 +83,7 @@ function escapeHtml(value: string) {
 }
 
 function formatDate(value: Date | string | null | undefined) {
-  if (!value) return '—'
+  if (!value) return ''
   return new Date(value).toLocaleDateString('ar-SA')
 }
 
@@ -84,19 +94,47 @@ function formatNumber(value: number) {
   }).format(value)
 }
 
-function printShell(body: string) {
+function formatDateOrBlank(value: string) {
+  return value.trim() ? formatDate(value) : ''
+}
+
+function joinValues(values: Array<string | undefined>, separator = '<br />') {
+  const filtered = values
+    .map((value) => value?.trim() ?? '')
+    .filter(Boolean)
+    .map((value) => escapeHtml(value))
+
+  return filtered.join(separator)
+}
+
+function printShell(body: string, options: PrintShellOptions) {
+  const fontFamily = options.fontFamily ?? '"Cairo", Tahoma, Arial, sans-serif'
+  const fontSize = options.fontSize ?? '14px'
+  const lineHeight = options.lineHeight ?? '1.7'
+  const sheetWidth = options.sheetWidth ?? '100%'
+  const sheetMinHeight = options.sheetMinHeight ?? 'auto'
+
   return `
   <style>
-    @page { size: A4; margin: 10mm; }
+    ${options.fontFaceCss ?? ''}
+    @page { size: A4; margin: ${options.pageMargins}; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #111827;
+    }
     .print-sheet {
-      width: 190mm;
-      min-height: 277mm;
+      width: ${sheetWidth};
+      min-height: ${sheetMinHeight};
       margin: 0 auto;
       background: #fff;
       color: #111827;
-      font-family: "Cairo", Tahoma, Arial, sans-serif;
-      font-size: 14px;
-      line-height: 1.7;
+      font-family: ${fontFamily};
+      font-size: ${fontSize};
+      line-height: ${lineHeight};
+      direction: rtl;
     }
     .print-title {
       text-align: center;
@@ -107,7 +145,7 @@ function printShell(body: string) {
     .print-title h2 {
       margin: 0;
       font-size: 18px;
-      line-height: 1.5;
+      line-height: 1.4;
     }
     .print-title p {
       margin: 2px 0 0;
@@ -115,7 +153,7 @@ function printShell(body: string) {
     }
     .reference-line {
       text-align: right;
-      margin: 8px 0 10px;
+      margin: 0 0 10px;
       font-size: 15px;
       font-weight: 700;
     }
@@ -134,12 +172,14 @@ function printShell(body: string) {
       gap: 6px 24px;
       margin-bottom: 10px;
       font-size: 14px;
+      align-items: start;
     }
     .meta-row {
       display: flex;
       justify-content: space-between;
       gap: 8px;
       white-space: nowrap;
+      align-items: baseline;
     }
     .meta-label {
       font-weight: 700;
@@ -154,8 +194,9 @@ function printShell(body: string) {
     .choice-line {
       display: flex;
       gap: 28px;
-      margin: 4px 0 10px;
+      margin: 0;
       font-size: 14px;
+      align-items: center;
     }
     .choice-item {
       display: inline-flex;
@@ -167,6 +208,7 @@ function printShell(body: string) {
       height: 14px;
       border: 1px solid #111827;
       display: inline-block;
+      flex: 0 0 auto;
     }
     table.form-grid {
       width: 100%;
@@ -183,18 +225,18 @@ function printShell(body: string) {
       text-align: center;
     }
     table.form-grid th {
-      background: #ececec;
+      background: #d9d9d9;
       font-weight: 700;
     }
     .text-right { text-align: right !important; }
+    .text-top { vertical-align: top !important; }
     .totals-table {
-      margin-top: 12px;
+      margin-top: 10px;
       margin-right: auto;
-      width: 54%;
+      width: 56%;
     }
     .official-inline {
       display: grid;
-      grid-template-columns: 1.2fr 1.5fr 1fr;
       gap: 8px;
       align-items: center;
       margin: 10px 0 12px;
@@ -202,8 +244,8 @@ function printShell(body: string) {
       font-weight: 700;
     }
     .official-panel {
-      border: 1px solid #b9b9b9;
-      background: #dedede;
+      border: 1px solid #a7a7a7;
+      background: #d9d9d9;
       border-radius: 14px;
       padding: 12px 16px;
       margin-top: 8px;
@@ -241,7 +283,13 @@ function printShell(body: string) {
     .spacer-sm {
       height: 6px;
     }
+    .compact-grid {
+      grid-template-columns: 1.3fr 1fr 0.8fr 0.8fr;
+    }
     @media print {
+      html, body {
+        background: #fff;
+      }
       .print-sheet {
         width: 100%;
         min-height: auto;
@@ -275,6 +323,17 @@ function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
 }
 
 function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] {
+  if (loan.items.length === 0) {
+    return [
+      {
+        index: 1,
+        amount: formatNumber(loan.amount),
+        category: 'سلفة مؤقتة',
+        notes: '',
+      },
+    ]
+  }
+
   return loan.items.map((item, index) => ({
     index: index + 1,
     amount: formatNumber(item.amount),
@@ -285,19 +344,23 @@ function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] 
 
 function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTemplateRow[] {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
-  const rows = details.flatMap((detail, detailIndex) => {
-    const invoices = detail.invoices?.length
-      ? detail.invoices
-      : [{ sar: detail.budget ?? 0, type: '', date: '', issuer: '' }]
 
-    return invoices.map((invoice, invoiceIndex) => ({
-      index: detailIndex + invoiceIndex + 1,
-      category: detail.category || '—',
-      amount: formatNumber(Number(invoice.sar ?? 0)),
-      documentType: invoice.type || (Number(invoice.sar ?? 0) > 0 ? 'مستند' : ''),
-      documentDate: invoice.date || '',
-      issuer: invoice.issuer || '',
-    }))
+  const rows = details.map((detail, index) => {
+    const invoices = detail.invoices ?? []
+    const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
+    const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
+
+    return {
+      index: index + 1,
+      category: detail.category?.trim() || 'بند صرف',
+      amount: formatNumber(amount),
+      documentType: joinValues(invoices.map((invoice) => invoice.type), '<br />'),
+      documentDate: joinValues(
+        invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
+        '<br />',
+      ),
+      issuer: joinValues(invoices.map((invoice) => invoice.issuer), '<br />'),
+    }
   })
 
   return rows.length > 0
@@ -305,7 +368,7 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
     : [
         {
           index: 1,
-          category: 'لا توجد تفاصيل تسوية محفوظة',
+          category: 'لا توجد بنود صرف مسجلة',
           amount: formatNumber(0),
           documentType: '',
           documentDate: '',
@@ -323,7 +386,19 @@ async function renderDocxTemplate(templateName: string, data: Record<string, unk
     linebreaks: true,
   })
 
-  doc.render(data)
+  try {
+    doc.render(data)
+  } catch (error) {
+    const details =
+      error instanceof Error
+        ? error.message
+        : typeof error === 'object'
+          ? JSON.stringify(error)
+          : String(error)
+
+    throw new Error(`Failed to render ${templateName}: ${details}`)
+  }
+
   return Buffer.from(doc.getZip().generate({ type: 'nodebuffer' }))
 }
 
@@ -333,7 +408,7 @@ export async function buildLoanRequestDocx(loan: LoanDocumentRecord) {
     amountNumber: formatNumber(loan.amount),
     amountWords: numberToArabicWords(loan.amount),
     activity: loan.activity,
-    location: loan.location ?? '—',
+    location: loan.location ?? '',
     startDate: formatDate(loan.startDate),
     endDate: formatDate(loan.endDate),
     employee: loan.employee,
@@ -348,7 +423,7 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord) {
   return renderDocxTemplate('settlement-form-19.docx', {
     referenceNumber: loan.refNumber,
     activity: loan.activity,
-    location: loan.location ?? '—',
+    location: loan.location ?? '',
     startDate: formatDate(loan.startDate),
     endDate: formatDate(loan.endDate),
     settlementRows: normalizeSettlementTemplateRows(loan),
@@ -370,9 +445,9 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       (item) => `
         <tr>
           <td style="width:5%;">${item.index}.</td>
-          <td style="width:15%;">${item.amount}</td>
+          <td style="width:16%;">${item.amount}</td>
           <td class="text-right">${escapeHtml(item.category)}</td>
-          <td style="width:28%;"></td>
+          <td style="width:28%;">${escapeHtml(item.notes)}</td>
         </tr>
       `,
     )
@@ -402,7 +477,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
       <div class="spacer-sm"></div>
       <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '—')}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
       <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
     </div>
@@ -411,19 +486,13 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       <thead>
         <tr>
           <th style="width:5%;">م</th>
-          <th style="width:15%;">المبلغ</th>
+          <th style="width:16%;">المبلغ</th>
           <th>أوجه الصرف</th>
           <th style="width:28%;">الملاحظات</th>
         </tr>
       </thead>
       <tbody>
         ${rows}
-        <tr>
-          <td> </td>
-          <td> </td>
-          <td class="text-right"> </td>
-          <td> </td>
-        </tr>
       </tbody>
       <tfoot>
         <tr>
@@ -432,7 +501,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       </tfoot>
     </table>
 
-    <div class="official-inline">
+    <div class="official-inline" style="grid-template-columns: 1.15fr 1fr 1.35fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
@@ -466,7 +535,22 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
     </div>
   `
 
-  return printShell(body)
+  return printShell(body, {
+    pageMargins: '40mm 15mm 25mm 15mm',
+    fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
+    fontSize: '14pt',
+    lineHeight: '1.55',
+    sheetWidth: '180mm',
+    sheetMinHeight: '232mm',
+    fontFaceCss: `
+      @font-face {
+        font-family: "BoutrosJazirahTextLight";
+        src: url("/fonts/BoutrosJazirahTextLight.ttf") format("truetype");
+        font-weight: 300;
+        font-style: normal;
+      }
+    `,
+  })
 }
 
 export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
@@ -476,11 +560,11 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       (row) => `
         <tr>
           <td style="width:5%;">${row.index}.</td>
-          <td class="text-right">${escapeHtml(row.category)}</td>
+          <td class="text-right text-top">${escapeHtml(row.category)}</td>
           <td style="width:12%;">${row.amount}</td>
-          <td style="width:11%;">${escapeHtml(row.documentType || '')}</td>
-          <td style="width:14%;">${escapeHtml(row.documentDate || '')}</td>
-          <td style="width:21%;">${escapeHtml(row.issuer || '')}</td>
+          <td style="width:11%;" class="text-top">${row.documentType}</td>
+          <td style="width:14%;" class="text-top">${row.documentDate}</td>
+          <td style="width:21%;" class="text-top">${row.issuer}</td>
         </tr>
       `,
     )
@@ -501,13 +585,13 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
 
     <div class="meta-grid">
       <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
-      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '—')}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
       <div></div>
       <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">نهاية النشاط</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">نهاية الصرف</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
     </div>
 
     <table class="form-grid">
@@ -523,9 +607,6 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </thead>
       <tbody>
         ${rows}
-        <tr><td> </td><td class="text-right"></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td> </td><td class="text-right"></td><td></td><td></td><td></td><td></td></tr>
-        <tr><td> </td><td class="text-right"></td><td></td><td></td><td></td><td></td></tr>
       </tbody>
     </table>
 
@@ -556,7 +637,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </tr>
     </table>
 
-    <div class="official-inline" style="grid-template-columns: 1.3fr 1fr 0.8fr 1fr;">
+    <div class="official-inline compact-grid">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
       <span>رقم سند القبض</span>
       <span></span>
@@ -598,5 +679,9 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
     </div>
   `
 
-  return printShell(body)
+  return printShell(body, {
+    pageMargins: '40mm 25mm 25mm 25mm',
+    sheetWidth: '160mm',
+    sheetMinHeight: '232mm',
+  })
 }
