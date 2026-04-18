@@ -3,6 +3,22 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 
+async function getNextLoanRefNumber() {
+  const loans = await prisma.loan.findMany({
+    select: { refNumber: true },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  const nextSequence =
+    loans.reduce((max, loan) => {
+      const parts = loan.refNumber.split('/')
+      const value = Number.parseInt(parts[2] ?? '0', 10)
+      return Number.isNaN(value) ? max : Math.max(max, value)
+    }, 0) + 1
+
+  return `وت/26/${String(nextSequence).padStart(4, '0')}`
+}
+
 export async function GET() {
   try {
     await ensureDatabaseSetup()
@@ -33,9 +49,19 @@ export async function POST(request: Request) {
     const body = await request.json()
     const items = Array.isArray(body.items) ? body.items : []
 
+    const requestedRefNumber = String(body.refNumber ?? '').trim()
+    const refNumber =
+      requestedRefNumber ||
+      (await getNextLoanRefNumber())
+
+    const existingLoan = await prisma.loan.findUnique({
+      where: { refNumber },
+      select: { id: true },
+    })
+
     const loan = await prisma.loan.create({
       data: {
-        refNumber: body.refNumber,
+        refNumber: existingLoan ? await getNextLoanRefNumber() : refNumber,
         userId: currentUser.userId,
         employee: currentUser.fullName,
         activity: body.activity,
@@ -50,7 +76,7 @@ export async function POST(request: Request) {
           })),
         },
       },
-      include: { items: true },
+      include: { items: true, settlement: true },
     })
 
     return NextResponse.json(loan)

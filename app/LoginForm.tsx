@@ -24,7 +24,7 @@ export default function LoginForm() {
             body: JSON.stringify({ email, password }),
           })
 
-          const data = await response.json()
+          const data = await response.json().catch(() => ({}))
           if (!response.ok) {
             setError(data.error ?? 'تعذر تسجيل الدخول')
             return
@@ -63,7 +63,7 @@ export default function LoginForm() {
         disabled={isPending}
         className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-medium text-white disabled:opacity-60"
       >
-        {isPending ? 'جارٍ تسجيل الدخول...' : 'تسجيل الدخول'}
+        {isPending ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
       </button>
     </form>
   )

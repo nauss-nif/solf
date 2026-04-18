@@ -16,17 +16,17 @@ export default function RegisterPage() {
           <div className="border-b border-slate-200/80 bg-[#123f41] px-6 py-8 md:px-10">
             <div className="flex flex-col items-center gap-6 text-center">
               <Image
-                src="/nauss-login-brand.png"
+                src="/logo-footer.png"
                 alt="شعار جامعة نايف العربية للعلوم الأمنية"
-                width={620}
-                height={190}
-                className="h-auto w-full max-w-[620px]"
+                width={700}
+                height={140}
+                className="h-auto w-full max-w-[700px]"
                 priority
               />
               <div className="space-y-2 text-white">
                 <h1 className="text-3xl font-medium md:text-5xl">منصة طلب السلف المؤقتة</h1>
                 <p className="text-base font-normal text-white/85 md:text-xl">
-                  وكالة التدريب بجامعة نايف العربية للعلوم الامنية
+                  وكالة التدريب بجامعة نايف العربية للعلوم الأمنية
                 </p>
               </div>
             </div>

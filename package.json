@@ -9,20 +9,22 @@
     "start": "next start"
   },
   "dependencies": {
+    "@prisma/client": "^5.9.1",
+    "docxtemplater": "^3.68.5",
     "next": "14.1.0",
+    "pizzip": "^3.2.0",
     "react": "^18",
     "react-dom": "^18",
-    "@prisma/client": "^5.9.1",
     "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
-    "typescript": "^5",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
     "postcss": "^8",
+    "prisma": "^5.9.1",
     "tailwindcss": "^3.3.0",
-    "prisma": "^5.9.1"
+    "typescript": "^5"
   }
 }

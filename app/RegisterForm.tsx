@@ -30,7 +30,7 @@ export default function RegisterForm() {
             body: JSON.stringify(form),
           })
 
-          const data = await response.json()
+          const data = await response.json().catch(() => ({}))
           if (!response.ok) {
             setError(data.error ?? 'تعذر إنشاء الحساب')
             return
@@ -99,7 +99,7 @@ export default function RegisterForm() {
         disabled={isPending}
         className="w-full rounded-2xl bg-primary px-4 py-3 text-base font-medium text-white disabled:opacity-60"
       >
-        {isPending ? 'جارٍ إنشاء الحساب...' : 'إنشاء حساب جديد'}
+        {isPending ? 'جاري إنشاء الحساب...' : 'إنشاء حساب جديد'}
       </button>
     </form>
   )

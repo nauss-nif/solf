@@ -62,17 +62,31 @@ type SettlementDraft = {
 }
 
 const CATEGORIES = [
-  'مواصلات متدربين',
+  'مواصلات مشاركين',
   'مواصلات مدربين',
   'سكن مدربين',
-  'رسوم حكومية',
+  'سكن مشاركين',
+  'رسوم وتصاريح حكومية',
+  'رسوم تأشيرات',
+  'تذاكر سفر مدربين',
+  'شحن ونقل وتغليف',
   'طباعة ونسخ',
-  'ضيافة',
+  'ترجمة وتحرير',
+  'ضيافة للمشاركين',
+  'ضيافة للمدربين',
+  'مياه ومشروبات',
   'إيجار قاعات',
   'إيجار معدات',
-  'برمجيات',
-  'مصروفات تشغيلية',
+  'صيانة وتشغيل',
+  'اشتراكات برمجيات رقمية',
+  'احتياجات تدريبية',
+  'مستلزمات تنفيذ',
+  'هدايا تذكارية',
+  'شهادات ودروع',
+  'توثيق وتصوير',
+  'اتصالات وإنترنت',
   'نثريات',
+  'أخرى',
 ]
 
 const GUIDE_SECTIONS = [
@@ -130,6 +144,26 @@ function generateRef(loans: LoanDashboardRecord[]) {
   return `وت/26/${String(maxRef + 1).padStart(4, '0')}`
 }
 
+function normalizeLoanRecord(loan: {
+  id: string
+  refNumber: string
+  employee: string
+  activity: string
+  location: string | null
+  amount: number
+  startDate: string
+  endDate: string
+  createdAt: string
+  isSettled: boolean
+  items: LoanItemRecord[]
+  settlement: SettlementRecord | null
+}): LoanDashboardRecord {
+  return {
+    ...loan,
+    location: loan.location ?? '',
+  }
+}
+
 export default function DashboardClient({
   currentUser,
   initialLoans,
@@ -139,7 +173,9 @@ export default function DashboardClient({
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans)
+  const [loans, setLoans] = useState<LoanDashboardRecord[]>(
+    initialLoans.map(normalizeLoanRecord),
+  )
   const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
   const [loadError, setLoadError] = useState('')
   const [activeTab, setActiveTab] = useState<'requests' | 'archive' | 'reports' | 'guide'>(
@@ -151,8 +187,12 @@ export default function DashboardClient({
   const [selectedLoanId, setSelectedLoanId] = useState<string | null>(null)
   const [loanError, setLoanError] = useState('')
   const [settlementError, setSettlementError] = useState('')
+  const [savedDocument, setSavedDocument] = useState<null | {
+    kind: 'loan' | 'settlement'
+    loanId: string
+  }>(null)
   const [loanForm, setLoanForm] = useState({
-    refNumber: generateRef(initialLoans),
+    refNumber: generateRef(initialLoans.map(normalizeLoanRecord)),
     employee: currentUser.fullName,
     activity: '',
     location: '',
@@ -202,12 +242,7 @@ export default function DashboardClient({
 
         if (isCancelled) return
 
-        setLoans(
-          data.map((loan) => ({
-            ...loan,
-            location: loan.location ?? '',
-          })),
-        )
+        setLoans(data.map(normalizeLoanRecord))
       } catch {
         if (isCancelled) return
         setLoadError('تعذر تحميل بيانات السلف من الخادم.')
@@ -224,6 +259,15 @@ export default function DashboardClient({
       isCancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!loanModalOpen) return
+
+    setLoanForm((current) => ({
+      ...current,
+      refNumber: generateRef(loans),
+    }))
+  }, [loanModalOpen, loans])
 
   const filteredLoans = useMemo(() => {
     const normalized = search.trim().toLowerCase()
@@ -331,6 +375,7 @@ export default function DashboardClient({
 
   function openLoanModal() {
     setLoanError('')
+    setSavedDocument(null)
     setLoanForm({
       refNumber: generateRef(loans),
       employee: currentUser.fullName,
@@ -349,6 +394,7 @@ export default function DashboardClient({
 
     setSelectedLoanId(loanId)
     setSettlementError('')
+    setSavedDocument(null)
     setRates({ USD: 3.75, EUR: 4.1 })
     setSettlementItems(
       loan.items.map((item) => ({
@@ -360,6 +406,20 @@ export default function DashboardClient({
       })),
     )
     setSettlementModalOpen(true)
+  }
+
+  function openPrintDocument(kind: 'loan' | 'settlement', loanId: string) {
+    const href =
+      kind === 'loan' ? `/print/loans/${loanId}` : `/print/settlements/${loanId}`
+
+    window.open(href, '_blank', 'noopener,noreferrer')
+  }
+
+  function exportWordDocument(kind: 'loan' | 'settlement', loanId: string) {
+    const href =
+      kind === 'loan' ? `/api/loans/${loanId}/word` : `/api/settlements/${loanId}/word`
+
+    window.open(href, '_blank', 'noopener,noreferrer')
   }
 
   function updateExpense(index: number, field: keyof ExpenseDraft, value: string) {
@@ -414,12 +474,28 @@ export default function DashboardClient({
         }),
       })
 
+      const data = await response.json().catch(() => ({}))
+      const createdLoan = response.ok && data ? normalizeLoanRecord(data) : null
+
+      if (!response.ok) {
+        if (typeof data?.error === 'string') {
+          setLoanError(data.error)
+          return
+        }
+      }
+
       if (!response.ok) {
         setLoanError('تعذر حفظ طلب السلفة. حاول مرة أخرى.')
         return
       }
 
+      if (createdLoan) {
+        setLoans((current) => [createdLoan, ...current])
+        setSavedDocument({ kind: 'loan', loanId: createdLoan.id })
+      }
+
       setLoanModalOpen(false)
+      setLoanError('')
       router.refresh()
     })
   }
@@ -508,13 +584,31 @@ export default function DashboardClient({
         }),
       })
 
+      const data = await response.json().catch(() => ({}))
+      const updatedLoan = response.ok && data ? normalizeLoanRecord(data) : null
+
+      if (!response.ok) {
+        if (typeof data?.error === 'string') {
+          setSettlementError(data.error)
+          return
+        }
+      }
+
       if (!response.ok) {
         setSettlementError('تعذر حفظ التسوية. حاول مرة أخرى.')
         return
       }
 
+      if (updatedLoan) {
+        setLoans((current) =>
+          current.map((loan) => (loan.id === updatedLoan.id ? updatedLoan : loan)),
+        )
+        setSavedDocument({ kind: 'settlement', loanId: updatedLoan.id })
+      }
+
       setSettlementModalOpen(false)
       setSelectedLoanId(null)
+      setSettlementError('')
       router.refresh()
     })
   }
@@ -609,6 +703,36 @@ export default function DashboardClient({
             </div>
           </div>
         </section>
+
+        {savedDocument && (
+          <section className="mb-4 rounded-[28px] border border-success/20 bg-success/10 px-5 py-4 shadow-soft">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-sm font-medium text-success">تم الحفظ بنجاح.</p>
+                <p className="text-sm text-slate-600">
+                  يمكنك الآن طباعة {savedDocument.kind === 'loan' ? 'طلب السلفة' : 'التسوية'} أو
+                  تنزيله بصيغة Word.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => openPrintDocument(savedDocument.kind, savedDocument.loanId)}
+                  className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+                >
+                  طباعة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportWordDocument(savedDocument.kind, savedDocument.loanId)}
+                  className="rounded-2xl bg-primary px-4 py-2 text-sm text-white"
+                >
+                  تنزيل Word
+                </button>
+              </div>
+            </div>
+          </section>
+        )}
 
         <nav className="mb-4 flex flex-wrap gap-2 border-b border-slate-200">
           <TabButton label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
@@ -718,7 +842,21 @@ export default function DashboardClient({
                         )}
                       </div>
 
-                      <div className="flex items-start justify-end gap-2">
+                      <div className="flex flex-wrap items-start justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openPrintDocument('loan', loan.id)}
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          طباعة الطلب
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => exportWordDocument('loan', loan.id)}
+                          className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                        >
+                          تنزيل Word
+                        </button>
                         {!loan.isSettled && (
                           <button
                             type="button"
@@ -727,6 +865,24 @@ export default function DashboardClient({
                           >
                             تسوية
                           </button>
+                        )}
+                        {loan.isSettled && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openPrintDocument('settlement', loan.id)}
+                              className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              طباعة التسوية
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => exportWordDocument('settlement', loan.id)}
+                              className="rounded-2xl border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                            >
+                              تنزيل Word التسوية
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
