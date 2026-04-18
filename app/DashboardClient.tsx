@@ -65,6 +65,7 @@ type CurrentUser = {
   fullName: string
   email: string
   role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+  roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER'>
 }
 
 type ExpenseDraft = {
@@ -217,6 +218,16 @@ function isPettyCashCategory(category: string) {
   return category.includes('نثريات')
 }
 
+function sortSettlementItems(items: SettlementDraft[]) {
+  return [...items].sort((a, b) => {
+    const aIsPettyCash = isPettyCashCategory(a.category)
+    const bIsPettyCash = isPettyCashCategory(b.category)
+
+    if (aIsPettyCash === bIsPettyCash) return 0
+    return aIsPettyCash ? 1 : -1
+  })
+}
+
 async function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
@@ -359,8 +370,8 @@ function buildSettlementPayload(
                   0,
             sar: recalculateInvoice(invoice, rateMap).sarAmount,
             documentType: invoice.documentType,
-            invoiceDate: invoice.invoiceDate,
-            issuer: invoice.issuer.trim(),
+            invoiceDate: isPettyCashCategory(item.category) ? '' : invoice.invoiceDate,
+            issuer: isPettyCashCategory(item.category) ? '' : invoice.issuer.trim(),
             attachment: cloneStoredFile(invoice.attachment),
           }) satisfies SettlementInvoiceRecord,
       ),
@@ -545,6 +556,11 @@ export default function DashboardClient({
     }
   }, [currencyRates, settlementItems, settlementLoan])
 
+  const hasPettyCashSection = useMemo(
+    () => settlementItems.some((item) => isPettyCashCategory(item.category)),
+    [settlementItems],
+  )
+
   function resetLoanForm() {
     setLoanError('')
     setEditingLoanId(null)
@@ -598,11 +614,11 @@ export default function DashboardClient({
     setSettlementError('')
     setCurrencyRates([{ currencyCode: 'USD', rate: 3.75 }])
     setSettlementItems(
-      loan.items.map((item) => ({
+      sortSettlementItems(loan.items.map((item) => ({
         category: item.category,
         budget: item.amount,
         invoices: [createEmptyInvoice()],
-      })),
+      }))),
     )
     setSettlementMeta({
       receiptNumber: '',
@@ -733,7 +749,6 @@ export default function DashboardClient({
       setLoanModalOpen(false)
       setLoanError('')
       showToast(isEditing ? 'تم تحديث طلب السلفة.' : 'تم حفظ طلب السلفة بنجاح.')
-      router.refresh()
     })
   }
 
@@ -793,7 +808,10 @@ export default function DashboardClient({
         currentIndex === itemIndex
           ? {
               ...item,
-              invoices: [...item.invoices, createEmptyInvoice()],
+              invoices: [
+                ...item.invoices,
+                createEmptyInvoice(isPettyCashCategory(item.category) ? 'SAR' : 'SAR'),
+              ],
             }
           : item,
       ),
@@ -809,7 +827,7 @@ export default function DashboardClient({
               invoices:
                 item.invoices.length > 1
                   ? item.invoices.filter((_, idx) => idx !== invoiceIndex)
-                  : [createEmptyInvoice()],
+                  : [createEmptyInvoice(isPettyCashCategory(item.category) ? 'SAR' : 'SAR')],
             }
           : item,
       ),
@@ -888,11 +906,11 @@ export default function DashboardClient({
         setSettlementError(`أكمل مبلغ الفاتورة في بند ${invoice.category}.`)
         return
       }
-      if (!invoice.invoiceDate) {
+      if (!isPettyCashCategory(invoice.category) && !invoice.invoiceDate) {
         setSettlementError(`حدد تاريخ الفاتورة في بند ${invoice.category}.`)
         return
       }
-      if (!invoice.issuer.trim()) {
+      if (!isPettyCashCategory(invoice.category) && !invoice.issuer.trim()) {
         setSettlementError(`أدخل الجهة المصدرة للفاتورة في بند ${invoice.category}.`)
         return
       }
@@ -953,7 +971,6 @@ export default function DashboardClient({
       setSettlementModalOpen(false)
       setSettlementError('')
       showToast('تم حفظ تسوية السلفة بنجاح.')
-      router.refresh()
     })
   }
 
@@ -972,7 +989,6 @@ export default function DashboardClient({
       kind === 'loan' ? `/print/loans/${loanId}` : `/print/settlements/${loanId}`
 
     window.open(href, '_blank', 'noopener,noreferrer')
-    router.refresh()
   }
 
   function exportWordDocument(kind: 'loan' | 'settlement', loanId: string) {
@@ -990,7 +1006,6 @@ export default function DashboardClient({
       kind === 'loan' ? `/api/loans/${loanId}/word` : `/api/settlements/${loanId}/word`
 
     window.open(href, '_blank', 'noopener,noreferrer')
-    router.refresh()
   }
 
   async function deleteLoan(loanId: string) {
@@ -1014,7 +1029,6 @@ export default function DashboardClient({
       setLoadError('')
       setLoans((current) => current.filter((loan) => loan.id !== loanId))
       showToast('تم حذف طلب السلفة.')
-      router.refresh()
     })
   }
 
@@ -1023,7 +1037,6 @@ export default function DashboardClient({
       await fetch('/api/auth/logout', { method: 'POST' })
     } finally {
       router.push('/login')
-      router.refresh()
     }
   }
 
@@ -1054,11 +1067,10 @@ export default function DashboardClient({
       showToast(
         reviewStatus === 'RETURNED' ? 'تمت إعادة المعاملة للمراجعة.' : 'تم تحديث حالة المراجعة.',
       )
-      router.refresh()
     })
   }
 
-  const unsettledLoans = filteredLoans.filter((loan) => !loan.isSettled)
+  const requestLoans = filteredLoans
   const settledLoans = filteredLoans.filter((loan) => loan.isSettled)
 
   return (
@@ -1083,7 +1095,7 @@ export default function DashboardClient({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {currentUser.role === 'ADMIN' && (
+            {currentUser.roles.includes('ADMIN') && (
               <button
                 type="button"
                 onClick={() => router.push('/admin')}
@@ -1191,15 +1203,15 @@ export default function DashboardClient({
               <div className="rounded-[24px] bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
                 جاري تحميل الطلبات...
               </div>
-            ) : unsettledLoans.length === 0 ? (
+            ) : requestLoans.length === 0 ? (
               <EmptyState message="لا توجد طلبات سلفة أو تسوية غير منتهية حاليًا." />
             ) : (
               <div className="space-y-4">
-                {unsettledLoans.map((loan) => (
+                {requestLoans.map((loan) => (
                   <LoanCard
                     key={loan.id}
                     loan={loan}
-                    canReview={currentUser.role !== 'EMPLOYEE'}
+                    canReview={currentUser.roles.some((role) => role === 'ADMIN' || role === 'REVIEWER')}
                     onEdit={openEditLoanModal}
                     onDelete={deleteLoan}
                     onSettle={openSettlementModal}
@@ -1230,7 +1242,7 @@ export default function DashboardClient({
                   key={loan.id}
                   loan={loan}
                   archived
-                  canReview={currentUser.role !== 'EMPLOYEE'}
+                  canReview={currentUser.roles.some((role) => role === 'ADMIN' || role === 'REVIEWER')}
                   onEdit={openEditLoanModal}
                   onDelete={deleteLoan}
                   onSettle={openSettlementModal}
@@ -1670,7 +1682,7 @@ export default function DashboardClient({
                 </div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="hidden">
                 <div className="rounded-[24px] border border-slate-200 p-4">
                   <h4 className="mb-3 font-bold text-slate-900">بيانات التسوية</h4>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1798,7 +1810,7 @@ export default function DashboardClient({
                             key={invoiceIndex}
                             className="rounded-[20px] border border-slate-200 bg-slate-50 p-4"
                           >
-                            <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                               <Field label="المبلغ حسب الفاتورة">
                                 <input
                                   type="number"
@@ -1836,53 +1848,61 @@ export default function DashboardClient({
                                 <input
                                   readOnly
                                   value={formatCurrencySar(invoice.sarAmount)}
-                                  className="input-shell bg-slate-100 text-base font-bold"
+                                  className="input-shell bg-slate-100 text-lg font-bold"
                                 />
                               </Field>
-                              <Field label="نوعه">
-                                <select
-                                  value={invoice.documentType}
-                                  onChange={(event) =>
-                                    updateInvoice(
-                                      itemIndex,
-                                      invoiceIndex,
-                                      'documentType',
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="input-shell"
-                                >
-                                  {SETTLEMENT_DOCUMENT_TYPES.map((type) => (
-                                    <option key={type} value={type}>
-                                      {type}
-                                    </option>
-                                  ))}
-                                </select>
-                              </Field>
-                              <Field label="تاريخه">
-                                <input
-                                  type="date"
-                                  value={invoice.invoiceDate}
-                                  onChange={(event) =>
-                                    updateInvoice(
-                                      itemIndex,
-                                      invoiceIndex,
-                                      'invoiceDate',
-                                      event.target.value,
-                                    )
-                                  }
-                                  className="input-shell"
-                                />
-                              </Field>
-                              <Field label="الجهة المصدرة له">
-                                <input
-                                  value={invoice.issuer}
-                                  onChange={(event) =>
-                                    updateInvoice(itemIndex, invoiceIndex, 'issuer', event.target.value)
-                                  }
-                                  className="input-shell"
-                                />
-                              </Field>
+                              {isPettyCash ? (
+                                <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
+                                  هذا البند خاص بالنثريات، ويكتفى فيه بإرفاق موافقة المعالي في القسم السفلي دون تعبئة بيانات الفاتورة.
+                                </div>
+                              ) : (
+                                <>
+                                  <Field label="نوعه">
+                                    <select
+                                      value={invoice.documentType}
+                                      onChange={(event) =>
+                                        updateInvoice(
+                                          itemIndex,
+                                          invoiceIndex,
+                                          'documentType',
+                                          event.target.value,
+                                        )
+                                      }
+                                      className="input-shell"
+                                    >
+                                      {SETTLEMENT_DOCUMENT_TYPES.map((type) => (
+                                        <option key={type} value={type}>
+                                          {type}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </Field>
+                                  <Field label="تاريخه">
+                                    <input
+                                      type="date"
+                                      value={invoice.invoiceDate}
+                                      onChange={(event) =>
+                                        updateInvoice(
+                                          itemIndex,
+                                          invoiceIndex,
+                                          'invoiceDate',
+                                          event.target.value,
+                                        )
+                                      }
+                                      className="input-shell"
+                                    />
+                                  </Field>
+                                  <Field label="الجهة المصدرة له">
+                                    <input
+                                      value={invoice.issuer}
+                                      onChange={(event) =>
+                                        updateInvoice(itemIndex, invoiceIndex, 'issuer', event.target.value)
+                                      }
+                                      className="input-shell"
+                                    />
+                                  </Field>
+                                </>
+                              )}
                             </div>
 
                             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
@@ -1956,6 +1976,102 @@ export default function DashboardClient({
                 <SummaryPill label="مبلغ السلفة" value={formatCurrencySar(settlementLoan.amount)} />
                 <SummaryPill label="المبلغ المصروف بالزيادة المطلوبة صرفه" value={formatCurrencySar(settlementSummary.overage)} />
                 <SummaryPill label="وفر السلفة النقدي" value={formatCurrencySar(settlementSummary.savings)} />
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[24px] border border-slate-200 p-4">
+                  <h4 className="mb-3 text-lg font-bold text-slate-900">بيانات التسوية</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="رقم سند القبض">
+                      <input
+                        value={settlementMeta.receiptNumber}
+                        onChange={(event) =>
+                          setSettlementMeta((current) => ({
+                            ...current,
+                            receiptNumber: event.target.value,
+                          }))
+                        }
+                        className="input-shell"
+                      />
+                    </Field>
+                    <Field label="تاريخه">
+                      <input
+                        type="date"
+                        value={settlementMeta.receiptDate}
+                        onChange={(event) =>
+                          setSettlementMeta((current) => ({
+                            ...current,
+                            receiptDate: event.target.value,
+                          }))
+                        }
+                        className="input-shell"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-4">
+                    <Field label="مبرر الزيادة على مبلغ السلفة">
+                      <textarea
+                        value={settlementMeta.overageReason}
+                        onChange={(event) =>
+                          setSettlementMeta((current) => ({
+                            ...current,
+                            overageReason: event.target.value,
+                          }))
+                        }
+                        rows={3}
+                        className="input-shell min-h-[110px] resize-y"
+                        placeholder="يعبأ فقط عند وجود زيادة على مبلغ السلفة، ولا يظهر في النموذج المطبوع."
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+                {hasPettyCashSection && (
+                  <div className="rounded-[24px] border border-slate-200 p-4">
+                    <h4 className="mb-3 text-lg font-bold text-slate-900">النثريات غير المؤيدة بمستندات</h4>
+                    <p className="mb-3 text-sm leading-7 text-slate-500">
+                      يظهر هذا الجزء فقط عند وجود بند نثريات في طلب السلفة الأساسي، ويكتفى فيه بإرفاق موافقة المعالي.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
+                        +
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept=".pdf,image/*"
+                          onChange={(event) => void handlePettyCashApprovalUpload(event.target.files)}
+                        />
+                      </label>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-slate-700">موافقة المعالي على النثريات</div>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                          <span
+                            className={`inline-block h-2.5 w-2.5 rounded-full ${
+                              settlementMeta.pettyCashApproval ? 'bg-success' : 'bg-slate-300'
+                            }`}
+                          />
+                          <span>
+                            {settlementMeta.pettyCashApproval
+                              ? settlementMeta.pettyCashApproval.name
+                              : 'لم يتم رفع المرفق بعد'}
+                          </span>
+                        </div>
+                      </div>
+                      {settlementMeta.pettyCashApproval && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSettlementMeta((current) => ({ ...current, pettyCashApproval: null }))
+                          }
+                          className="rounded-2xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
+                        >
+                          إزالة
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {settlementError && (

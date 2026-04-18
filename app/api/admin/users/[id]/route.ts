@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser, hashPassword } from '@/lib/auth'
+import {
+  getPrimaryRole,
+  getSessionUser,
+  hasRole,
+  hashPassword,
+  normalizeRoles,
+} from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function PATCH(
@@ -10,20 +16,27 @@ export async function PATCH(
   try {
     await ensureAuthSetup()
     const currentUser = getSessionUser()
-    if (!currentUser || currentUser.role !== 'ADMIN') {
+    if (!hasRole(currentUser, 'ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (!currentUser) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const body = await request.json()
-    const data: Record<string, string> = {}
+    const data: Record<string, unknown> = {}
 
     if (body.fullName) data.fullName = String(body.fullName).trim()
     if (body.email) data.email = String(body.email).trim().toLowerCase()
     if (body.mobile) data.mobile = String(body.mobile).trim()
     if (body.extension) data.extension = String(body.extension).trim()
-    if (body.role) data.role = body.role
     if (body.status) data.status = body.status
     if (body.password) data.passwordHash = hashPassword(String(body.password))
+    if (body.role || body.roles) {
+      const roles = normalizeRoles(body.roles, (body.role ?? 'EMPLOYEE') as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER')
+      data.roles = roles
+      data.role = getPrimaryRole(roles)
+    }
 
     const user = await prisma.user.update({
       where: { id: params.id },
@@ -35,11 +48,15 @@ export async function PATCH(
         mobile: true,
         extension: true,
         role: true,
+        roles: true,
         status: true,
       },
     })
 
-    return NextResponse.json(user)
+    return NextResponse.json({
+      ...user,
+      roles: normalizeRoles(user.roles, user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'),
+    })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update user' },
@@ -55,7 +72,10 @@ export async function DELETE(
   try {
     await ensureAuthSetup()
     const currentUser = getSessionUser()
-    if (!currentUser || currentUser.role !== 'ADMIN') {
+    if (!hasRole(currentUser, 'ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (!currentUser) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

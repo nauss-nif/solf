@@ -31,7 +31,6 @@ export default function LoginForm() {
           }
 
           router.push('/')
-          router.refresh()
         })
       }}
     >

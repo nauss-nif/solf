@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
     }
 
-    if (!canManageAllLoans(currentUser.role) && loan.userId !== currentUser.userId) {
+    if (!canManageAllLoans(currentUser) && loan.userId !== currentUser.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

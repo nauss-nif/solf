@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ensureDefaultAdmin, setSessionCookie, verifyPassword } from '@/lib/auth'
+import {
+  ensureDefaultAdmin,
+  getPrimaryRole,
+  normalizeRoles,
+  setSessionCookie,
+  verifyPassword,
+} from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function POST(request: Request) {
@@ -22,6 +28,7 @@ export async function POST(request: Request) {
         fullName: true,
         email: true,
         role: true,
+        roles: true,
         status: true,
         passwordHash: true,
       },
@@ -34,14 +41,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Account is disabled' }, { status: 403 })
     }
 
+    const roles = normalizeRoles(user.roles, user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER')
+
     setSessionCookie({
       userId: user.id,
       fullName: user.fullName,
       email: user.email,
-        role: user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER',
+      role: getPrimaryRole(roles),
+      roles,
     })
 
-    return NextResponse.json({ success: true, role: user.role })
+    return NextResponse.json({ success: true, role: getPrimaryRole(roles), roles })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Login failed' },

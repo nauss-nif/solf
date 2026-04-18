@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ensureDefaultAdmin, hashPassword, setSessionCookie } from '@/lib/auth'
+import {
+  ensureDefaultAdmin,
+  getPrimaryRole,
+  hashPassword,
+  normalizeRoles,
+  setSessionCookie,
+} from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function POST(request: Request) {
@@ -40,14 +46,19 @@ export async function POST(request: Request) {
         mobile,
         extension,
         passwordHash: hashPassword(password),
+        role: 'EMPLOYEE',
+        roles: ['EMPLOYEE'],
       },
     })
+
+    const roles = normalizeRoles(user.roles, user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER')
 
     setSessionCookie({
       userId: user.id,
       fullName: user.fullName,
       email: user.email,
-      role: user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER',
+      role: getPrimaryRole(roles),
+      roles,
     })
 
     return NextResponse.json({ success: true })

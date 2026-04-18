@@ -13,6 +13,7 @@ async function runAuthSetup() {
       "extension" TEXT NOT NULL,
       "passwordHash" TEXT NOT NULL,
       "role" TEXT NOT NULL DEFAULT 'EMPLOYEE',
+      "roles" JSONB,
       "status" TEXT NOT NULL DEFAULT 'ACTIVE',
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -22,6 +23,11 @@ async function runAuthSetup() {
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "users"
     ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'EMPLOYEE';
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "roles" JSONB;
   `)
 
   await prisma.$executeRawUnsafe(`

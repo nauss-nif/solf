@@ -8,15 +8,49 @@ const SESSION_COOKIE = 'naif_session'
 const AUTH_SECRET = process.env.AUTH_SECRET ?? 'change-this-auth-secret'
 let defaultAdminPromise: Promise<void> | null = null
 
+export type SessionRole = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+
 export type SessionUser = {
   userId: string
   fullName: string
   email: string
-  role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+  role: SessionRole
+  roles: SessionRole[]
 }
 
-export function canManageAllLoans(role: SessionUser['role']) {
-  return role === 'ADMIN' || role === 'REVIEWER'
+export function normalizeRoles(
+  value: unknown,
+  fallbackRole: SessionRole = 'EMPLOYEE',
+): SessionRole[] {
+  const source = Array.isArray(value) ? value : [fallbackRole]
+  const roles = source.filter(
+    (item): item is SessionRole =>
+      item === 'EMPLOYEE' || item === 'ADMIN' || item === 'REVIEWER',
+  )
+
+  return roles.length > 0 ? Array.from(new Set(roles)) : [fallbackRole]
+}
+
+export function getPrimaryRole(roles: SessionRole[]) {
+  if (roles.includes('ADMIN')) return 'ADMIN'
+  if (roles.includes('REVIEWER')) return 'REVIEWER'
+  return 'EMPLOYEE'
+}
+
+export function hasRole(
+  user: Pick<SessionUser, 'role' | 'roles'> | null | undefined,
+  role: SessionRole,
+) {
+  if (!user) return false
+  return normalizeRoles(user.roles, user.role).includes(role)
+}
+
+export function canManageAllLoans(user: Pick<SessionUser, 'role' | 'roles'> | SessionRole) {
+  if (typeof user === 'string') {
+    return user === 'ADMIN' || user === 'REVIEWER'
+  }
+
+  return hasRole(user, 'ADMIN') || hasRole(user, 'REVIEWER')
 }
 
 function toBase64Url(value: string) {
@@ -63,7 +97,26 @@ export function readSessionToken(token?: string | null): SessionUser | null {
   if (signValue(payload) !== signature) return null
 
   try {
-    return JSON.parse(fromBase64Url(payload)) as SessionUser
+    const parsed = JSON.parse(fromBase64Url(payload)) as Partial<SessionUser>
+    if (
+      typeof parsed.userId !== 'string' ||
+      typeof parsed.fullName !== 'string' ||
+      typeof parsed.email !== 'string' ||
+      typeof parsed.role !== 'string'
+    ) {
+      return null
+    }
+
+    const role = parsed.role as SessionRole
+    const roles = normalizeRoles(parsed.roles, role)
+
+    return {
+      userId: parsed.userId,
+      fullName: parsed.fullName,
+      email: parsed.email,
+      role: getPrimaryRole(roles),
+      roles,
+    }
   } catch {
     return null
   }
@@ -82,7 +135,7 @@ export function requireSessionUser() {
 
 export function requireAdminUser() {
   const user = requireSessionUser()
-  if (user.role !== 'ADMIN') redirect('/')
+  if (!hasRole(user, 'ADMIN')) redirect('/')
   return user
 }
 
@@ -120,6 +173,7 @@ export async function ensureDefaultAdmin() {
           extension: '0000',
           passwordHash: hashPassword('Zx.321321'),
           role: 'ADMIN',
+          roles: ['EMPLOYEE', 'ADMIN'],
           status: 'ACTIVE',
         },
       })

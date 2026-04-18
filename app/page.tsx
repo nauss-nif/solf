@@ -34,7 +34,7 @@ export default async function Home() {
   await ensureDatabaseSetup()
 
   const loans = await prisma.loan.findMany({
-    where: canManageAllLoans(currentUser.role) ? undefined : { userId: currentUser.userId },
+    where: canManageAllLoans(currentUser) ? undefined : { userId: currentUser.userId },
     orderBy: { createdAt: 'desc' },
     include: dashboardLoanInclude,
   })

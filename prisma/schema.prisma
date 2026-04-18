@@ -16,6 +16,7 @@ model User {
   extension    String
   passwordHash String
   role         String     @default("EMPLOYEE")
+  roles        Json?
   status       String     @default("ACTIVE")
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt

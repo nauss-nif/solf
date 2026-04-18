@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ensureDefaultAdmin, getSessionUser } from '@/lib/auth'
+import { ensureDefaultAdmin, getSessionUser, hasRole, normalizeRoles } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
     await ensureAuthSetup()
     await ensureDefaultAdmin()
     const currentUser = getSessionUser()
-    if (!currentUser || currentUser.role !== 'ADMIN') {
+    if (!hasRole(currentUser, 'ADMIN')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -21,12 +21,18 @@ export async function GET() {
         mobile: true,
         extension: true,
         role: true,
+        roles: true,
         status: true,
         createdAt: true,
       },
     })
 
-    return NextResponse.json(users)
+    return NextResponse.json(
+      users.map((user) => ({
+        ...user,
+        roles: normalizeRoles(user.roles, user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'),
+      })),
+    )
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to load users' },

@@ -266,6 +266,8 @@ function printShell(body: string, options: PrintShellOptions) {
       padding: 14px 18px;
       margin-top: 10px;
       min-height: 128px;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
@@ -282,6 +284,9 @@ function printShell(body: string, options: PrintShellOptions) {
       gap: 16px;
       align-items: center;
       flex-wrap: wrap;
+    }
+    .official-panel .row.nowrap {
+      flex-wrap: nowrap;
     }
     .approval-choice {
       display: inline-flex;
@@ -393,7 +398,7 @@ function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
             type: invoice.type ? String(invoice.type) : String(invoice.documentType ?? ''),
             date: invoice.date ? String(invoice.date) : String(invoice.invoiceDate ?? ''),
             issuer: invoice.issuer ? String(invoice.issuer) : '',
-            attachment: invoice.attachment ?? null,
+            attachment: normalizeStoredFile(invoice.attachment),
           }))
         : [],
     }
@@ -433,17 +438,20 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
     const invoices = detail.invoices ?? []
     const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
     const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
+    const isPettyCash = (detail.category ?? '').includes('نثريات')
 
     return {
       index: index + 1,
       category: detail.category?.trim() || 'بند صرف',
       amount: formatNumber(amount),
-      documentType: joinValues(invoices.map((invoice) => invoice.type), '<br />'),
+      documentType: isPettyCash
+        ? 'موافقة المعالي'
+        : joinValues(invoices.map((invoice) => invoice.type), '<br />'),
       documentDate: joinValues(
         invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
         '<br />',
       ),
-      issuer: joinValues(invoices.map((invoice) => invoice.issuer), '<br />'),
+      issuer: isPettyCash ? '' : joinValues(invoices.map((invoice) => invoice.issuer), '<br />'),
     }
   })
 
@@ -466,6 +474,10 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   const meta = normalizeSettlementMeta(loan.settlement?.invoices)
   const attachments = details.flatMap((detail) =>
     (detail.invoices ?? [])
+      .map((invoice) => ({
+        ...invoice,
+        attachment: normalizeStoredFile(invoice.attachment),
+      }))
       .filter((invoice) => invoice.attachment)
       .map((invoice, index) => ({
         category: detail.category?.trim() || 'بند صرف',
@@ -598,7 +610,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>مستوفي</span>
         <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
       </p>
-      <div class="row" style="margin-top: 30px;">
+      <div class="row nowrap" style="margin-top: 30px;">
         <span>الاسم: شريف محمد مصطفى الغزولي</span>
         <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
@@ -760,18 +772,29 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>لا أوافق</span>
       </p>
       <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
-      <div class="row" style="margin-top: 30px;">
+      <div class="row nowrap" style="margin-top: 30px;">
         <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
-        <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
       </div>
     </div>
     ${attachmentPages}
   `
 
   return printShell(body, {
-    pageMargins: '38mm 24mm 24mm 24mm',
+    pageMargins: '38mm 18mm 22mm 18mm',
+    fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
+    fontSize: '14pt',
+    lineHeight: '1.45',
     sheetWidth: '162mm',
     sheetMinHeight: '235mm',
+    fontFaceCss: `
+      @font-face {
+        font-family: "BoutrosJazirahTextLight";
+        src: url("/fonts/BoutrosJazirahTextLight.ttf") format("truetype");
+        font-weight: 300;
+        font-style: normal;
+      }
+    `,
   })
 }

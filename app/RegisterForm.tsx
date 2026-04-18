@@ -37,7 +37,6 @@ export default function RegisterForm() {
           }
 
           router.push('/')
-          router.refresh()
         })
       }}
     >

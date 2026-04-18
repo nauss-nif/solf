@@ -20,7 +20,7 @@ export async function getAuthorizedLoan(
     notFound()
   }
 
-  if (!canManageAllLoans(currentUser.role) && loan.userId !== currentUser.userId) {
+  if (!canManageAllLoans(currentUser) && loan.userId !== currentUser.userId) {
     notFound()
   }
 

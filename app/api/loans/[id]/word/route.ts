@@ -6,16 +6,22 @@ export async function GET(
   _: Request,
   { params }: { params: { id: string } },
 ) {
-  const loan = await getAuthorizedLoan(params.id, { markPrinted: true })
-  const file = await buildLoanRequestDocx(loan)
-  const filename = `loan-${loan.refNumber.replaceAll('/', '-')}.doc`
+  try {
+    const loan = await getAuthorizedLoan(params.id, { markPrinted: true })
+    const file = await buildLoanRequestDocx(loan)
+    const filename = `loan-${loan.refNumber.replaceAll('/', '-')}.doc`
 
-  return new NextResponse(file, {
-    headers: {
-      'Content-Type': 'application/msword; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': String(file.byteLength),
-      'Cache-Control': 'no-store, max-age=0',
-    },
-  })
+    return new NextResponse(file, {
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+      },
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to export loan document' },
+      { status: 500 },
+    )
+  }
 }

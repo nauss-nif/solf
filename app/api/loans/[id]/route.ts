@@ -20,7 +20,7 @@ async function getEditableLoan(id: string) {
     return { error: NextResponse.json({ error: 'Loan not found' }, { status: 404 }) }
   }
 
-  if (!canManageAllLoans(currentUser.role) && loan.userId !== currentUser.userId) {
+  if (!canManageAllLoans(currentUser) && loan.userId !== currentUser.userId) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
@@ -37,14 +37,14 @@ export async function PATCH(
 
     const { loan, currentUser } = result
 
-    if (loan.printedAt && !canManageAllLoans(currentUser.role)) {
+    if (loan.printedAt && !canManageAllLoans(currentUser)) {
       return NextResponse.json(
         { error: 'لا يمكن تعديل الطلب بعد طباعته أو تصديره.' },
         { status: 409 },
       )
     }
 
-    if (loan.isSettled && !canManageAllLoans(currentUser.role)) {
+    if (loan.isSettled && !canManageAllLoans(currentUser)) {
       return NextResponse.json(
         { error: 'لا يمكن تعديل الطلب بعد تسويته.' },
         { status: 409 },
@@ -56,7 +56,7 @@ export async function PATCH(
       typeof body.reviewStatus === 'string' &&
       !('activity' in body) &&
       !('startDate' in body) &&
-      canManageAllLoans(currentUser.role)
+      canManageAllLoans(currentUser)
     ) {
       const reviewedLoan = await prisma.loan.update({
         where: { id: loan.id },
@@ -120,14 +120,14 @@ export async function DELETE(
 
     const { loan, currentUser } = result
 
-    if (loan.printedAt && !canManageAllLoans(currentUser.role)) {
+    if (loan.printedAt && !canManageAllLoans(currentUser)) {
       return NextResponse.json(
         { error: 'لا يمكن حذف الطلب بعد طباعته أو تصديره.' },
         { status: 409 },
       )
     }
 
-    if (loan.isSettled && !canManageAllLoans(currentUser.role)) {
+    if (loan.isSettled && !canManageAllLoans(currentUser)) {
       return NextResponse.json(
         { error: 'لا يمكن حذف الطلب بعد تسويته.' },
         { status: 409 },

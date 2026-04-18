@@ -26,7 +26,6 @@ export default function NewLoanPage() {
 
     if (res.ok) {
       router.push('/');
-      router.refresh();
     } else {
       alert('حدث خطأ');
       setLoading(false);
