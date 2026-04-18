@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -893,56 +894,117 @@ export default function DashboardClient({
     })
   }
 
+  async function handleLogout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } finally {
+      router.push('/login')
+      router.refresh()
+    }
+  }
+
   const unsettledLoans = filteredLoans.filter((loan) => !loan.isSettled)
   const settledLoans = filteredLoans.filter((loan) => loan.isSettled)
 
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 md:grid-cols-4">
-        <StatCard label="قيد التسوية" value={stats.pending} accent="warning" />
-        <StatCard label="طلبات منتهية" value={stats.settled} accent="success" />
-        <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" />
-        <StatCard label="متأخرة" value={stats.overdue} accent="danger" />
-      </section>
-
-      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-soft">
-        <div className="mb-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">
-              منصة السلف المؤقتة - وكالة التدريب
-            </h2>
-            <p className="text-sm text-slate-500">
-              إدارة طلبات السلف المؤقتة وتسوياتها مع المرفقات والطباعة والتصدير.
-            </p>
+    <div className="min-h-screen bg-app-gradient">
+      <header className="sticky top-0 z-30 border-b border-white/60 bg-white/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
+          <div className="flex items-center gap-4">
+            <Image
+              src="/logo-footer.png"
+              alt="شعار جامعة نايف العربية للعلوم الأمنية"
+              width={280}
+              height={64}
+              className="h-auto w-[180px] md:w-[240px]"
+              priority
+            />
+            <div className="hidden border-r border-slate-200 pr-4 md:block">
+              <h1 className="text-lg font-bold text-primary md:text-xl">منصة طلب السلف المؤقتة</h1>
+              <p className="text-xs text-slate-500 md:text-sm">
+                وكالة التدريب بجامعة نايف العربية للعلوم الأمنية
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {currentUser.role === 'ADMIN' && (
+              <button
+                type="button"
+                onClick={() => router.push('/admin')}
+                className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-bold text-primary"
+              >
+                إدارة النظام
+              </button>
+            )}
             <button
               type="button"
-              onClick={openLoanModal}
-              className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white"
+              onClick={handleLogout}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600"
             >
-              + طلب سلفة مؤقتة
+              تسجيل الخروج
             </button>
-            <button
-              type="button"
-              onClick={refreshLoans}
-              className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700"
-            >
-              تحديث البيانات
-            </button>
+            <div className="rounded-full border border-primary/10 bg-primary/5 px-4 py-2 text-right text-xs font-semibold text-primary md:text-sm">
+              <div>{currentUser.fullName}</div>
+              <div className="text-[11px] text-slate-500">{currentUser.email}</div>
+            </div>
           </div>
         </div>
+      </header>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <MiniStat label="إجمالي السلف المؤقتة" value={formatCurrencySar(loanTotals.totalLoanAmount)} />
-          <MiniStat label="إجمالي ما تمت تسويته" value={formatCurrencySar(loanTotals.totalSettledAmount)} />
-          <MiniStat label="الطلبات غير المطبوعة" value={loans.filter((loan) => !loan.printedAt).length} />
-          <MiniStat label="الطلبات المسواة" value={settledLoans.length} />
-        </div>
-      </section>
+      <main className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+        <section className="dashboard-hero mb-6 rounded-[28px] p-6 text-white shadow-soft md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
+            <div>
+              <h2 className="mb-2 text-2xl font-bold md:text-4xl">لوحة السلف المؤقتة</h2>
+              <p className="max-w-2xl text-sm leading-7 text-white/85 md:text-base">
+                إدارة الطلبات والتسويات من حساب الموظف مع الحفاظ على النماذج الرسمية والمرفقات والطباعة.
+              </p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={openLoanModal}
+                  className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-primary transition hover:-translate-y-0.5"
+                >
+                  نموذج 18 - طلب سلفة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const firstOpenLoan = loans.find((loan) => !loan.isSettled)
+                    if (firstOpenLoan) openSettlementModal(firstOpenLoan.id)
+                  }}
+                  className="rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15"
+                >
+                  نموذج 19 - تسوية سلفة
+                </button>
+                <button
+                  type="button"
+                  onClick={refreshLoans}
+                  className="rounded-2xl border border-white/25 bg-transparent px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
+                >
+                  تحديث البيانات
+                </button>
+              </div>
+            </div>
 
-      <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-soft">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MiniStat label="إجمالي السلف المؤقتة" value={formatCurrencySar(loanTotals.totalLoanAmount)} />
+              <MiniStat label="إجمالي ما تمت تسويته" value={formatCurrencySar(loanTotals.totalSettledAmount)} />
+              <MiniStat label="الطلبات غير المطبوعة" value={loans.filter((loan) => !loan.printedAt).length} />
+              <MiniStat label="الطلبات المسواة" value={settledLoans.length} />
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-6 grid gap-4 md:grid-cols-4">
+          <StatCard label="قيد التسوية" value={stats.pending} accent="warning" />
+          <StatCard label="طلبات منتهية" value={stats.settled} accent="success" />
+          <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" />
+          <StatCard label="متأخرة" value={stats.overdue} accent="danger" />
+        </section>
+
+        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-soft">
         <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
           <TabButton label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
           <TabButton label="الأرشيف" active={activeTab === 'archive'} onClick={() => setActiveTab('archive')} />
@@ -1062,7 +1124,8 @@ export default function DashboardClient({
             ))}
           </div>
         )}
-      </section>
+        </section>
+      </main>
 
       {loanModalOpen && (
         <div className="modal-overlay active">
