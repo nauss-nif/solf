@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { buildSettlementDocx } from '@/lib/document-templates'
 import { getAuthorizedLoan } from '@/lib/loan-records'
 
+function toSafeFilename(value: string) {
+  return value.replaceAll('/', '-').replace(/[^\x20-\x7E]/g, '-').replace(/-+/g, '-')
+}
+
 export async function GET(
   _: Request,
   { params }: { params: { id: string } },
@@ -14,7 +18,7 @@ export async function GET(
     }
 
     const file = await buildSettlementDocx(loan)
-    const filename = `settlement-${loan.refNumber.replaceAll('/', '-')}.doc`
+    const filename = `settlement-${toSafeFilename(loan.refNumber)}.doc`
 
     return new NextResponse(file, {
       headers: {

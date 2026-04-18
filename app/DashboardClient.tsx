@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import Image from 'next/image'
 import { useEffect, useMemo, useState, useTransition } from 'react'
@@ -94,7 +94,6 @@ type SettlementMetaState = {
   receiptNumber: string
   receiptDate: string
   overageReason: string
-  pettyCashApproval: StoredFile | null
 }
 
 type ToastItem = {
@@ -142,7 +141,7 @@ function generateRef(loans: LoanDashboardRecord[]) {
     return Math.max(max, Number.isNaN(num) ? 0 : num)
   }, 0)
 
-  return `وت/${AGENCY_CODE}/${String(maxRef + 1).padStart(4, '0')}`
+  return `ظˆطھ/${AGENCY_CODE}/${String(maxRef + 1).padStart(4, '0')}`
 }
 
 function normalizeLoanRecord(loan: {
@@ -215,7 +214,7 @@ function getCurrencyLabel(code: CurrencyCode) {
 }
 
 function isPettyCashCategory(category: string) {
-  return category.includes('نثريات')
+  return category.includes('ظ†ط«ط±ظٹط§طھ')
 }
 
 function sortSettlementItems(items: SettlementDraft[]) {
@@ -232,7 +231,7 @@ async function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result ?? ''))
-    reader.onerror = () => reject(new Error('تعذر قراءة الملف المرفوع.'))
+    reader.onerror = () => reject(new Error('طھط¹ط°ط± ظ‚ط±ط§ط،ط© ط§ظ„ظ…ظ„ظپ ط§ظ„ظ…ط±ظپظˆط¹.'))
     reader.readAsDataURL(file)
   })
 }
@@ -241,14 +240,14 @@ async function optimizeImageFile(file: File) {
   const sourceUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result ?? ''))
-    reader.onerror = () => reject(new Error('تعذر قراءة الصورة المرفوعة.'))
+    reader.onerror = () => reject(new Error('طھط¹ط°ط± ظ‚ط±ط§ط،ط© ط§ظ„طµظˆط±ط© ط§ظ„ظ…ط±ظپظˆط¹ط©.'))
     reader.readAsDataURL(file)
   })
 
   const image = await new Promise<HTMLImageElement>((resolve, reject) => {
     const element = new window.Image()
     element.onload = () => resolve(element)
-    element.onerror = () => reject(new Error('تعذر معالجة الصورة المرفوعة.'))
+    element.onerror = () => reject(new Error('طھط¹ط°ط± ظ…ط¹ط§ظ„ط¬ط© ط§ظ„طµظˆط±ط© ط§ظ„ظ…ط±ظپظˆط¹ط©.'))
     element.src = sourceUrl
   })
 
@@ -260,7 +259,7 @@ async function optimizeImageFile(file: File) {
 
   const context = canvas.getContext('2d')
   if (!context) {
-    throw new Error('تعذر تهيئة معالجة الصورة.')
+    throw new Error('طھط¹ط°ط± طھظ‡ظٹط¦ط© ظ…ط¹ط§ظ„ط¬ط© ط§ظ„طµظˆط±ط©.')
   }
 
   context.drawImage(image, 0, 0, canvas.width, canvas.height)
@@ -283,7 +282,7 @@ async function optimizeImageFile(file: File) {
 
 async function fileToStoredFile(file: File) {
   if (file.size > FILE_SIZE_LIMIT_BYTES) {
-    throw new Error('حجم الملف كبير جدًا، الحد الأعلى للملف الواحد هو 12 ميجابايت.')
+    throw new Error('ط­ط¬ظ… ط§ظ„ظ…ظ„ظپ ظƒط¨ظٹط± ط¬ط¯ظ‹ط§طŒ ط§ظ„ط­ط¯ ط§ظ„ط£ط¹ظ„ظ‰ ظ„ظ„ظ…ظ„ظپ ط§ظ„ظˆط§ط­ط¯ ظ‡ظˆ 12 ظ…ظٹط¬ط§ط¨ط§ظٹطھ.')
   }
 
   if (file.type.startsWith('image/')) {
@@ -416,7 +415,6 @@ export default function DashboardClient({
     receiptNumber: '',
     receiptDate: '',
     overageReason: '',
-    pettyCashApproval: null,
   })
 
   async function refreshLoans() {
@@ -432,7 +430,7 @@ export default function DashboardClient({
       const data = (await response.json()) as LoanDashboardRecord[]
       setLoans(data.map(normalizeLoanRecord))
     } catch {
-      setLoadError('تعذر تحميل بيانات السلف من الخادم.')
+      setLoadError('طھط¹ط°ط± طھط­ظ…ظٹظ„ ط¨ظٹط§ظ†ط§طھ ط§ظ„ط³ظ„ظپ ظ…ظ† ط§ظ„ط®ط§ط¯ظ….')
     } finally {
       setIsLoadingLoans(false)
     }
@@ -556,11 +554,6 @@ export default function DashboardClient({
     }
   }, [currencyRates, settlementItems, settlementLoan])
 
-  const hasPettyCashSection = useMemo(
-    () => settlementItems.some((item) => isPettyCashCategory(item.category)),
-    [settlementItems],
-  )
-
   function resetLoanForm() {
     setLoanError('')
     setEditingLoanId(null)
@@ -624,7 +617,6 @@ export default function DashboardClient({
       receiptNumber: '',
       receiptDate: '',
       overageReason: '',
-      pettyCashApproval: null,
     })
     setSettlementModalOpen(true)
   }
@@ -654,25 +646,12 @@ export default function DashboardClient({
       setLoanAttachments((current) => ({ ...current, [key]: stored }))
       setLoanError('')
     } catch (error) {
-      setLoanError(error instanceof Error ? error.message : 'تعذر رفع الملف.')
+      setLoanError(error instanceof Error ? error.message : 'طھط¹ط°ط± ط±ظپط¹ ط§ظ„ظ…ظ„ظپ.')
     }
   }
 
   function removeLoanAttachment(key: string) {
     setLoanAttachments((current) => ({ ...current, [key]: null }))
-  }
-
-  async function handlePettyCashApprovalUpload(fileList: FileList | null) {
-    const file = fileList?.[0]
-    if (!file) return
-
-    try {
-      const stored = await fileToStoredFile(file)
-      setSettlementMeta((current) => ({ ...current, pettyCashApproval: stored }))
-      setSettlementError('')
-    } catch (error) {
-      setSettlementError(error instanceof Error ? error.message : 'تعذر رفع المرفق.')
-    }
   }
 
   async function submitLoan() {
@@ -684,28 +663,28 @@ export default function DashboardClient({
       .filter((item) => item.category && item.amount > 0)
 
     if (!loanForm.activity || !loanForm.location || !loanForm.employee) {
-      setLoanError('أكمل الحقول الأساسية قبل حفظ الطلب.')
+      setLoanError('ط£ظƒظ…ظ„ ط§ظ„ط­ظ‚ظˆظ„ ط§ظ„ط£ط³ط§ط³ظٹط© ظ‚ط¨ظ„ ط­ظپط¸ ط§ظ„ط·ظ„ط¨.')
       return
     }
 
     if (!loanForm.startDate || !loanForm.endDate) {
-      setLoanError('حدد تاريخ البداية والنهاية.')
+      setLoanError('ط­ط¯ط¯ طھط§ط±ظٹط® ط§ظ„ط¨ط¯ط§ظٹط© ظˆط§ظ„ظ†ظ‡ط§ظٹط©.')
       return
     }
 
     if (loanForm.budgetApproved === null) {
-      setLoanError('حدد حالة اعتماد الموازنة قبل حفظ الطلب.')
+      setLoanError('ط­ط¯ط¯ ط­ط§ظ„ط© ط§ط¹طھظ…ط§ط¯ ط§ظ„ظ…ظˆط§ط²ظ†ط© ظ‚ط¨ظ„ ط­ظپط¸ ط§ظ„ط·ظ„ط¨.')
       return
     }
 
     if (cleanExpenses.length === 0) {
-      setLoanError('أضف بند صرف واحد على الأقل.')
+      setLoanError('ط£ط¶ظپ ط¨ظ†ط¯ طµط±ظپ ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„.')
       return
     }
 
     for (const attachment of LOAN_ATTACHMENT_DEFINITIONS) {
       if (attachment.required && !loanAttachments[attachment.key]) {
-        setLoanError(`أرفق ${attachment.label} قبل إرسال الطلب.`)
+        setLoanError(`ط£ط±ظپظ‚ ${attachment.label} ظ‚ط¨ظ„ ط¥ط±ط³ط§ظ„ ط§ظ„ط·ظ„ط¨.`)
         return
       }
     }
@@ -735,7 +714,7 @@ export default function DashboardClient({
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         setLoanError(
-          typeof data?.error === 'string' ? data.error : 'تعذر حفظ طلب السلفة.',
+          typeof data?.error === 'string' ? data.error : 'طھط¹ط°ط± ط­ظپط¸ ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط©.',
         )
         return
       }
@@ -748,7 +727,7 @@ export default function DashboardClient({
       )
       setLoanModalOpen(false)
       setLoanError('')
-      showToast(isEditing ? 'تم تحديث طلب السلفة.' : 'تم حفظ طلب السلفة بنجاح.')
+      showToast(isEditing ? 'طھظ… طھط­ط¯ظٹط« ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط©.' : 'طھظ… ط­ظپط¸ ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط© ط¨ظ†ط¬ط§ط­.')
     })
   }
 
@@ -859,7 +838,7 @@ export default function DashboardClient({
       )
       setSettlementError('')
     } catch (error) {
-      setSettlementError(error instanceof Error ? error.message : 'تعذر رفع مرفق الفاتورة.')
+      setSettlementError(error instanceof Error ? error.message : 'طھط¹ط°ط± ط±ظپط¹ ظ…ط±ظپظ‚ ط§ظ„ظپط§طھظˆط±ط©.')
     }
   }
 
@@ -886,53 +865,57 @@ export default function DashboardClient({
     )
 
     if (currencyRates.some((rate) => rate.currencyCode !== 'SAR' && rate.rate <= 0)) {
-      setSettlementError('أكمل أسعار الصرف لجميع العملات المضافة.')
+      setSettlementError('ط£ظƒظ…ظ„ ط£ط³ط¹ط§ط± ط§ظ„طµط±ظپ ظ„ط¬ظ…ظٹط¹ ط§ظ„ط¹ظ…ظ„ط§طھ ط§ظ„ظ…ط¶ط§ظپط©.')
       return
     }
 
     if (allInvoices.length === 0) {
-      setSettlementError('أضف فاتورة واحدة على الأقل قبل حفظ التسوية.')
+      setSettlementError('ط£ط¶ظپ ظپط§طھظˆط±ط© ظˆط§ط­ط¯ط© ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ ظ‚ط¨ظ„ ط­ظپط¸ ط§ظ„طھط³ظˆظٹط©.')
       return
     }
 
     const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
-    if (hasPettyCash && !settlementMeta.pettyCashApproval) {
-      setSettlementError('أرفق موافقة المعالي عند وجود نثريات ضمن التسوية.')
+    const pettyCashApproval =
+      details
+        .find((item) => isPettyCashCategory(item.category))
+        ?.invoices.find((invoice) => invoice.attachment)?.attachment ?? null
+    if (hasPettyCash && !pettyCashApproval) {
+      setSettlementError('ط£ط±ظپظ‚ ظ…ظˆط§ظپظ‚ط© ط§ظ„ظ…ط¹ط§ظ„ظٹ ط¹ظ†ط¯ ظˆط¬ظˆط¯ ظ†ط«ط±ظٹط§طھ ط¶ظ…ظ† ط§ظ„طھط³ظˆظٹط©.')
       return
     }
 
     for (const invoice of allInvoices) {
       if (!invoice.amount || invoice.sar <= 0) {
-        setSettlementError(`أكمل مبلغ الفاتورة في بند ${invoice.category}.`)
+        setSettlementError(`ط£ظƒظ…ظ„ ظ…ط¨ظ„ط؛ ط§ظ„ظپط§طھظˆط±ط© ظپظٹ ط¨ظ†ط¯ ${invoice.category}.`)
         return
       }
       if (!isPettyCashCategory(invoice.category) && !invoice.invoiceDate) {
-        setSettlementError(`حدد تاريخ الفاتورة في بند ${invoice.category}.`)
+        setSettlementError(`ط­ط¯ط¯ طھط§ط±ظٹط® ط§ظ„ظپط§طھظˆط±ط© ظپظٹ ط¨ظ†ط¯ ${invoice.category}.`)
         return
       }
       if (!isPettyCashCategory(invoice.category) && !invoice.issuer.trim()) {
-        setSettlementError(`أدخل الجهة المصدرة للفاتورة في بند ${invoice.category}.`)
+        setSettlementError(`ط£ط¯ط®ظ„ ط§ظ„ط¬ظ‡ط© ط§ظ„ظ…طµط¯ط±ط© ظ„ظ„ظپط§طھظˆط±ط© ظپظٹ ط¨ظ†ط¯ ${invoice.category}.`)
         return
       }
       if (!isPettyCashCategory(invoice.category) && !invoice.attachment) {
-        setSettlementError(`أرفق صورة أو ملف الفاتورة في بند ${invoice.category}.`)
+        setSettlementError(`ط£ط±ظپظ‚ طµظˆط±ط© ط£ظˆ ظ…ظ„ظپ ط§ظ„ظپط§طھظˆط±ط© ظپظٹ ط¨ظ†ط¯ ${invoice.category}.`)
         return
       }
     }
 
     if (settlementSummary.overage > 0 && !settlementMeta.overageReason.trim()) {
-      setSettlementError('أدخل مبرر الزيادة عند تجاوز إجمالي المصروفات مبلغ السلفة.')
+      setSettlementError('ط£ط¯ط®ظ„ ظ…ط¨ط±ط± ط§ظ„ط²ظٹط§ط¯ط© ط¹ظ†ط¯ طھط¬ط§ظˆط² ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…طµط±ظˆظپط§طھ ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©.')
       return
     }
 
     if (settlementSummary.savings > 0) {
       if (!settlementMeta.receiptNumber.trim()) {
-        setSettlementError('أدخل رقم سند القبض عند وجود وفر في السلفة النقدية.')
+        setSettlementError('ط£ط¯ط®ظ„ ط±ظ‚ظ… ط³ظ†ط¯ ط§ظ„ظ‚ط¨ط¶ ط¹ظ†ط¯ ظˆط¬ظˆط¯ ظˆظپط± ظپظٹ ط§ظ„ط³ظ„ظپط© ط§ظ„ظ†ظ‚ط¯ظٹط©.')
         return
       }
 
       if (!settlementMeta.receiptDate) {
-        setSettlementError('أدخل تاريخ سند القبض عند وجود وفر في السلفة النقدية.')
+        setSettlementError('ط£ط¯ط®ظ„ طھط§ط±ظٹط® ط³ظ†ط¯ ط§ظ„ظ‚ط¨ط¶ ط¹ظ†ط¯ ظˆط¬ظˆط¯ ظˆظپط± ظپظٹ ط§ظ„ط³ظ„ظپط© ط§ظ„ظ†ظ‚ط¯ظٹط©.')
         return
       }
     }
@@ -953,14 +936,14 @@ export default function DashboardClient({
           receiptNumber: settlementMeta.receiptNumber.trim(),
           receiptDate: settlementMeta.receiptDate,
           overageReason: settlementMeta.overageReason.trim(),
-          pettyCashApproval: cloneStoredFile(settlementMeta.pettyCashApproval),
+          pettyCashApproval: cloneStoredFile(pettyCashApproval),
         }),
       })
 
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         setSettlementError(
-          typeof data?.error === 'string' ? data.error : 'تعذر حفظ التسوية.',
+          typeof data?.error === 'string' ? data.error : 'طھط¹ط°ط± ط­ظپط¸ ط§ظ„طھط³ظˆظٹط©.',
         )
         return
       }
@@ -970,7 +953,7 @@ export default function DashboardClient({
       )
       setSettlementModalOpen(false)
       setSettlementError('')
-      showToast('تم حفظ تسوية السلفة بنجاح.')
+      showToast('طھظ… ط­ظپط¸ طھط³ظˆظٹط© ط§ظ„ط³ظ„ظپط© ط¨ظ†ط¬ط§ط­.')
     })
   }
 
@@ -1009,7 +992,7 @@ export default function DashboardClient({
   }
 
   async function deleteLoan(loanId: string) {
-    const confirmed = window.confirm('سيتم حذف طلب السلفة نهائيًا قبل طباعته. هل تريد المتابعة؟')
+    const confirmed = window.confirm('ط³ظٹطھظ… ط­ط°ظپ ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط© ظ†ظ‡ط§ط¦ظٹظ‹ط§ ظ‚ط¨ظ„ ط·ط¨ط§ط¹طھظ‡. ظ‡ظ„ طھط±ظٹط¯ ط§ظ„ظ…طھط§ط¨ط¹ط©طں')
     if (!confirmed) return
 
     startTransition(async () => {
@@ -1020,15 +1003,15 @@ export default function DashboardClient({
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         setLoadError(
-          typeof data?.error === 'string' ? data.error : 'تعذر حذف طلب السلفة.',
+          typeof data?.error === 'string' ? data.error : 'طھط¹ط°ط± ط­ط°ظپ ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط©.',
         )
-        showToast('تعذر حذف طلب السلفة.', 'error')
+        showToast('طھط¹ط°ط± ط­ط°ظپ ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط©.', 'error')
         return
       }
 
       setLoadError('')
       setLoans((current) => current.filter((loan) => loan.id !== loanId))
-      showToast('تم حذف طلب السلفة.')
+      showToast('طھظ… ط­ط°ظپ ط·ظ„ط¨ ط§ظ„ط³ظ„ظپط©.')
     })
   }
 
@@ -1055,7 +1038,7 @@ export default function DashboardClient({
       const data = await response.json().catch(() => ({}))
       if (!response.ok) {
         showToast(
-          typeof data?.error === 'string' ? data.error : 'تعذر تحديث حالة المراجعة.',
+          typeof data?.error === 'string' ? data.error : 'طھط¹ط°ط± طھط­ط¯ظٹط« ط­ط§ظ„ط© ط§ظ„ظ…ط±ط§ط¬ط¹ط©.',
           'error',
         )
         return
@@ -1065,7 +1048,7 @@ export default function DashboardClient({
         current.map((loan) => (loan.id === data.id ? normalizeLoanRecord(data) : loan)),
       )
       showToast(
-        reviewStatus === 'RETURNED' ? 'تمت إعادة المعاملة للمراجعة.' : 'تم تحديث حالة المراجعة.',
+        reviewStatus === 'RETURNED' ? 'طھظ…طھ ط¥ط¹ط§ط¯ط© ط§ظ„ظ…ط¹ط§ظ…ظ„ط© ظ„ظ„ظ…ط±ط§ط¬ط¹ط©.' : 'طھظ… طھط­ط¯ظٹط« ط­ط§ظ„ط© ط§ظ„ظ…ط±ط§ط¬ط¹ط©.',
       )
     })
   }
@@ -1080,16 +1063,16 @@ export default function DashboardClient({
           <div className="flex items-center gap-4">
             <Image
               src="/logo-footer.png"
-              alt="شعار جامعة نايف العربية للعلوم الأمنية"
+              alt="ط´ط¹ط§ط± ط¬ط§ظ…ط¹ط© ظ†ط§ظٹظپ ط§ظ„ط¹ط±ط¨ظٹط© ظ„ظ„ط¹ظ„ظˆظ… ط§ظ„ط£ظ…ظ†ظٹط©"
               width={280}
               height={64}
               className="h-auto w-[180px] md:w-[240px]"
               priority
             />
             <div className="hidden border-r border-slate-200 pr-4 md:block">
-              <h1 className="text-lg font-bold text-primary md:text-xl">منصة طلب السلف المؤقتة</h1>
+              <h1 className="text-lg font-bold text-primary md:text-xl">ظ…ظ†طµط© ط·ظ„ط¨ ط§ظ„ط³ظ„ظپ ط§ظ„ظ…ط¤ظ‚طھط©</h1>
               <p className="text-xs text-slate-500 md:text-sm">
-                وكالة التدريب بجامعة نايف العربية للعلوم الأمنية
+                ظˆظƒط§ظ„ط© ط§ظ„طھط¯ط±ظٹط¨ ط¨ط¬ط§ظ…ط¹ط© ظ†ط§ظٹظپ ط§ظ„ط¹ط±ط¨ظٹط© ظ„ظ„ط¹ظ„ظˆظ… ط§ظ„ط£ظ…ظ†ظٹط©
               </p>
             </div>
           </div>
@@ -1101,7 +1084,7 @@ export default function DashboardClient({
                 onClick={() => router.push('/admin')}
                 className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-2 text-xs font-bold text-primary"
               >
-                إدارة النظام
+                ط¥ط¯ط§ط±ط© ط§ظ„ظ†ط¸ط§ظ…
               </button>
             )}
             <button
@@ -1109,7 +1092,7 @@ export default function DashboardClient({
               onClick={handleLogout}
               className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-600"
             >
-              تسجيل الخروج
+              طھط³ط¬ظٹظ„ ط§ظ„ط®ط±ظˆط¬
             </button>
             <div className="rounded-full border border-primary/10 bg-primary/5 px-4 py-2 text-right text-xs font-semibold text-primary md:text-sm">
               <div>{currentUser.fullName}</div>
@@ -1123,9 +1106,9 @@ export default function DashboardClient({
         <section className="dashboard-hero mb-6 rounded-[28px] p-6 text-white shadow-soft md:p-8">
           <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
             <div>
-              <h2 className="mb-2 text-2xl font-bold md:text-4xl">لوحة السلف المؤقتة</h2>
+              <h2 className="mb-2 text-2xl font-bold md:text-4xl">ظ„ظˆط­ط© ط§ظ„ط³ظ„ظپ ط§ظ„ظ…ط¤ظ‚طھط©</h2>
               <p className="max-w-2xl text-sm leading-7 text-white/85 md:text-base">
-                إدارة الطلبات والتسويات من حساب الموظف مع الحفاظ على النماذج الرسمية والمرفقات والطباعة.
+                ط¥ط¯ط§ط±ط© ط§ظ„ط·ظ„ط¨ط§طھ ظˆط§ظ„طھط³ظˆظٹط§طھ ظ…ظ† ط­ط³ط§ط¨ ط§ظ„ظ…ظˆط¸ظپ ظ…ط¹ ط§ظ„ط­ظپط§ط¸ ط¹ظ„ظ‰ ط§ظ„ظ†ظ…ط§ط°ط¬ ط§ظ„ط±ط³ظ…ظٹط© ظˆط§ظ„ظ…ط±ظپظ‚ط§طھ ظˆط§ظ„ط·ط¨ط§ط¹ط©.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <button
@@ -1133,7 +1116,7 @@ export default function DashboardClient({
                   onClick={openLoanModal}
                   className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-primary transition hover:-translate-y-0.5"
                 >
-                  نموذج 18 - طلب سلفة
+                  ظ†ظ…ظˆط°ط¬ 18 - ط·ظ„ط¨ ط³ظ„ظپط©
                 </button>
                 <button
                   type="button"
@@ -1143,40 +1126,40 @@ export default function DashboardClient({
                   }}
                   className="rounded-2xl border border-white/25 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15"
                 >
-                  نموذج 19 - تسوية سلفة
+                  ظ†ظ…ظˆط°ط¬ 19 - طھط³ظˆظٹط© ط³ظ„ظپط©
                 </button>
                 <button
                   type="button"
                   onClick={refreshLoans}
                   className="rounded-2xl border border-white/25 bg-transparent px-5 py-3 text-sm font-bold text-white transition hover:bg-white/10"
                 >
-                  تحديث البيانات
+                  طھط­ط¯ظٹط« ط§ظ„ط¨ظٹط§ظ†ط§طھ
                 </button>
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <MiniStat label="إجمالي السلف المؤقتة" value={formatCurrencySar(loanTotals.totalLoanAmount)} />
-              <MiniStat label="إجمالي ما تمت تسويته" value={formatCurrencySar(loanTotals.totalSettledAmount)} />
-              <MiniStat label="الطلبات غير المطبوعة" value={loans.filter((loan) => !loan.printedAt).length} />
-              <MiniStat label="الطلبات المسواة" value={settledLoans.length} />
+              <MiniStat label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط³ظ„ظپ ط§ظ„ظ…ط¤ظ‚طھط©" value={formatCurrencySar(loanTotals.totalLoanAmount)} />
+              <MiniStat label="ط¥ط¬ظ…ط§ظ„ظٹ ظ…ط§ طھظ…طھ طھط³ظˆظٹطھظ‡" value={formatCurrencySar(loanTotals.totalSettledAmount)} />
+              <MiniStat label="ط§ظ„ط·ظ„ط¨ط§طھ ط؛ظٹط± ط§ظ„ظ…ط·ط¨ظˆط¹ط©" value={loans.filter((loan) => !loan.printedAt).length} />
+              <MiniStat label="ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ظ…ط³ظˆط§ط©" value={settledLoans.length} />
             </div>
           </div>
         </section>
 
         <section className="mb-6 grid gap-4 md:grid-cols-4">
-          <StatCard label="قيد التسوية" value={stats.pending} accent="warning" />
-          <StatCard label="طلبات منتهية" value={stats.settled} accent="success" />
-          <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" />
-          <StatCard label="متأخرة" value={stats.overdue} accent="danger" />
+          <StatCard label="ظ‚ظٹط¯ ط§ظ„طھط³ظˆظٹط©" value={stats.pending} accent="warning" />
+          <StatCard label="ط·ظ„ط¨ط§طھ ظ…ظ†طھظ‡ظٹط©" value={stats.settled} accent="success" />
+          <StatCard label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط·ظ„ط¨ط§طھ" value={stats.total} accent="primary" />
+          <StatCard label="ظ…طھط£ط®ط±ط©" value={stats.overdue} accent="danger" />
         </section>
 
         <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-soft">
         <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
-          <TabButton label="الطلبات" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
-          <TabButton label="الأرشيف" active={activeTab === 'archive'} onClick={() => setActiveTab('archive')} />
-          <TabButton label="التقارير" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />
-          <TabButton label="التعليمات" active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} />
+          <TabButton label="ط§ظ„ط·ظ„ط¨ط§طھ" active={activeTab === 'requests'} onClick={() => setActiveTab('requests')} />
+          <TabButton label="ط§ظ„ط£ط±ط´ظٹظپ" active={activeTab === 'archive'} onClick={() => setActiveTab('archive')} />
+          <TabButton label="ط§ظ„طھظ‚ط§ط±ظٹط±" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />
+          <TabButton label="ط§ظ„طھط¹ظ„ظٹظ…ط§طھ" active={activeTab === 'guide'} onClick={() => setActiveTab('guide')} />
         </div>
 
         {activeTab === 'requests' && (
@@ -1186,12 +1169,12 @@ export default function DashboardClient({
                 <input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="ابحث بالرقم المرجعي أو اسم النشاط أو الموظف"
+                  placeholder="ط§ط¨ط­ط« ط¨ط§ظ„ط±ظ‚ظ… ط§ظ„ظ…ط±ط¬ط¹ظٹ ط£ظˆ ط§ط³ظ… ط§ظ„ظ†ط´ط§ط· ط£ظˆ ط§ظ„ظ…ظˆط¸ظپ"
                   className="input-shell"
                 />
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                المستخدم الحالي: <span className="font-bold text-slate-900">{currentUser.fullName}</span>
+                ط§ظ„ظ…ط³طھط®ط¯ظ… ط§ظ„ط­ط§ظ„ظٹ: <span className="font-bold text-slate-900">{currentUser.fullName}</span>
               </div>
             </div>
 
@@ -1201,10 +1184,10 @@ export default function DashboardClient({
 
             {isLoadingLoans ? (
               <div className="rounded-[24px] bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-                جاري تحميل الطلبات...
+                ط¬ط§ط±ظٹ طھط­ظ…ظٹظ„ ط§ظ„ط·ظ„ط¨ط§طھ...
               </div>
             ) : requestLoans.length === 0 ? (
-              <EmptyState message="لا توجد طلبات سلفة أو تسوية غير منتهية حاليًا." />
+              <EmptyState message="ظ„ط§ طھظˆط¬ط¯ ط·ظ„ط¨ط§طھ ط³ظ„ظپط© ط£ظˆ طھط³ظˆظٹط© ط؛ظٹط± ظ…ظ†طھظ‡ظٹط© ط­ط§ظ„ظٹظ‹ط§." />
             ) : (
               <div className="space-y-4">
                 {requestLoans.map((loan) => (
@@ -1217,7 +1200,7 @@ export default function DashboardClient({
                     onSettle={openSettlementModal}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => {
-                      const note = window.prompt('أدخل ملاحظة الإرجاع للمراجعة', loan.reviewNote || '')
+                      const note = window.prompt('ط£ط¯ط®ظ„ ظ…ظ„ط§ط­ط¸ط© ط§ظ„ط¥ط±ط¬ط§ط¹ ظ„ظ„ظ…ط±ط§ط¬ط¹ط©', loan.reviewNote || '')
                       if (note === null) return
                       void updateReviewState(loan.id, 'RETURNED', note)
                     }}
@@ -1235,7 +1218,7 @@ export default function DashboardClient({
         {activeTab === 'archive' && (
           <div className="space-y-4">
             {settledLoans.length === 0 ? (
-              <EmptyState message="لا توجد معاملات مؤرشفة بعد." />
+              <EmptyState message="ظ„ط§ طھظˆط¬ط¯ ظ…ط¹ط§ظ…ظ„ط§طھ ظ…ط¤ط±ط´ظپط© ط¨ط¹ط¯." />
             ) : (
               settledLoans.map((loan) => (
                 <LoanCard
@@ -1248,7 +1231,7 @@ export default function DashboardClient({
                   onSettle={openSettlementModal}
                   onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                   onReturnForReview={() => {
-                    const note = window.prompt('أدخل ملاحظة الإرجاع للمراجعة', loan.reviewNote || '')
+                    const note = window.prompt('ط£ط¯ط®ظ„ ظ…ظ„ط§ط­ط¸ط© ط§ظ„ط¥ط±ط¬ط§ط¹ ظ„ظ„ظ…ط±ط§ط¬ط¹ط©', loan.reviewNote || '')
                     if (note === null) return
                     void updateReviewState(loan.id, 'RETURNED', note)
                   }}
@@ -1265,17 +1248,17 @@ export default function DashboardClient({
         {activeTab === 'reports' && (
           <div className="space-y-5">
             <div className="grid gap-4 md:grid-cols-4">
-              <ReportTile label="إجمالي المبالغ المطلوبة" value={formatCurrencySar(reportSummary.totalRequested)} />
-              <ReportTile label="إجمالي المصروفات المسواة" value={formatCurrencySar(reportSummary.totalExpenses)} />
-              <ReportTile label="إجمالي الوفورات" value={formatCurrencySar(reportSummary.totalSavings)} />
-              <ReportTile label="إجمالي الزيادات" value={formatCurrencySar(reportSummary.totalOverage)} />
+              <ReportTile label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…ط¨ط§ظ„ط؛ ط§ظ„ظ…ط·ظ„ظˆط¨ط©" value={formatCurrencySar(reportSummary.totalRequested)} />
+              <ReportTile label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…طµط±ظˆظپط§طھ ط§ظ„ظ…ط³ظˆط§ط©" value={formatCurrencySar(reportSummary.totalExpenses)} />
+              <ReportTile label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظˆظپظˆط±ط§طھ" value={formatCurrencySar(reportSummary.totalSavings)} />
+              <ReportTile label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط²ظٹط§ط¯ط§طھ" value={formatCurrencySar(reportSummary.totalOverage)} />
             </div>
 
             <div className="rounded-[24px] bg-slate-50 p-4">
-              <h3 className="mb-4 text-sm font-bold text-slate-900">أعلى أوجه الصرف استخدامًا</h3>
+              <h3 className="mb-4 text-sm font-bold text-slate-900">ط£ط¹ظ„ظ‰ ط£ظˆط¬ظ‡ ط§ظ„طµط±ظپ ط§ط³طھط®ط¯ط§ظ…ظ‹ط§</h3>
               <div className="space-y-3">
                 {categoryReport.length === 0 ? (
-                  <p className="text-sm text-slate-500">لا توجد بيانات كافية لعرض التقرير.</p>
+                  <p className="text-sm text-slate-500">ظ„ط§ طھظˆط¬ط¯ ط¨ظٹط§ظ†ط§طھ ظƒط§ظپظٹط© ظ„ط¹ط±ط¶ ط§ظ„طھظ‚ط±ظٹط±.</p>
                 ) : (
                   categoryReport.map(([category, amount]) => (
                     <div key={category} className="flex items-center justify-between rounded-2xl bg-white px-4 py-3">
@@ -1313,21 +1296,21 @@ export default function DashboardClient({
           <div className="modal-box">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
               <div>
-                <h3 className="text-lg font-bold text-primary">نموذج 18 - طلب سلفة مؤقتة</h3>
-                <p className="text-sm text-slate-500">إدخال بيانات الطلب ومرفقاته الرسمية</p>
+                <h3 className="text-lg font-bold text-primary">ظ†ظ…ظˆط°ط¬ 18 - ط·ظ„ط¨ ط³ظ„ظپط© ظ…ط¤ظ‚طھط©</h3>
+                <p className="text-sm text-slate-500">ط¥ط¯ط®ط§ظ„ ط¨ظٹط§ظ†ط§طھ ط§ظ„ط·ظ„ط¨ ظˆظ…ط±ظپظ‚ط§طھظ‡ ط§ظ„ط±ط³ظ…ظٹط©</p>
               </div>
               <button
                 type="button"
                 onClick={() => setLoanModalOpen(false)}
                 className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
-                ×
+                أ—
               </button>
             </div>
 
             <div className="space-y-5 p-5">
               <div className="grid gap-4 md:grid-cols-3">
-                <Field label="التاريخ *">
+                <Field label="ط§ظ„طھط§ط±ظٹط® *">
                   <input
                     type="date"
                     value={loanForm.requestDate}
@@ -1337,16 +1320,16 @@ export default function DashboardClient({
                     className="input-shell"
                   />
                 </Field>
-                <Field label="الرقم المرجعي">
+                <Field label="ط§ظ„ط±ظ‚ظ… ط§ظ„ظ…ط±ط¬ط¹ظٹ">
                   <input value={loanForm.refNumber} readOnly className="input-shell bg-slate-100" />
                 </Field>
-                <Field label="كود الوكالة">
+                <Field label="ظƒظˆط¯ ط§ظ„ظˆظƒط§ظ„ط©">
                   <input value={loanForm.agencyCode} readOnly className="input-shell bg-slate-100" />
                 </Field>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="المبلغ رقمًا *">
+                <Field label="ط§ظ„ظ…ط¨ظ„ط؛ ط±ظ‚ظ…ظ‹ط§ *">
                   <input
                     value={formatEnglishNumber(
                       expenses.reduce(
@@ -1359,7 +1342,7 @@ export default function DashboardClient({
                     className="input-shell bg-slate-100"
                   />
                 </Field>
-                <Field label="المبلغ كتابة">
+                <Field label="ط§ظ„ظ…ط¨ظ„ط؛ ظƒطھط§ط¨ط©">
                   <input
                     value={numberToArabicWords(
                       expenses.reduce(
@@ -1374,7 +1357,7 @@ export default function DashboardClient({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <Field label="اسم النشاط *">
+                <Field label="ط§ط³ظ… ط§ظ„ظ†ط´ط§ط· *">
                   <input
                     value={loanForm.activity}
                     onChange={(event) =>
@@ -1383,7 +1366,7 @@ export default function DashboardClient({
                     className="input-shell"
                   />
                 </Field>
-                <Field label="مكان التنفيذ *">
+                <Field label="ظ…ظƒط§ظ† ط§ظ„طھظ†ظپظٹط° *">
                   <input
                     value={loanForm.location}
                     onChange={(event) =>
@@ -1392,10 +1375,10 @@ export default function DashboardClient({
                     className="input-shell"
                   />
                 </Field>
-                <Field label="اسم الموظف *">
+                <Field label="ط§ط³ظ… ط§ظ„ظ…ظˆط¸ظپ *">
                   <input value={loanForm.employee} readOnly className="input-shell bg-slate-100" />
                 </Field>
-                <Field label="تاريخ البداية *">
+                <Field label="طھط§ط±ظٹط® ط§ظ„ط¨ط¯ط§ظٹط© *">
                   <input
                     type="date"
                     value={loanForm.startDate}
@@ -1405,7 +1388,7 @@ export default function DashboardClient({
                     className="input-shell"
                   />
                 </Field>
-                <Field label="اعتماد الموازنة *">
+                <Field label="ط§ط¹طھظ…ط§ط¯ ط§ظ„ظ…ظˆط§ط²ظ†ط© *">
                   <div className="flex h-[56px] items-center gap-6 rounded-[20px] border border-slate-200 bg-white px-4">
                     <label className="flex items-center gap-2 text-sm text-slate-700">
                       <input
@@ -1415,7 +1398,7 @@ export default function DashboardClient({
                           setLoanForm((current) => ({ ...current, budgetApproved: true }))
                         }
                       />
-                      معتمدة
+                      ظ…ط¹طھظ…ط¯ط©
                     </label>
                     <label className="flex items-center gap-2 text-sm text-slate-700">
                       <input
@@ -1425,11 +1408,11 @@ export default function DashboardClient({
                           setLoanForm((current) => ({ ...current, budgetApproved: false }))
                         }
                       />
-                      غير معتمدة
+                      ط؛ظٹط± ظ…ط¹طھظ…ط¯ط©
                     </label>
                   </div>
                 </Field>
-                <Field label="تاريخ النهاية *">
+                <Field label="طھط§ط±ظٹط® ط§ظ„ظ†ظ‡ط§ظٹط© *">
                   <input
                     type="date"
                     value={loanForm.endDate}
@@ -1443,19 +1426,19 @@ export default function DashboardClient({
 
               <div className="rounded-[24px] border border-slate-200 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900">أوجه الصرف</h4>
+                  <h4 className="font-bold text-slate-900">ط£ظˆط¬ظ‡ ط§ظ„طµط±ظپ</h4>
                   <button
                     type="button"
                     onClick={addExpense}
                     className="rounded-xl bg-primary px-3 py-2 text-xs font-bold text-white"
                   >
-                    + إضافة
+                    + ط¥ط¶ط§ظپط©
                   </button>
                 </div>
 
                 <div className="grid grid-cols-[1fr_180px_48px] gap-3 border-b border-slate-100 pb-2 text-xs font-bold text-slate-500">
-                  <span>البند</span>
-                  <span>المبلغ</span>
+                  <span>ط§ظ„ط¨ظ†ط¯</span>
+                  <span>ط§ظ„ظ…ط¨ظ„ط؛</span>
                   <span></span>
                 </div>
 
@@ -1467,7 +1450,7 @@ export default function DashboardClient({
                         onChange={(event) => updateExpense(index, 'category', event.target.value)}
                         className="input-shell"
                       >
-                        <option value="">اختر البند...</option>
+                        <option value="">ط§ط®طھط± ط§ظ„ط¨ظ†ط¯...</option>
                         {EXPENSE_CATEGORIES.map((category) => (
                           <option key={category} value={category}>
                             {category}
@@ -1488,14 +1471,14 @@ export default function DashboardClient({
                         onClick={() => removeExpense(index)}
                         className="rounded-2xl border border-danger/20 text-danger transition hover:bg-danger/5"
                       >
-                        ×
+                        أ—
                       </button>
                     </div>
                   ))}
                 </div>
 
                 <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                  <span className="text-slate-500">الإجمالي</span>
+                  <span className="text-slate-500">ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ</span>
                   <span className="font-bold text-primary">
                     {formatCurrencySar(
                       expenses.reduce(
@@ -1509,8 +1492,8 @@ export default function DashboardClient({
 
               <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900">المرفقات</h4>
-                  <span className="text-xs text-slate-500">الحد الأقصى 500 كيلوبايت للملف</span>
+                  <h4 className="font-bold text-slate-900">ط§ظ„ظ…ط±ظپظ‚ط§طھ</h4>
+                  <span className="text-xs text-slate-500">ط§ظ„ط­ط¯ ط§ظ„ط£ظ‚طµظ‰ 500 ظƒظٹظ„ظˆط¨ط§ظٹطھ ظ„ظ„ظ…ظ„ظپ</span>
                 </div>
 
                 <div className="space-y-3">
@@ -1530,18 +1513,18 @@ export default function DashboardClient({
                               }`}
                             >
                               {attachment.label}
-                              {attachment.required ? ' (إجباري)' : ' (اختياري)'}
+                              {attachment.required ? ' (ط¥ط¬ط¨ط§ط±ظٹ)' : ' (ط§ط®طھظٹط§ط±ظٹ)'}
                             </p>
                             <p className="mt-1 text-xs text-slate-500">
                               {currentFile
                                 ? `${currentFile.name} - ${Math.round(currentFile.size / 1024)} KB`
-                                : 'لم يتم اختيار ملف'}
+                                : 'ظ„ظ… ظٹطھظ… ط§ط®طھظٹط§ط± ظ…ظ„ظپ'}
                             </p>
                           </div>
 
                           <div className="flex gap-2">
                             <label className="rounded-2xl bg-primary px-4 py-3 text-sm font-bold text-white">
-                              اختر ملف
+                              ط§ط®طھط± ظ…ظ„ظپ
                               <input
                                 type="file"
                                 className="hidden"
@@ -1557,7 +1540,7 @@ export default function DashboardClient({
                                 onClick={() => removeLoanAttachment(attachment.key)}
                                 className="rounded-2xl border border-danger/20 px-4 py-3 text-sm font-bold text-danger"
                               >
-                                إزالة
+                                ط¥ط²ط§ظ„ط©
                               </button>
                             )}
                           </div>
@@ -1580,7 +1563,7 @@ export default function DashboardClient({
                   onClick={() => setLoanModalOpen(false)}
                   className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700"
                 >
-                  إلغاء
+                  ط¥ظ„ط؛ط§ط،
                 </button>
                 <button
                   type="button"
@@ -1588,7 +1571,7 @@ export default function DashboardClient({
                   disabled={isPending}
                   className="rounded-2xl bg-primary px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
                 >
-                  {isPending ? 'جاري الحفظ...' : editingLoanId ? 'تحديث الطلب' : 'إرسال الطلب'}
+                  {isPending ? 'ط¬ط§ط±ظٹ ط§ظ„ط­ظپط¸...' : editingLoanId ? 'طھط­ط¯ظٹط« ط§ظ„ط·ظ„ط¨' : 'ط¥ط±ط³ط§ظ„ ط§ظ„ط·ظ„ط¨'}
                 </button>
               </div>
             </div>
@@ -1601,9 +1584,9 @@ export default function DashboardClient({
           <div className="modal-box">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
               <div>
-                <h3 className="text-lg font-bold text-secondary">نموذج 19 - تسوية سلفة مؤقتة</h3>
+                <h3 className="text-lg font-bold text-secondary">ظ†ظ…ظˆط°ط¬ 19 - طھط³ظˆظٹط© ط³ظ„ظپط© ظ…ط¤ظ‚طھط©</h3>
                 <p className="text-sm text-slate-500">
-                  {settlementLoan.refNumber} • {settlementLoan.employee}
+                  {settlementLoan.refNumber} â€¢ {settlementLoan.employee}
                 </p>
               </div>
               <button
@@ -1611,34 +1594,34 @@ export default function DashboardClient({
                 onClick={() => setSettlementModalOpen(false)}
                 className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
               >
-                ×
+                أ—
               </button>
             </div>
 
             <div className="space-y-5 p-5">
               <div className="grid gap-4 md:grid-cols-4">
-                <SummaryPill label="مبلغ السلفة" value={formatCurrencySar(settlementLoan.amount)} />
-                <SummaryPill label="إجمالي المصروفات من السلفة" value={formatCurrencySar(settlementSummary.total)} />
-                <SummaryPill label="المبلغ المصروف بالزيادة" value={formatCurrencySar(settlementSummary.overage)} />
-                <SummaryPill label="وفر السلفة النقدي" value={formatCurrencySar(settlementSummary.savings)} />
+                <SummaryPill label="ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©" value={formatCurrencySar(settlementLoan.amount)} />
+                <SummaryPill label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…طµط±ظˆظپط§طھ ظ…ظ† ط§ظ„ط³ظ„ظپط©" value={formatCurrencySar(settlementSummary.total)} />
+                <SummaryPill label="ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ظ…طµط±ظˆظپ ط¨ط§ظ„ط²ظٹط§ط¯ط©" value={formatCurrencySar(settlementSummary.overage)} />
+                <SummaryPill label="ظˆظپط± ط§ظ„ط³ظ„ظپط© ط§ظ„ظ†ظ‚ط¯ظٹ" value={formatCurrencySar(settlementSummary.savings)} />
               </div>
 
               <div className="rounded-[24px] border border-slate-200 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-bold text-slate-900">العملات وأسعار الصرف</h4>
+                  <h4 className="font-bold text-slate-900">ط§ظ„ط¹ظ…ظ„ط§طھ ظˆط£ط³ط¹ط§ط± ط§ظ„طµط±ظپ</h4>
                   <button
                     type="button"
                     onClick={addRateRow}
                     className="rounded-xl bg-secondary px-3 py-2 text-xs font-bold text-white"
                   >
-                    + إضافة عملة
+                    + ط¥ط¶ط§ظپط© ط¹ظ…ظ„ط©
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   {currencyRates.length === 0 ? (
                     <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                      لم تتم إضافة عملات بعد. أضف العملات المستخدمة في الفواتير أولًا.
+                      ظ„ظ… طھطھظ… ط¥ط¶ط§ظپط© ط¹ظ…ظ„ط§طھ ط¨ط¹ط¯. ط£ط¶ظپ ط§ظ„ط¹ظ…ظ„ط§طھ ط§ظ„ظ…ط³طھط®ط¯ظ…ط© ظپظٹ ط§ظ„ظپظˆط§طھظٹط± ط£ظˆظ„ظ‹ط§.
                     </div>
                   ) : (
                     currencyRates.map((rate, index) => (
@@ -1667,14 +1650,14 @@ export default function DashboardClient({
                           value={rate.rate || ''}
                           onChange={(event) => updateRateRow(index, 'rate', event.target.value)}
                           className="input-shell"
-                          placeholder="سعر الصرف حسب البنك المركزي السعودي"
+                          placeholder="ط³ط¹ط± ط§ظ„طµط±ظپ ط­ط³ط¨ ط§ظ„ط¨ظ†ظƒ ط§ظ„ظ…ط±ظƒط²ظٹ ط§ظ„ط³ط¹ظˆط¯ظٹ"
                         />
                         <button
                           type="button"
                           onClick={() => removeRateRow(index)}
                           className="rounded-2xl border border-danger/20 text-danger transition hover:bg-danger/5"
                         >
-                          ×
+                          أ—
                         </button>
                       </div>
                     ))
@@ -1684,9 +1667,9 @@ export default function DashboardClient({
 
               <div className="hidden">
                 <div className="rounded-[24px] border border-slate-200 p-4">
-                  <h4 className="mb-3 font-bold text-slate-900">بيانات التسوية</h4>
+                  <h4 className="mb-3 font-bold text-slate-900">ط¨ظٹط§ظ†ط§طھ ط§ظ„طھط³ظˆظٹط©</h4>
                   <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="رقم سند القبض">
+                    <Field label="ط±ظ‚ظ… ط³ظ†ط¯ ط§ظ„ظ‚ط¨ط¶">
                       <input
                         value={settlementMeta.receiptNumber}
                         onChange={(event) =>
@@ -1698,7 +1681,7 @@ export default function DashboardClient({
                         className="input-shell"
                       />
                     </Field>
-                    <Field label="تاريخه">
+                    <Field label="طھط§ط±ظٹط®ظ‡">
                       <input
                         type="date"
                         value={settlementMeta.receiptDate}
@@ -1714,7 +1697,7 @@ export default function DashboardClient({
                   </div>
 
                   <div className="mt-4">
-                    <Field label="مبرر الزيادة على مبلغ السلفة">
+                    <Field label="ظ…ط¨ط±ط± ط§ظ„ط²ظٹط§ط¯ط© ط¹ظ„ظ‰ ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©">
                       <textarea
                         value={settlementMeta.overageReason}
                         onChange={(event) =>
@@ -1725,57 +1708,12 @@ export default function DashboardClient({
                         }
                         rows={3}
                         className="input-shell min-h-[110px] resize-y"
-                        placeholder="يعبأ فقط عند وجود زيادة على مبلغ السلفة، ولا يظهر في النموذج المطبوع."
+                        placeholder="ظٹط¹ط¨ط£ ظپظ‚ط· ط¹ظ†ط¯ ظˆط¬ظˆط¯ ط²ظٹط§ط¯ط© ط¹ظ„ظ‰ ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©طŒ ظˆظ„ط§ ظٹط¸ظ‡ط± ظپظٹ ط§ظ„ظ†ظ…ظˆط°ط¬ ط§ظ„ظ…ط·ط¨ظˆط¹."
                       />
                     </Field>
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 p-4">
-                  <h4 className="mb-3 font-bold text-slate-900">النثريات غير المؤيدة بمستندات</h4>
-                  <p className="mb-3 text-sm leading-7 text-slate-500">
-                    عند وجود نثريات يجب إرفاق موافقة المعالي لاعتماد المصروفات غير المؤيدة بفواتير.
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <label className="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
-                      +
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept=".pdf,image/*"
-                        onChange={(event) => void handlePettyCashApprovalUpload(event.target.files)}
-                      />
-                    </label>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-slate-700">
-                        موافقة المعالي على النثريات
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                        <span
-                          className={`inline-block h-2.5 w-2.5 rounded-full ${
-                            settlementMeta.pettyCashApproval ? 'bg-success' : 'bg-slate-300'
-                          }`}
-                        />
-                        <span>
-                          {settlementMeta.pettyCashApproval
-                            ? settlementMeta.pettyCashApproval.name
-                            : 'لم يتم رفع المرفق بعد'}
-                        </span>
-                      </div>
-                    </div>
-                    {settlementMeta.pettyCashApproval && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSettlementMeta((current) => ({ ...current, pettyCashApproval: null }))
-                        }
-                        className="rounded-2xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
-                      >
-                        إزالة
-                      </button>
-                    )}
-                  </div>
-                </div>
               </div>
 
               <div className="space-y-4">
@@ -1792,7 +1730,7 @@ export default function DashboardClient({
                         <div>
                           <h4 className="font-bold text-slate-900">{item.category}</h4>
                           <p className="text-xs text-slate-400">
-                            المعتمد: {formatCurrencySar(item.budget)}
+                            ط§ظ„ظ…ط¹طھظ…ط¯: {formatCurrencySar(item.budget)}
                           </p>
                         </div>
                         <button
@@ -1800,7 +1738,7 @@ export default function DashboardClient({
                           onClick={() => addInvoice(itemIndex)}
                           className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700"
                         >
-                          + إضافة فاتورة
+                          + ط¥ط¶ط§ظپط© ظپط§طھظˆط±ط©
                         </button>
                       </div>
 
@@ -1811,7 +1749,7 @@ export default function DashboardClient({
                             className="rounded-[20px] border border-slate-200 bg-slate-50 p-4"
                           >
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                              <Field label="المبلغ حسب الفاتورة">
+                              <Field label="ط§ظ„ظ…ط¨ظ„ط؛ ط­ط³ط¨ ط§ظ„ظپط§طھظˆط±ط©">
                                 <input
                                   type="number"
                                   step="0.01"
@@ -1823,7 +1761,7 @@ export default function DashboardClient({
                                   placeholder="0.00"
                                 />
                               </Field>
-                              <Field label="العملة">
+                              <Field label="ط§ظ„ط¹ظ…ظ„ط©">
                                 <select
                                   value={invoice.currencyCode}
                                   onChange={(event) =>
@@ -1836,7 +1774,7 @@ export default function DashboardClient({
                                   }
                                   className="input-shell"
                                 >
-                                  <option value="SAR">ريال سعودي (ر.س)</option>
+                                  <option value="SAR">ط±ظٹط§ظ„ ط³ط¹ظˆط¯ظٹ (ط±.ط³)</option>
                                   {currencyRates.map((rate, rateIndex) => (
                                     <option key={`${rate.currencyCode}-${rateIndex}`} value={rate.currencyCode}>
                                       {getCurrencyLabel(rate.currencyCode)}
@@ -1844,7 +1782,7 @@ export default function DashboardClient({
                                   ))}
                                 </select>
                               </Field>
-                              <Field label="المبلغ بالريال">
+                              <Field label="ط§ظ„ظ…ط¨ظ„ط؛ ط¨ط§ظ„ط±ظٹط§ظ„">
                                 <input
                                   readOnly
                                   value={formatCurrencySar(invoice.sarAmount)}
@@ -1853,11 +1791,11 @@ export default function DashboardClient({
                               </Field>
                               {isPettyCash ? (
                                 <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
-                                  هذا البند خاص بالنثريات، ويكتفى فيه بإرفاق موافقة المعالي في القسم السفلي دون تعبئة بيانات الفاتورة.
+                                  هذا البند خاص بالنثريات، ويكتفى فيه بإرفاق موافقة المعالي بدل بيانات الفاتورة.
                                 </div>
                               ) : (
                                 <>
-                                  <Field label="نوعه">
+                                  <Field label="ظ†ظˆط¹ظ‡">
                                     <select
                                       value={invoice.documentType}
                                       onChange={(event) =>
@@ -1877,7 +1815,7 @@ export default function DashboardClient({
                                       ))}
                                     </select>
                                   </Field>
-                                  <Field label="تاريخه">
+                                  <Field label="طھط§ط±ظٹط®ظ‡">
                                     <input
                                       type="date"
                                       value={invoice.invoiceDate}
@@ -1892,7 +1830,7 @@ export default function DashboardClient({
                                       className="input-shell"
                                     />
                                   </Field>
-                                  <Field label="الجهة المصدرة له">
+                                  <Field label="ط§ظ„ط¬ظ‡ط© ط§ظ„ظ…طµط¯ط±ط© ظ„ظ‡">
                                     <input
                                       value={invoice.issuer}
                                       onChange={(event) =>
@@ -1916,35 +1854,33 @@ export default function DashboardClient({
                                   {invoice.attachment
                                     ? invoice.attachment.name
                                     : isPettyCash
-                                      ? 'لا يلزم مرفق فاتورة لهذا البند'
-                                      : 'لم يتم رفع المرفق'}
+                                      ? 'ظ„ط§ ظٹظ„ط²ظ… ظ…ط±ظپظ‚ ظپط§طھظˆط±ط© ظ„ظ‡ط°ط§ ط§ظ„ط¨ظ†ط¯'
+                                      : 'ظ„ظ… ظٹطھظ… ط±ظپط¹ ط§ظ„ظ…ط±ظپظ‚'}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                {!isPettyCash && (
-                                  <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
-                                    +
-                                    <input
-                                      type="file"
-                                      className="hidden"
-                                      accept=".pdf,image/*"
-                                      onChange={(event) =>
-                                        void uploadInvoiceAttachment(
-                                          itemIndex,
-                                          invoiceIndex,
-                                          event.target.files,
-                                        )
-                                      }
-                                    />
-                                  </label>
-                                )}
-                                {invoice.attachment && !isPettyCash && (
+                                <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
+                                  📎
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept=".pdf,image/*"
+                                    onChange={(event) =>
+                                      void uploadInvoiceAttachment(
+                                        itemIndex,
+                                        invoiceIndex,
+                                        event.target.files,
+                                      )
+                                    }
+                                  />
+                                </label>
+                                {invoice.attachment && (
                                   <button
                                     type="button"
                                     onClick={() => removeInvoiceAttachment(itemIndex, invoiceIndex)}
                                     className="rounded-2xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
                                   >
-                                    إزالة المرفق
+                                    ط¥ط²ط§ظ„ط© ط§ظ„ظ…ط±ظپظ‚
                                   </button>
                                 )}
                                 <button
@@ -1952,7 +1888,7 @@ export default function DashboardClient({
                                   onClick={() => removeInvoice(itemIndex, invoiceIndex)}
                                   className="rounded-2xl border border-danger/20 px-4 py-2 text-sm font-bold text-danger"
                                 >
-                                  حذف الصف
+                                  ط­ط°ظپ ط§ظ„طµظپ
                                 </button>
                               </div>
                             </div>
@@ -1961,7 +1897,7 @@ export default function DashboardClient({
                       </div>
 
                       <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-sm">
-                        <span className="text-slate-500">إجمالي البند</span>
+                        <span className="text-slate-500">ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط¨ظ†ط¯</span>
                         <span className="font-bold text-primary">{formatCurrencySar(itemTotal)}</span>
                       </div>
                     </div>
@@ -1970,108 +1906,60 @@ export default function DashboardClient({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <SummaryPill label="المصروفات المؤيدة بمستندات" value={formatCurrencySar(settlementSummary.supported)} />
-                <SummaryPill label="المصروفات غير المؤيدة بمستندات" value={formatCurrencySar(settlementSummary.unsupported)} />
-                <SummaryPill label="إجمالي المصروفات من السلفة" value={formatCurrencySar(settlementSummary.total)} />
-                <SummaryPill label="مبلغ السلفة" value={formatCurrencySar(settlementLoan.amount)} />
-                <SummaryPill label="المبلغ المصروف بالزيادة المطلوبة صرفه" value={formatCurrencySar(settlementSummary.overage)} />
-                <SummaryPill label="وفر السلفة النقدي" value={formatCurrencySar(settlementSummary.savings)} />
+                <SummaryPill label="ط§ظ„ظ…طµط±ظˆظپط§طھ ط§ظ„ظ…ط¤ظٹط¯ط© ط¨ظ…ط³طھظ†ط¯ط§طھ" value={formatCurrencySar(settlementSummary.supported)} />
+                <SummaryPill label="ط§ظ„ظ…طµط±ظˆظپط§طھ ط؛ظٹط± ط§ظ„ظ…ط¤ظٹط¯ط© ط¨ظ…ط³طھظ†ط¯ط§طھ" value={formatCurrencySar(settlementSummary.unsupported)} />
+                <SummaryPill label="ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…طµط±ظˆظپط§طھ ظ…ظ† ط§ظ„ط³ظ„ظپط©" value={formatCurrencySar(settlementSummary.total)} />
+                <SummaryPill label="ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©" value={formatCurrencySar(settlementLoan.amount)} />
+                <SummaryPill label="ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ظ…طµط±ظˆظپ ط¨ط§ظ„ط²ظٹط§ط¯ط© ط§ظ„ظ…ط·ظ„ظˆط¨ط© طµط±ظپظ‡" value={formatCurrencySar(settlementSummary.overage)} />
+                <SummaryPill label="ظˆظپط± ط§ظ„ط³ظ„ظپط© ط§ظ„ظ†ظ‚ط¯ظٹ" value={formatCurrencySar(settlementSummary.savings)} />
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-[24px] border border-slate-200 p-4">
-                  <h4 className="mb-3 text-lg font-bold text-slate-900">بيانات التسوية</h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Field label="رقم سند القبض">
-                      <input
-                        value={settlementMeta.receiptNumber}
-                        onChange={(event) =>
-                          setSettlementMeta((current) => ({
-                            ...current,
-                            receiptNumber: event.target.value,
-                          }))
-                        }
-                        className="input-shell"
-                      />
-                    </Field>
-                    <Field label="تاريخه">
-                      <input
-                        type="date"
-                        value={settlementMeta.receiptDate}
-                        onChange={(event) =>
-                          setSettlementMeta((current) => ({
-                            ...current,
-                            receiptDate: event.target.value,
-                          }))
-                        }
-                        className="input-shell"
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="mt-4">
-                    <Field label="مبرر الزيادة على مبلغ السلفة">
-                      <textarea
-                        value={settlementMeta.overageReason}
-                        onChange={(event) =>
-                          setSettlementMeta((current) => ({
-                            ...current,
-                            overageReason: event.target.value,
-                          }))
-                        }
-                        rows={3}
-                        className="input-shell min-h-[110px] resize-y"
-                        placeholder="يعبأ فقط عند وجود زيادة على مبلغ السلفة، ولا يظهر في النموذج المطبوع."
-                      />
-                    </Field>
-                  </div>
+              <div className="rounded-[24px] border border-slate-200 p-4">
+                <h4 className="mb-3 text-lg font-bold text-slate-900">ط¨ظٹط§ظ†ط§طھ ط§ظ„طھط³ظˆظٹط©</h4>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="ط±ظ‚ظ… ط³ظ†ط¯ ط§ظ„ظ‚ط¨ط¶">
+                    <input
+                      value={settlementMeta.receiptNumber}
+                      onChange={(event) =>
+                        setSettlementMeta((current) => ({
+                          ...current,
+                          receiptNumber: event.target.value,
+                        }))
+                      }
+                      className="input-shell"
+                    />
+                  </Field>
+                  <Field label="طھط§ط±ظٹط®ظ‡">
+                    <input
+                      type="date"
+                      value={settlementMeta.receiptDate}
+                      onChange={(event) =>
+                        setSettlementMeta((current) => ({
+                          ...current,
+                          receiptDate: event.target.value,
+                        }))
+                      }
+                      className="input-shell"
+                    />
+                  </Field>
                 </div>
 
-                {hasPettyCashSection && (
-                  <div className="rounded-[24px] border border-slate-200 p-4">
-                    <h4 className="mb-3 text-lg font-bold text-slate-900">النثريات غير المؤيدة بمستندات</h4>
-                    <p className="mb-3 text-sm leading-7 text-slate-500">
-                      يظهر هذا الجزء فقط عند وجود بند نثريات في طلب السلفة الأساسي، ويكتفى فيه بإرفاق موافقة المعالي.
-                    </p>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
-                        +
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept=".pdf,image/*"
-                          onChange={(event) => void handlePettyCashApprovalUpload(event.target.files)}
-                        />
-                      </label>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-slate-700">موافقة المعالي على النثريات</div>
-                        <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
-                          <span
-                            className={`inline-block h-2.5 w-2.5 rounded-full ${
-                              settlementMeta.pettyCashApproval ? 'bg-success' : 'bg-slate-300'
-                            }`}
-                          />
-                          <span>
-                            {settlementMeta.pettyCashApproval
-                              ? settlementMeta.pettyCashApproval.name
-                              : 'لم يتم رفع المرفق بعد'}
-                          </span>
-                        </div>
-                      </div>
-                      {settlementMeta.pettyCashApproval && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSettlementMeta((current) => ({ ...current, pettyCashApproval: null }))
-                          }
-                          className="rounded-2xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
-                        >
-                          إزالة
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
+                <div className="mt-4">
+                  <Field label="ظ…ط¨ط±ط± ط§ظ„ط²ظٹط§ط¯ط© ط¹ظ„ظ‰ ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©">
+                    <textarea
+                      value={settlementMeta.overageReason}
+                      onChange={(event) =>
+                        setSettlementMeta((current) => ({
+                          ...current,
+                          overageReason: event.target.value,
+                        }))
+                      }
+                      rows={3}
+                      className="input-shell min-h-[110px] resize-y"
+                      placeholder="ظٹط¹ط¨ط£ ظپظ‚ط· ط¹ظ†ط¯ ظˆط¬ظˆط¯ ط²ظٹط§ط¯ط© ط¹ظ„ظ‰ ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©طŒ ظˆظ„ط§ ظٹط¸ظ‡ط± ظپظٹ ط§ظ„ظ†ظ…ظˆط°ط¬ ط§ظ„ظ…ط·ط¨ظˆط¹."
+                    />
+                  </Field>
+                </div>
               </div>
 
               {settlementError && (
@@ -2086,7 +1974,7 @@ export default function DashboardClient({
                   onClick={() => setSettlementModalOpen(false)}
                   className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700"
                 >
-                  إلغاء
+                  ط¥ظ„ط؛ط§ط،
                 </button>
                 <button
                   type="button"
@@ -2094,7 +1982,7 @@ export default function DashboardClient({
                   disabled={isPending}
                   className="rounded-2xl bg-secondary px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
                 >
-                  {isPending ? 'جاري الحفظ...' : 'حفظ التسوية'}
+                  {isPending ? 'ط¬ط§ط±ظٹ ط§ظ„ط­ظپط¸...' : 'ط­ظپط¸ ط§ظ„طھط³ظˆظٹط©'}
                 </button>
               </div>
             </div>
@@ -2161,16 +2049,16 @@ function LoanCard({
                 loan.isSettled ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'
               }`}
             >
-              {loan.isSettled ? 'تمت التسوية' : 'طلب سلفة'}
+              {loan.isSettled ? 'طھظ…طھ ط§ظ„طھط³ظˆظٹط©' : 'ط·ظ„ط¨ ط³ظ„ظپط©'}
             </span>
             {loan.printedAt && (
               <span className="rounded-full bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary">
-                مطبوع / مُصدّر
+                ظ…ط·ط¨ظˆط¹ / ظ…ظڈطµط¯ظ‘ط±
               </span>
             )}
             {loanAttachmentsCount > 0 && (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                {loanAttachmentsCount} مرفق
+                {loanAttachmentsCount} ظ…ط±ظپظ‚
               </span>
             )}
             <span
@@ -2183,46 +2071,46 @@ function LoanCard({
               }`}
             >
               {loan.reviewStatus === 'REVIEWED'
-                ? 'تمت المراجعة'
+                ? 'طھظ…طھ ط§ظ„ظ…ط±ط§ط¬ط¹ط©'
                 : loan.reviewStatus === 'RETURNED'
-                  ? 'معاد للمراجعة'
-                  : 'بانتظار المراجعة'}
+                  ? 'ظ…ط¹ط§ط¯ ظ„ظ„ظ…ط±ط§ط¬ط¹ط©'
+                  : 'ط¨ط§ظ†طھط¸ط§ط± ط§ظ„ظ…ط±ط§ط¬ط¹ط©'}
             </span>
           </div>
 
           <div>
             <h3 className="text-lg font-bold text-slate-900">{loan.refNumber}</h3>
             <p className="text-sm text-slate-500">
-              {loan.activity} • {loan.employee}
+              {loan.activity} â€¢ {loan.employee}
             </p>
           </div>
 
           <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-2">
-            <p>مكان التنفيذ: {loan.location || '-'}</p>
+            <p>ظ…ظƒط§ظ† ط§ظ„طھظ†ظپظٹط°: {loan.location || '-'}</p>
             <p>
-              فترة التنفيذ: {formatDate(loan.startDate)} - {formatDate(loan.endDate)}
+              ظپطھط±ط© ط§ظ„طھظ†ظپظٹط°: {formatDate(loan.startDate)} - {formatDate(loan.endDate)}
             </p>
-            <p>اعتماد الموازنة: {loan.budgetApproved === true ? 'معتمدة' : loan.budgetApproved === false ? 'غير معتمدة' : '-'}</p>
-            <p>إجمالي السلفة: {formatCurrencySar(loan.amount)}</p>
-            {loan.reviewNote && <p className="md:col-span-2">ملاحظة المراجع: {loan.reviewNote}</p>}
+            <p>ط§ط¹طھظ…ط§ط¯ ط§ظ„ظ…ظˆط§ط²ظ†ط©: {loan.budgetApproved === true ? 'ظ…ط¹طھظ…ط¯ط©' : loan.budgetApproved === false ? 'ط؛ظٹط± ظ…ط¹طھظ…ط¯ط©' : '-'}</p>
+            <p>ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ط³ظ„ظپط©: {formatCurrencySar(loan.amount)}</p>
+            {loan.reviewNote && <p className="md:col-span-2">ظ…ظ„ط§ط­ط¸ط© ط§ظ„ظ…ط±ط§ط¬ط¹: {loan.reviewNote}</p>}
           </div>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 lg:w-[360px]">
           <button type="button" onClick={onPrintLoan} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
-            طباعة نموذج 18
+            ط·ط¨ط§ط¹ط© ظ†ظ…ظˆط°ط¬ 18
           </button>
           <button type="button" onClick={onWordLoan} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
-            Word نموذج 18
+            Word ظ†ظ…ظˆط°ط¬ 18
           </button>
 
           {loan.isSettled ? (
             <>
               <button type="button" onClick={onPrintSettlement} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
-                طباعة نموذج 19
+                ط·ط¨ط§ط¹ط© ظ†ظ…ظˆط°ط¬ 19
               </button>
               <button type="button" onClick={onWordSettlement} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">
-                Word نموذج 19
+                Word ظ†ظ…ظˆط°ط¬ 19
               </button>
             </>
           ) : (
@@ -2231,7 +2119,7 @@ function LoanCard({
               onClick={() => onSettle(loan.id)}
               className="rounded-2xl bg-secondary px-4 py-3 text-sm font-bold text-white sm:col-span-2"
             >
-              بدء تسوية السلفة
+              ط¨ط¯ط، طھط³ظˆظٹط© ط§ظ„ط³ظ„ظپط©
             </button>
           )}
 
@@ -2242,14 +2130,14 @@ function LoanCard({
                 onClick={() => onEdit(loan.id)}
                 className="rounded-2xl border border-primary/20 px-4 py-3 text-sm font-bold text-primary"
               >
-                تعديل
+                طھط¹ط¯ظٹظ„
               </button>
               <button
                 type="button"
                 onClick={() => onDelete(loan.id)}
                 className="rounded-2xl border border-danger/20 px-4 py-3 text-sm font-bold text-danger"
               >
-                حذف
+                ط­ط°ظپ
               </button>
             </>
           )}
@@ -2261,14 +2149,14 @@ function LoanCard({
                 onClick={onMarkReviewed}
                 className="rounded-2xl border border-success/20 px-4 py-3 text-sm font-bold text-success"
               >
-                اعتماد المراجعة
+                ط§ط¹طھظ…ط§ط¯ ط§ظ„ظ…ط±ط§ط¬ط¹ط©
               </button>
               <button
                 type="button"
                 onClick={onReturnForReview}
                 className="rounded-2xl border border-warning/20 px-4 py-3 text-sm font-bold text-warning"
               >
-                إعادة للمراجعة
+                ط¥ط¹ط§ط¯ط© ظ„ظ„ظ…ط±ط§ط¬ط¹ط©
               </button>
             </>
           )}
@@ -2369,3 +2257,4 @@ function SummaryPill({ label, value }: { label: string; value: string }) {
     </div>
   )
 }
+
