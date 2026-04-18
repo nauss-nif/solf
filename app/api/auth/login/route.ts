@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       userId: user.id,
       fullName: user.fullName,
       email: user.email,
-      role: user.role as 'EMPLOYEE' | 'ADMIN',
+        role: user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER',
     })
 
     return NextResponse.json({ success: true, role: user.role })

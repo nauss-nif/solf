@@ -96,7 +96,9 @@ export const GUIDE_SECTIONS = [
   },
 ] as const
 
-export const FILE_SIZE_LIMIT_BYTES = 500 * 1024
+export const FILE_SIZE_LIMIT_BYTES = 12 * 1024 * 1024
+export const IMAGE_TARGET_MAX_BYTES = 900 * 1024
+export const IMAGE_MAX_DIMENSION = 2200
 
 export type CurrencyCode = (typeof CURRENCY_OPTIONS)[number]['code']
 export type SettlementDocumentType = (typeof SETTLEMENT_DOCUMENT_TYPES)[number]
@@ -131,6 +133,15 @@ export type SettlementDetailRecord = {
   category: string
   budget: number
   invoices: SettlementInvoiceRecord[]
+}
+
+export type SettlementMetaRecord = {
+  currencyRates: SettlementCurrencyRate[]
+  details: SettlementDetailRecord[]
+  receiptNumber?: string
+  receiptDate?: string
+  overageReason?: string
+  pettyCashApproval?: StoredFile | null
 }
 
 export function getCurrencyMeta(code: CurrencyCode) {

@@ -1,8 +1,4 @@
-import {
-  type LoanRequestFiles,
-  type SettlementDetailRecord,
-  type StoredFile,
-} from '@/lib/loan-form-options'
+import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
 type LoanItemLike = {
@@ -37,6 +33,13 @@ type SettlementLike = {
   savings: number
   overage: number
   invoices?: unknown
+}
+
+type SettlementMetaLike = {
+  receiptNumber?: string
+  receiptDate?: string
+  overageReason?: string
+  pettyCashApproval?: StoredFile | null
 }
 
 export type LoanDocumentRecord = {
@@ -142,6 +145,8 @@ function printShell(body: string, options: PrintShellOptions) {
       font-size: ${fontSize};
       line-height: ${lineHeight};
       direction: rtl;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .print-sheet {
       width: ${sheetWidth};
@@ -234,6 +239,8 @@ function printShell(body: string, options: PrintShellOptions) {
     table.form-grid th {
       background: #d9d9d9;
       font-weight: 700;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
@@ -259,6 +266,8 @@ function printShell(body: string, options: PrintShellOptions) {
       padding: 14px 18px;
       margin-top: 10px;
       min-height: 128px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .official-panel h3 {
       margin: 0 0 14px;
@@ -363,19 +372,6 @@ function normalizeStoredFile(value: unknown): StoredFile | null {
   }
 }
 
-function normalizeLoanFiles(value: unknown): LoanRequestFiles {
-  if (!value || typeof value !== 'object') {
-    return {}
-  }
-
-  const source = value as Record<string, unknown>
-
-  return {
-    grandApproval: normalizeStoredFile(source.grandApproval),
-    nomineeAdjustment: normalizeStoredFile(source.nomineeAdjustment),
-  }
-}
-
 function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
   const source = Array.isArray(raw)
     ? raw
@@ -404,12 +400,18 @@ function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
   })
 }
 
-function getLoanAttachmentsText(loan: LoanDocumentRecord) {
-  const files = normalizeLoanFiles(loan.files)
+function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
+  if (!raw || typeof raw !== 'object') {
+    return {}
+  }
+
+  const source = raw as Record<string, unknown>
 
   return {
-    grandApproval: files.grandApproval ? 'مرفق' : 'غير مرفق',
-    nomineeAdjustment: files.nomineeAdjustment ? 'مرفق' : 'غير مرفق',
+    receiptNumber: typeof source.receiptNumber === 'string' ? source.receiptNumber : '',
+    receiptDate: typeof source.receiptDate === 'string' ? source.receiptDate : '',
+    overageReason: typeof source.overageReason === 'string' ? source.overageReason : '',
+    pettyCashApproval: normalizeStoredFile(source.pettyCashApproval),
   }
 }
 
@@ -461,6 +463,7 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
 
 function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
+  const meta = normalizeSettlementMeta(loan.settlement?.invoices)
   const attachments = details.flatMap((detail) =>
     (detail.invoices ?? [])
       .filter((invoice) => invoice.attachment)
@@ -472,6 +475,16 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
         attachment: invoice.attachment as StoredFile,
       })),
   )
+
+  if (meta.pettyCashApproval) {
+    attachments.push({
+      category: 'النثريات',
+      index: attachments.length + 1,
+      documentType: 'موافقة المعالي',
+      issuer: 'اعتماد النثريات',
+      attachment: meta.pettyCashApproval,
+    })
+  }
 
   return attachments
     .map(({ category, index, documentType, issuer, attachment }) => {
@@ -505,7 +518,8 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord) {
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
-  const attachments = getLoanAttachmentsText(loan)
+  const tableFontSize =
+    loan.items.length >= 5 ? '11px' : loan.items.length >= 3 ? '12px' : '13px'
   const rows = normalizeLoanTemplateRows(loan)
     .map(
       (item) => `
@@ -552,7 +566,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
     </div>
 
-    <table class="form-grid">
+    <table class="form-grid" style="font-size: ${tableFontSize};">
       <thead>
         <tr>
           <th style="width:5%;">م</th>
@@ -571,31 +585,12 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       </tfoot>
     </table>
 
-    <div class="official-inline" style="grid-template-columns: 1fr 1.15fr 1.6fr 1fr;">
+    <div class="official-inline" style="grid-template-columns: 0.9fr 1fr 1.55fr 1fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
       <span>التوقيع: <span class="signature-line"></span></span>
     </div>
-
-    <table class="form-grid" style="margin-top: 14px;">
-      <thead>
-        <tr>
-          <th>المرفقات</th>
-          <th style="width: 22%;">الحالة</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="text-right">موافقة المعالي على الانتداب</td>
-          <td>${attachments.grandApproval}</td>
-        </tr>
-        <tr>
-          <td class="text-right">موافقة الوكيل على تعديل المرشح</td>
-          <td>${attachments.nomineeAdjustment}</td>
-        </tr>
-      </tbody>
-    </table>
 
     <div class="official-panel">
       <h3>رأي المراقب المالي:</h3>
@@ -617,21 +612,21 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>لا نوافق</span>
       </p>
       <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
-      <div class="row" style="margin-top: 30px;">
+      <div class="row" style="margin-top: 30px; flex-wrap: nowrap;">
         <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
+        <span>التاريخ: <span class="signature-line" style="min-width: 120px;"></span></span>
         <span>التوقيع: <span class="signature-line"></span></span>
-        <span>التاريخ: <span class="signature-line"></span></span>
       </div>
     </div>
   `
 
   return printShell(body, {
-    pageMargins: '38mm 16mm 24mm 16mm',
+    pageMargins: '34mm 16mm 20mm 16mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
-    fontSize: '14pt',
-    lineHeight: '1.52',
+    fontSize: '13.2pt',
+    lineHeight: '1.45',
     sheetWidth: '182mm',
-    sheetMinHeight: '235mm',
+    sheetMinHeight: '225mm',
     fontFaceCss: `
       @font-face {
         font-family: "BoutrosJazirahTextLight";
@@ -645,6 +640,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
 
 export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
   const settlement = loan.settlement
+  const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
   const rows = normalizeSettlementTemplateRows(loan)
     .map(
       (row) => `
@@ -731,9 +727,9 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
 
     <div class="official-inline" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.7fr;">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
-      <span>رقم سند القبض</span>
+      <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
       <span></span>
-      <span>تاريخه</span>
+      <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">

@@ -12,7 +12,11 @@ export type SessionUser = {
   userId: string
   fullName: string
   email: string
-  role: 'EMPLOYEE' | 'ADMIN'
+  role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+}
+
+export function canManageAllLoans(role: SessionUser['role']) {
+  return role === 'ADMIN' || role === 'REVIEWER'
 }
 
 function toBase64Url(value: string) {

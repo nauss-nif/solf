@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { canManageAllLoans, getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
 
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
     }
 
-    if (currentUser.role !== 'ADMIN' && loan.userId !== currentUser.userId) {
+    if (!canManageAllLoans(currentUser.role) && loan.userId !== currentUser.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -40,6 +40,10 @@ export async function POST(request: Request) {
             settlementDate: new Date().toISOString(),
             currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
             details: Array.isArray(body.details) ? body.details : [],
+            receiptNumber: String(body.receiptNumber ?? '').trim(),
+            receiptDate: String(body.receiptDate ?? '').trim(),
+            overageReason: String(body.overageReason ?? '').trim(),
+            pettyCashApproval: body.pettyCashApproval ?? null,
           },
         },
       }),

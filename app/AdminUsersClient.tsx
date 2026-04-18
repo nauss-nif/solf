@@ -8,7 +8,7 @@ type AdminUser = {
   email: string
   mobile: string
   extension: string
-  role: 'EMPLOYEE' | 'ADMIN'
+  role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
   status: 'ACTIVE' | 'DISABLED'
   createdAt: string
 }
@@ -72,6 +72,7 @@ export default function AdminUsersClient() {
                   className="input-shell !px-3 !py-2 !text-xs"
                 >
                   <option value="EMPLOYEE">موظف</option>
+                  <option value="REVIEWER">مراجع / مدقق</option>
                   <option value="ADMIN">مدير</option>
                 </select>
                 <select

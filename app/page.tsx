@@ -1,4 +1,5 @@
 import { requireSessionUser } from '@/lib/auth'
+import { canManageAllLoans } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { prisma } from '@/lib/prisma'
 import DashboardClient, { type LoanDashboardRecord } from './DashboardClient'
@@ -12,6 +13,8 @@ function serializeLoanRecord(loan: any): LoanDashboardRecord {
     location: loan.location ?? '',
     budgetApproved:
       typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null,
+    reviewStatus: loan.reviewStatus ?? 'PENDING',
+    reviewNote: loan.reviewNote ?? '',
     startDate: new Date(loan.startDate).toISOString(),
     endDate: new Date(loan.endDate).toISOString(),
     createdAt: new Date(loan.createdAt).toISOString(),
@@ -31,7 +34,7 @@ export default async function Home() {
   await ensureDatabaseSetup()
 
   const loans = await prisma.loan.findMany({
-    where: currentUser.role === 'ADMIN' ? undefined : { userId: currentUser.userId },
+    where: canManageAllLoans(currentUser.role) ? undefined : { userId: currentUser.userId },
     orderBy: { createdAt: 'desc' },
     include: dashboardLoanInclude,
   })

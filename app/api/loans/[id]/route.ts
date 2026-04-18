@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { canManageAllLoans, getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
 
@@ -20,7 +20,7 @@ async function getEditableLoan(id: string) {
     return { error: NextResponse.json({ error: 'Loan not found' }, { status: 404 }) }
   }
 
-  if (currentUser.role !== 'ADMIN' && loan.userId !== currentUser.userId) {
+  if (!canManageAllLoans(currentUser.role) && loan.userId !== currentUser.userId) {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
   }
 
@@ -35,16 +35,16 @@ export async function PATCH(
     const result = await getEditableLoan(params.id)
     if ('error' in result) return result.error
 
-    const { loan } = result
+    const { loan, currentUser } = result
 
-    if (loan.printedAt) {
+    if (loan.printedAt && !canManageAllLoans(currentUser.role)) {
       return NextResponse.json(
         { error: 'لا يمكن تعديل الطلب بعد طباعته أو تصديره.' },
         { status: 409 },
       )
     }
 
-    if (loan.isSettled) {
+    if (loan.isSettled && !canManageAllLoans(currentUser.role)) {
       return NextResponse.json(
         { error: 'لا يمكن تعديل الطلب بعد تسويته.' },
         { status: 409 },
@@ -52,6 +52,24 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    if (
+      typeof body.reviewStatus === 'string' &&
+      !('activity' in body) &&
+      !('startDate' in body) &&
+      canManageAllLoans(currentUser.role)
+    ) {
+      const reviewedLoan = await prisma.loan.update({
+        where: { id: loan.id },
+        data: {
+          reviewStatus: body.reviewStatus,
+          reviewNote: String(body.reviewNote ?? '').trim() || null,
+        },
+        include: dashboardLoanInclude,
+      })
+
+      return NextResponse.json(reviewedLoan)
+    }
+
     const items = Array.isArray(body.items) ? body.items : []
 
     const updatedLoan = await prisma.$transaction(async (tx) => {
@@ -67,6 +85,8 @@ export async function PATCH(
           amount: Number(body.amount ?? 0),
           budgetApproved:
             typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
+          reviewStatus: String(body.reviewStatus ?? loan.reviewStatus),
+          reviewNote: String(body.reviewNote ?? '').trim() || null,
           files: body.files ?? undefined,
           startDate: new Date(body.startDate),
           endDate: new Date(body.endDate),
@@ -98,16 +118,16 @@ export async function DELETE(
     const result = await getEditableLoan(params.id)
     if ('error' in result) return result.error
 
-    const { loan } = result
+    const { loan, currentUser } = result
 
-    if (loan.printedAt) {
+    if (loan.printedAt && !canManageAllLoans(currentUser.role)) {
       return NextResponse.json(
         { error: 'لا يمكن حذف الطلب بعد طباعته أو تصديره.' },
         { status: 409 },
       )
     }
 
-    if (loan.isSettled) {
+    if (loan.isSettled && !canManageAllLoans(currentUser.role)) {
       return NextResponse.json(
         { error: 'لا يمكن حذف الطلب بعد تسويته.' },
         { status: 409 },

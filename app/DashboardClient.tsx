@@ -8,6 +8,8 @@ import {
   EXPENSE_CATEGORIES,
   FILE_SIZE_LIMIT_BYTES,
   GUIDE_SECTIONS,
+  IMAGE_MAX_DIMENSION,
+  IMAGE_TARGET_MAX_BYTES,
   LOAN_ATTACHMENT_DEFINITIONS,
   SETTLEMENT_DOCUMENT_TYPES,
   type CurrencyCode,
@@ -16,6 +18,7 @@ import {
   type SettlementDetailRecord,
   type SettlementDocumentType,
   type SettlementInvoiceRecord,
+  type SettlementMetaRecord,
   type StoredFile,
 } from '@/lib/loan-form-options'
 import { formatCurrencySar, formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
@@ -44,6 +47,8 @@ export type LoanDashboardRecord = {
   location: string
   amount: number
   budgetApproved: boolean | null
+  reviewStatus: 'PENDING' | 'RETURNED' | 'REVIEWED'
+  reviewNote?: string
   startDate: string
   endDate: string
   createdAt: string
@@ -59,7 +64,7 @@ type CurrentUser = {
   userId: string
   fullName: string
   email: string
-  role: 'EMPLOYEE' | 'ADMIN'
+  role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
 }
 
 type ExpenseDraft = {
@@ -82,6 +87,13 @@ type SettlementDraft = {
   category: string
   budget: number
   invoices: InvoiceDraft[]
+}
+
+type SettlementMetaState = {
+  receiptNumber: string
+  receiptDate: string
+  overageReason: string
+  pettyCashApproval: StoredFile | null
 }
 
 type ToastItem = {
@@ -140,6 +152,8 @@ function normalizeLoanRecord(loan: {
   location: string | null
   amount: number
   budgetApproved?: boolean | null
+  reviewStatus?: 'PENDING' | 'RETURNED' | 'REVIEWED'
+  reviewNote?: string
   startDate: string
   endDate: string
   createdAt: string
@@ -155,6 +169,8 @@ function normalizeLoanRecord(loan: {
     location: loan.location ?? '',
     budgetApproved:
       typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null,
+    reviewStatus: loan.reviewStatus ?? 'PENDING',
+    reviewNote: loan.reviewNote ?? '',
     printedAt: loan.printedAt ?? null,
     files: loan.files ?? null,
   }
@@ -197,17 +213,73 @@ function getCurrencyLabel(code: CurrencyCode) {
   return CURRENCY_OPTIONS.find((currency) => currency.code === code)?.label ?? code
 }
 
-async function fileToStoredFile(file: File) {
-  if (file.size > FILE_SIZE_LIMIT_BYTES) {
-    throw new Error('حجم الملف يتجاوز الحد الأقصى المسموح وهو 500 كيلوبايت.')
-  }
+function isPettyCashCategory(category: string) {
+  return category.includes('نثريات')
+}
 
-  const dataUrl = await new Promise<string>((resolve, reject) => {
+async function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(String(reader.result ?? ''))
     reader.onerror = () => reject(new Error('تعذر قراءة الملف المرفوع.'))
     reader.readAsDataURL(file)
   })
+}
+
+async function optimizeImageFile(file: File) {
+  const sourceUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(new Error('تعذر قراءة الصورة المرفوعة.'))
+    reader.readAsDataURL(file)
+  })
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new window.Image()
+    element.onload = () => resolve(element)
+    element.onerror = () => reject(new Error('تعذر معالجة الصورة المرفوعة.'))
+    element.src = sourceUrl
+  })
+
+  const maxSide = Math.max(image.width, image.height)
+  const ratio = maxSide > IMAGE_MAX_DIMENSION ? IMAGE_MAX_DIMENSION / maxSide : 1
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.width * ratio))
+  canvas.height = Math.max(1, Math.round(image.height * ratio))
+
+  const context = canvas.getContext('2d')
+  if (!context) {
+    throw new Error('تعذر تهيئة معالجة الصورة.')
+  }
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+  let quality = 0.92
+  let dataUrl = canvas.toDataURL('image/jpeg', quality)
+
+  while (dataUrl.length > IMAGE_TARGET_MAX_BYTES * 1.37 && quality > 0.45) {
+    quality -= 0.08
+    dataUrl = canvas.toDataURL('image/jpeg', quality)
+  }
+
+  return {
+    name: file.name.replace(/\.[^.]+$/, '') + '.jpg',
+    type: 'image/jpeg',
+    size: Math.round((dataUrl.length * 3) / 4),
+    dataUrl,
+  } satisfies StoredFile
+}
+
+async function fileToStoredFile(file: File) {
+  if (file.size > FILE_SIZE_LIMIT_BYTES) {
+    throw new Error('حجم الملف كبير جدًا، الحد الأعلى للملف الواحد هو 12 ميجابايت.')
+  }
+
+  if (file.type.startsWith('image/')) {
+    return optimizeImageFile(file)
+  }
+
+  const dataUrl = await readFileAsDataUrl(file)
 
   return {
     name: file.name,
@@ -329,6 +401,12 @@ export default function DashboardClient({
   )
   const [currencyRates, setCurrencyRates] = useState<SettlementCurrencyRate[]>([])
   const [settlementItems, setSettlementItems] = useState<SettlementDraft[]>([])
+  const [settlementMeta, setSettlementMeta] = useState<SettlementMetaState>({
+    receiptNumber: '',
+    receiptDate: '',
+    overageReason: '',
+    pettyCashApproval: null,
+  })
 
   async function refreshLoans() {
     try {
@@ -438,23 +516,23 @@ export default function DashboardClient({
     }
 
     const payload = buildSettlementPayload(settlementItems, currencyRates)
-    const supported = payload.reduce((sum, item) => {
-      return (
+    const supported = payload.reduce(
+      (sum, item) =>
         sum +
-        item.invoices.reduce((invoiceSum, invoice) => {
-          return invoiceSum + (invoice.attachment ? invoice.sar : 0)
-        }, 0)
-      )
-    }, 0)
+        (isPettyCashCategory(item.category)
+          ? 0
+          : item.invoices.reduce((invoiceSum, invoice) => invoiceSum + invoice.sar, 0)),
+      0,
+    )
 
-    const unsupported = payload.reduce((sum, item) => {
-      return (
+    const unsupported = payload.reduce(
+      (sum, item) =>
         sum +
-        item.invoices.reduce((invoiceSum, invoice) => {
-          return invoiceSum + (!invoice.attachment ? invoice.sar : 0)
-        }, 0)
-      )
-    }, 0)
+        (isPettyCashCategory(item.category)
+          ? item.invoices.reduce((invoiceSum, invoice) => invoiceSum + invoice.sar, 0)
+          : 0),
+      0,
+    )
 
     const total = supported + unsupported
 
@@ -462,7 +540,7 @@ export default function DashboardClient({
       supported,
       unsupported,
       total,
-      savings: Math.max(0, settlementLoan.amount - total),
+      savings: settlementLoan.amount - total,
       overage: Math.max(0, total - settlementLoan.amount),
     }
   }, [currencyRates, settlementItems, settlementLoan])
@@ -526,6 +604,12 @@ export default function DashboardClient({
         invoices: [createEmptyInvoice()],
       })),
     )
+    setSettlementMeta({
+      receiptNumber: '',
+      receiptDate: '',
+      overageReason: '',
+      pettyCashApproval: null,
+    })
     setSettlementModalOpen(true)
   }
 
@@ -560,6 +644,19 @@ export default function DashboardClient({
 
   function removeLoanAttachment(key: string) {
     setLoanAttachments((current) => ({ ...current, [key]: null }))
+  }
+
+  async function handlePettyCashApprovalUpload(fileList: FileList | null) {
+    const file = fileList?.[0]
+    if (!file) return
+
+    try {
+      const stored = await fileToStoredFile(file)
+      setSettlementMeta((current) => ({ ...current, pettyCashApproval: stored }))
+      setSettlementError('')
+    } catch (error) {
+      setSettlementError(error instanceof Error ? error.message : 'تعذر رفع المرفق.')
+    }
   }
 
   async function submitLoan() {
@@ -780,6 +877,12 @@ export default function DashboardClient({
       return
     }
 
+    const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
+    if (hasPettyCash && !settlementMeta.pettyCashApproval) {
+      setSettlementError('أرفق موافقة المعالي عند وجود نثريات ضمن التسوية.')
+      return
+    }
+
     for (const invoice of allInvoices) {
       if (!invoice.amount || invoice.sar <= 0) {
         setSettlementError(`أكمل مبلغ الفاتورة في بند ${invoice.category}.`)
@@ -793,8 +896,25 @@ export default function DashboardClient({
         setSettlementError(`أدخل الجهة المصدرة للفاتورة في بند ${invoice.category}.`)
         return
       }
-      if (!invoice.attachment) {
+      if (!isPettyCashCategory(invoice.category) && !invoice.attachment) {
         setSettlementError(`أرفق صورة أو ملف الفاتورة في بند ${invoice.category}.`)
+        return
+      }
+    }
+
+    if (settlementSummary.overage > 0 && !settlementMeta.overageReason.trim()) {
+      setSettlementError('أدخل مبرر الزيادة عند تجاوز إجمالي المصروفات مبلغ السلفة.')
+      return
+    }
+
+    if (settlementSummary.savings > 0) {
+      if (!settlementMeta.receiptNumber.trim()) {
+        setSettlementError('أدخل رقم سند القبض عند وجود وفر في السلفة النقدية.')
+        return
+      }
+
+      if (!settlementMeta.receiptDate) {
+        setSettlementError('أدخل تاريخ سند القبض عند وجود وفر في السلفة النقدية.')
         return
       }
     }
@@ -812,6 +932,10 @@ export default function DashboardClient({
           overage: settlementSummary.overage,
           currencyRates,
           details,
+          receiptNumber: settlementMeta.receiptNumber.trim(),
+          receiptDate: settlementMeta.receiptDate,
+          overageReason: settlementMeta.overageReason.trim(),
+          pettyCashApproval: cloneStoredFile(settlementMeta.pettyCashApproval),
         }),
       })
 
@@ -901,6 +1025,37 @@ export default function DashboardClient({
       router.push('/login')
       router.refresh()
     }
+  }
+
+  async function updateReviewState(
+    loanId: string,
+    reviewStatus: LoanDashboardRecord['reviewStatus'],
+    reviewNote = '',
+  ) {
+    startTransition(async () => {
+      const response = await fetch(`/api/loans/${loanId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewStatus, reviewNote }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        showToast(
+          typeof data?.error === 'string' ? data.error : 'تعذر تحديث حالة المراجعة.',
+          'error',
+        )
+        return
+      }
+
+      setLoans((current) =>
+        current.map((loan) => (loan.id === data.id ? normalizeLoanRecord(data) : loan)),
+      )
+      showToast(
+        reviewStatus === 'RETURNED' ? 'تمت إعادة المعاملة للمراجعة.' : 'تم تحديث حالة المراجعة.',
+      )
+      router.refresh()
+    })
   }
 
   const unsettledLoans = filteredLoans.filter((loan) => !loan.isSettled)
@@ -1044,9 +1199,16 @@ export default function DashboardClient({
                   <LoanCard
                     key={loan.id}
                     loan={loan}
+                    canReview={currentUser.role !== 'EMPLOYEE'}
                     onEdit={openEditLoanModal}
                     onDelete={deleteLoan}
                     onSettle={openSettlementModal}
+                    onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
+                    onReturnForReview={() => {
+                      const note = window.prompt('أدخل ملاحظة الإرجاع للمراجعة', loan.reviewNote || '')
+                      if (note === null) return
+                      void updateReviewState(loan.id, 'RETURNED', note)
+                    }}
                     onPrintLoan={() => openPrintDocument('loan', loan.id)}
                     onWordLoan={() => exportWordDocument('loan', loan.id)}
                     onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
@@ -1068,9 +1230,16 @@ export default function DashboardClient({
                   key={loan.id}
                   loan={loan}
                   archived
+                  canReview={currentUser.role !== 'EMPLOYEE'}
                   onEdit={openEditLoanModal}
                   onDelete={deleteLoan}
                   onSettle={openSettlementModal}
+                  onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
+                  onReturnForReview={() => {
+                    const note = window.prompt('أدخل ملاحظة الإرجاع للمراجعة', loan.reviewNote || '')
+                    if (note === null) return
+                    void updateReviewState(loan.id, 'RETURNED', note)
+                  }}
                   onPrintLoan={() => openPrintDocument('loan', loan.id)}
                   onWordLoan={() => exportWordDocument('loan', loan.id)}
                   onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
@@ -1435,10 +1604,11 @@ export default function DashboardClient({
             </div>
 
             <div className="space-y-5 p-5">
-              <div className="grid gap-4 md:grid-cols-3">
-                <SummaryPill label="المبلغ المعتمد" value={formatCurrencySar(settlementLoan.amount)} />
-                <SummaryPill label="الإجمالي المصروف" value={formatCurrencySar(settlementSummary.total)} />
-                <SummaryPill label="الوفر" value={formatCurrencySar(settlementSummary.savings)} />
+              <div className="grid gap-4 md:grid-cols-4">
+                <SummaryPill label="مبلغ السلفة" value={formatCurrencySar(settlementLoan.amount)} />
+                <SummaryPill label="إجمالي المصروفات من السلفة" value={formatCurrencySar(settlementSummary.total)} />
+                <SummaryPill label="المبلغ المصروف بالزيادة" value={formatCurrencySar(settlementSummary.overage)} />
+                <SummaryPill label="وفر السلفة النقدي" value={formatCurrencySar(settlementSummary.savings)} />
               </div>
 
               <div className="rounded-[24px] border border-slate-200 p-4">
@@ -1500,9 +1670,106 @@ export default function DashboardClient({
                 </div>
               </div>
 
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-[24px] border border-slate-200 p-4">
+                  <h4 className="mb-3 font-bold text-slate-900">بيانات التسوية</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="رقم سند القبض">
+                      <input
+                        value={settlementMeta.receiptNumber}
+                        onChange={(event) =>
+                          setSettlementMeta((current) => ({
+                            ...current,
+                            receiptNumber: event.target.value,
+                          }))
+                        }
+                        className="input-shell"
+                      />
+                    </Field>
+                    <Field label="تاريخه">
+                      <input
+                        type="date"
+                        value={settlementMeta.receiptDate}
+                        onChange={(event) =>
+                          setSettlementMeta((current) => ({
+                            ...current,
+                            receiptDate: event.target.value,
+                          }))
+                        }
+                        className="input-shell"
+                      />
+                    </Field>
+                  </div>
+
+                  <div className="mt-4">
+                    <Field label="مبرر الزيادة على مبلغ السلفة">
+                      <textarea
+                        value={settlementMeta.overageReason}
+                        onChange={(event) =>
+                          setSettlementMeta((current) => ({
+                            ...current,
+                            overageReason: event.target.value,
+                          }))
+                        }
+                        rows={3}
+                        className="input-shell min-h-[110px] resize-y"
+                        placeholder="يعبأ فقط عند وجود زيادة على مبلغ السلفة، ولا يظهر في النموذج المطبوع."
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+                <div className="rounded-[24px] border border-slate-200 p-4">
+                  <h4 className="mb-3 font-bold text-slate-900">النثريات غير المؤيدة بمستندات</h4>
+                  <p className="mb-3 text-sm leading-7 text-slate-500">
+                    عند وجود نثريات يجب إرفاق موافقة المعالي لاعتماد المصروفات غير المؤيدة بفواتير.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="inline-flex h-12 w-12 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
+                      +
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,image/*"
+                        onChange={(event) => void handlePettyCashApprovalUpload(event.target.files)}
+                      />
+                    </label>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-slate-700">
+                        موافقة المعالي على النثريات
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                        <span
+                          className={`inline-block h-2.5 w-2.5 rounded-full ${
+                            settlementMeta.pettyCashApproval ? 'bg-success' : 'bg-slate-300'
+                          }`}
+                        />
+                        <span>
+                          {settlementMeta.pettyCashApproval
+                            ? settlementMeta.pettyCashApproval.name
+                            : 'لم يتم رفع المرفق بعد'}
+                        </span>
+                      </div>
+                    </div>
+                    {settlementMeta.pettyCashApproval && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettlementMeta((current) => ({ ...current, pettyCashApproval: null }))
+                        }
+                        className="rounded-2xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
+                      >
+                        إزالة
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 {settlementItems.map((item, itemIndex) => {
                   const itemTotal = item.invoices.reduce((sum, invoice) => sum + invoice.sarAmount, 0)
+                  const isPettyCash = isPettyCashCategory(item.category)
 
                   return (
                     <div
@@ -1525,25 +1792,14 @@ export default function DashboardClient({
                         </button>
                       </div>
 
-                      <div className="hidden grid-cols-[1fr_220px_180px_180px_180px_1fr_180px_52px] gap-3 border-b border-slate-100 pb-2 text-[11px] font-bold text-slate-500 xl:grid">
-                        <span>المبلغ</span>
-                        <span>العملة</span>
-                        <span>المبلغ بالريال</span>
-                        <span>نوعه</span>
-                        <span>تاريخه</span>
-                        <span>الجهة المصدرة له</span>
-                        <span>المرفق</span>
-                        <span></span>
-                      </div>
-
                       <div className="mt-3 space-y-3">
                         {item.invoices.map((invoice, invoiceIndex) => (
                           <div
                             key={invoiceIndex}
-                            className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 xl:grid xl:grid-cols-[1fr_220px_180px_180px_180px_1fr_180px_52px] xl:items-start xl:gap-3 xl:rounded-none xl:border-0 xl:bg-transparent xl:p-0"
+                            className="rounded-[20px] border border-slate-200 bg-slate-50 p-4"
                           >
-                            <div className="grid gap-3 md:grid-cols-2 xl:block">
-                              <Field label="المبلغ">
+                            <div className="grid gap-4 lg:grid-cols-2">
+                              <Field label="المبلغ حسب الفاتورة">
                                 <input
                                   type="number"
                                   step="0.01"
@@ -1576,101 +1832,110 @@ export default function DashboardClient({
                                   ))}
                                 </select>
                               </Field>
-                            </div>
-
-                            <Field label="المبلغ بالريال">
-                              <input
-                                readOnly
-                                value={formatCurrencySar(invoice.sarAmount)}
-                                className="input-shell bg-slate-100"
-                              />
-                            </Field>
-
-                            <Field label="نوعه">
-                              <select
-                                value={invoice.documentType}
-                                onChange={(event) =>
-                                  updateInvoice(
-                                    itemIndex,
-                                    invoiceIndex,
-                                    'documentType',
-                                    event.target.value,
-                                  )
-                                }
-                                className="input-shell"
-                              >
-                                {SETTLEMENT_DOCUMENT_TYPES.map((type) => (
-                                  <option key={type} value={type}>
-                                    {type}
-                                  </option>
-                                ))}
-                              </select>
-                            </Field>
-
-                            <Field label="تاريخه">
-                              <input
-                                type="date"
-                                value={invoice.invoiceDate}
-                                onChange={(event) =>
-                                  updateInvoice(
-                                    itemIndex,
-                                    invoiceIndex,
-                                    'invoiceDate',
-                                    event.target.value,
-                                  )
-                                }
-                                className="input-shell"
-                              />
-                            </Field>
-
-                            <Field label="الجهة المصدرة له">
-                              <input
-                                value={invoice.issuer}
-                                onChange={(event) =>
-                                  updateInvoice(itemIndex, invoiceIndex, 'issuer', event.target.value)
-                                }
-                                className="input-shell"
-                              />
-                            </Field>
-
-                            <div className="space-y-2">
-                              <span className="mb-2 block text-xs font-semibold text-slate-500">المرفق</span>
-                              <label className="block rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-bold text-primary">
-                                {invoice.attachment ? 'تغيير الملف' : 'اختيار ملف'}
+                              <Field label="المبلغ بالريال">
                                 <input
-                                  type="file"
-                                  className="hidden"
-                                  accept=".pdf,image/*"
+                                  readOnly
+                                  value={formatCurrencySar(invoice.sarAmount)}
+                                  className="input-shell bg-slate-100 text-base font-bold"
+                                />
+                              </Field>
+                              <Field label="نوعه">
+                                <select
+                                  value={invoice.documentType}
                                   onChange={(event) =>
-                                    void uploadInvoiceAttachment(
+                                    updateInvoice(
                                       itemIndex,
                                       invoiceIndex,
-                                      event.target.files,
+                                      'documentType',
+                                      event.target.value,
                                     )
                                   }
-                                />
-                              </label>
-                              <div className="min-h-[32px] text-xs text-slate-500">
-                                {invoice.attachment ? invoice.attachment.name : 'لا يوجد مرفق'}
-                              </div>
-                              {invoice.attachment && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeInvoiceAttachment(itemIndex, invoiceIndex)}
-                                  className="text-xs font-bold text-danger"
+                                  className="input-shell"
                                 >
-                                  إزالة المرفق
-                                </button>
-                              )}
+                                  {SETTLEMENT_DOCUMENT_TYPES.map((type) => (
+                                    <option key={type} value={type}>
+                                      {type}
+                                    </option>
+                                  ))}
+                                </select>
+                              </Field>
+                              <Field label="تاريخه">
+                                <input
+                                  type="date"
+                                  value={invoice.invoiceDate}
+                                  onChange={(event) =>
+                                    updateInvoice(
+                                      itemIndex,
+                                      invoiceIndex,
+                                      'invoiceDate',
+                                      event.target.value,
+                                    )
+                                  }
+                                  className="input-shell"
+                                />
+                              </Field>
+                              <Field label="الجهة المصدرة له">
+                                <input
+                                  value={invoice.issuer}
+                                  onChange={(event) =>
+                                    updateInvoice(itemIndex, invoiceIndex, 'issuer', event.target.value)
+                                  }
+                                  className="input-shell"
+                                />
+                              </Field>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => removeInvoice(itemIndex, invoiceIndex)}
-                              className="mt-2 rounded-2xl border border-danger/20 px-4 py-3 text-sm font-bold text-danger xl:mt-7"
-                            >
-                              ×
-                            </button>
+                            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3">
+                              <div className="flex items-center gap-2 text-xs text-slate-500">
+                                <span
+                                  className={`inline-block h-2.5 w-2.5 rounded-full ${
+                                    invoice.attachment ? 'bg-success' : 'bg-slate-300'
+                                  }`}
+                                />
+                                <span>
+                                  {invoice.attachment
+                                    ? invoice.attachment.name
+                                    : isPettyCash
+                                      ? 'لا يلزم مرفق فاتورة لهذا البند'
+                                      : 'لم يتم رفع المرفق'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {!isPettyCash && (
+                                  <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
+                                    +
+                                    <input
+                                      type="file"
+                                      className="hidden"
+                                      accept=".pdf,image/*"
+                                      onChange={(event) =>
+                                        void uploadInvoiceAttachment(
+                                          itemIndex,
+                                          invoiceIndex,
+                                          event.target.files,
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                )}
+                                {invoice.attachment && !isPettyCash && (
+                                  <button
+                                    type="button"
+                                    onClick={() => removeInvoiceAttachment(itemIndex, invoiceIndex)}
+                                    className="rounded-2xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
+                                  >
+                                    إزالة المرفق
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => removeInvoice(itemIndex, invoiceIndex)}
+                                  className="rounded-2xl border border-danger/20 px-4 py-2 text-sm font-bold text-danger"
+                                >
+                                  حذف الصف
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1684,11 +1949,13 @@ export default function DashboardClient({
                 })}
               </div>
 
-              <div className="grid gap-4 md:grid-cols-4">
-                <SummaryPill label="المؤيد" value={formatCurrencySar(settlementSummary.supported)} />
-                <SummaryPill label="غير المؤيد" value={formatCurrencySar(settlementSummary.unsupported)} />
-                <SummaryPill label="الإجمالي" value={formatCurrencySar(settlementSummary.total)} />
-                <SummaryPill label="الزيادة" value={formatCurrencySar(settlementSummary.overage)} />
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <SummaryPill label="المصروفات المؤيدة بمستندات" value={formatCurrencySar(settlementSummary.supported)} />
+                <SummaryPill label="المصروفات غير المؤيدة بمستندات" value={formatCurrencySar(settlementSummary.unsupported)} />
+                <SummaryPill label="إجمالي المصروفات من السلفة" value={formatCurrencySar(settlementSummary.total)} />
+                <SummaryPill label="مبلغ السلفة" value={formatCurrencySar(settlementLoan.amount)} />
+                <SummaryPill label="المبلغ المصروف بالزيادة المطلوبة صرفه" value={formatCurrencySar(settlementSummary.overage)} />
+                <SummaryPill label="وفر السلفة النقدي" value={formatCurrencySar(settlementSummary.savings)} />
               </div>
 
               {settlementError && (
@@ -1742,9 +2009,12 @@ export default function DashboardClient({
 function LoanCard({
   loan,
   archived = false,
+  canReview = false,
   onEdit,
   onDelete,
   onSettle,
+  onMarkReviewed,
+  onReturnForReview,
   onPrintLoan,
   onWordLoan,
   onPrintSettlement,
@@ -1752,9 +2022,12 @@ function LoanCard({
 }: {
   loan: LoanDashboardRecord
   archived?: boolean
+  canReview?: boolean
   onEdit: (loanId: string) => void
   onDelete: (loanId: string) => void
   onSettle: (loanId: string) => void
+  onMarkReviewed: () => void
+  onReturnForReview: () => void
   onPrintLoan: () => void
   onWordLoan: () => void
   onPrintSettlement: () => void
@@ -1784,6 +2057,21 @@ function LoanCard({
                 {loanAttachmentsCount} مرفق
               </span>
             )}
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold ${
+                loan.reviewStatus === 'REVIEWED'
+                  ? 'bg-success/10 text-success'
+                  : loan.reviewStatus === 'RETURNED'
+                    ? 'bg-warning/10 text-warning'
+                    : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {loan.reviewStatus === 'REVIEWED'
+                ? 'تمت المراجعة'
+                : loan.reviewStatus === 'RETURNED'
+                  ? 'معاد للمراجعة'
+                  : 'بانتظار المراجعة'}
+            </span>
           </div>
 
           <div>
@@ -1800,6 +2088,7 @@ function LoanCard({
             </p>
             <p>اعتماد الموازنة: {loan.budgetApproved === true ? 'معتمدة' : loan.budgetApproved === false ? 'غير معتمدة' : '-'}</p>
             <p>إجمالي السلفة: {formatCurrencySar(loan.amount)}</p>
+            {loan.reviewNote && <p className="md:col-span-2">ملاحظة المراجع: {loan.reviewNote}</p>}
           </div>
         </div>
 
@@ -1845,6 +2134,25 @@ function LoanCard({
                 className="rounded-2xl border border-danger/20 px-4 py-3 text-sm font-bold text-danger"
               >
                 حذف
+              </button>
+            </>
+          )}
+
+          {canReview && (
+            <>
+              <button
+                type="button"
+                onClick={onMarkReviewed}
+                className="rounded-2xl border border-success/20 px-4 py-3 text-sm font-bold text-success"
+              >
+                اعتماد المراجعة
+              </button>
+              <button
+                type="button"
+                onClick={onReturnForReview}
+                className="rounded-2xl border border-warning/20 px-4 py-3 text-sm font-bold text-warning"
+              >
+                إعادة للمراجعة
               </button>
             </>
           )}

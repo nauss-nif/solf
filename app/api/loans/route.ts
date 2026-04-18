@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/auth'
+import { canManageAllLoans, getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
 
@@ -29,7 +29,7 @@ export async function GET() {
     }
 
     const loans = await prisma.loan.findMany({
-      where: currentUser.role === 'ADMIN' ? undefined : { userId: currentUser.userId },
+      where: canManageAllLoans(currentUser.role) ? undefined : { userId: currentUser.userId },
       orderBy: { createdAt: 'desc' },
       include: dashboardLoanInclude,
     })

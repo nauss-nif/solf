@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSessionUser } from '@/lib/auth'
+import { canManageAllLoans, requireSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { fullLoanInclude } from '@/lib/loan-selects'
 
@@ -20,7 +20,7 @@ export async function getAuthorizedLoan(
     notFound()
   }
 
-  if (currentUser.role !== 'ADMIN' && loan.userId !== currentUser.userId) {
+  if (!canManageAllLoans(currentUser.role) && loan.userId !== currentUser.userId) {
     notFound()
   }
 
