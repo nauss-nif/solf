@@ -1,4 +1,4 @@
-﻿import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
+import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
 type LoanItemLike = {
@@ -421,7 +421,7 @@ function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
 }
 
 function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] {
-  const items = loan.items.length > 0 ? loan.items : [{ category: 'ط³ظ„ظپط© ظ…ط¤ظ‚طھط©', amount: loan.amount }]
+  const items = loan.items.length > 0 ? loan.items : [{ category: 'سلفة مؤقتة', amount: loan.amount }]
 
   return items.map((item, index) => ({
     index: index + 1,
@@ -438,14 +438,14 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
     const invoices = detail.invoices ?? []
     const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
     const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
-    const isPettyCash = (detail.category ?? '').includes('ظ†ط«ط±ظٹط§طھ')
+    const isPettyCash = (detail.category ?? '').includes('نثريات')
 
     return {
       index: index + 1,
-      category: detail.category?.trim() || 'ط¨ظ†ط¯ طµط±ظپ',
+      category: detail.category?.trim() || 'بند صرف',
       amount: formatNumber(amount),
       documentType: isPettyCash
-        ? 'ظ…ظˆط§ظپظ‚ط© ط§ظ„ظ…ط¹ط§ظ„ظٹ'
+        ? 'موافقة المعالي'
         : joinValues(invoices.map((invoice) => invoice.type), '<br />'),
       documentDate: joinValues(
         invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
@@ -460,7 +460,7 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
     : [
         {
           index: 1,
-          category: 'ظ„ط§ طھظˆط¬ط¯ ط¨ظ†ظˆط¯ طµط±ظپ ظ…ط³ط¬ظ„ط©',
+          category: 'لا توجد بنود صرف مسجلة',
           amount: formatNumber(0),
           documentType: '',
           documentDate: '',
@@ -480,7 +480,7 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
       }))
       .filter((invoice) => invoice.attachment)
       .map((invoice, index) => ({
-        category: detail.category?.trim() || 'ط¨ظ†ط¯ طµط±ظپ',
+        category: detail.category?.trim() || 'بند صرف',
         index: index + 1,
         documentType: invoice.type || '',
         issuer: invoice.issuer || '',
@@ -490,10 +490,10 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
 
   if (meta.pettyCashApproval) {
     attachments.push({
-      category: 'ط§ظ„ظ†ط«ط±ظٹط§طھ',
+      category: 'النثريات',
       index: attachments.length + 1,
-      documentType: 'ظ…ظˆط§ظپظ‚ط© ط§ظ„ظ…ط¹ط§ظ„ظٹ',
-      issuer: 'ط§ط¹طھظ…ط§ط¯ ط§ظ„ظ†ط«ط±ظٹط§طھ',
+      documentType: 'موافقة المعالي',
+      issuer: 'اعتماد النثريات',
       attachment: meta.pettyCashApproval,
     })
   }
@@ -504,14 +504,14 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
         ? `<div class="attachment-preview"><img src="${attachment.dataUrl}" alt="${escapeHtml(
             attachment.name,
           )}" /></div>`
-        : `<div class="attachment-note">طھظ… ط¥ط±ظپط§ظ‚ ط§ظ„ظ…ظ„ظپ: ${escapeHtml(
+        : `<div class="attachment-note">تم إرفاق الملف: ${escapeHtml(
             attachment.name,
-          )}<br />ظ†ظˆط¹ ط§ظ„ظ…ط³طھظ†ط¯: ${escapeHtml(documentType || 'ظ…ط±ظپظ‚')}</div>`
+          )}<br />نوع المستند: ${escapeHtml(documentType || 'مرفق')}</div>`
 
       return `
         <section class="attachment-page">
-          <h2>مرفق فاتورة ${index}</h2>
-          <p>البند: ${escapeHtml(category)} | نوع المستند: ${escapeHtml(documentType || '-')} | الجهة المصدرة له: ${escapeHtml(issuer || '-')}</p>
+          <h2>���� ������ ${index}</h2>
+          <p>�����: ${escapeHtml(category)} | ��� �������: ${escapeHtml(documentType || '-')} | ����� ������� ��: ${escapeHtml(issuer || '-')}</p>
           ${preview}
         </section>
       `
@@ -548,41 +548,41 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
 
   const body = `
     <div class="print-title">
-      <h2>ظ†ظ…ظˆط°ط¬ ط±ظ‚ظ… 18</h2>
-      <h1>ط·ظ„ط¨ طµط±ظپ ط³ظ„ظپط© ظ…ط¤ظ‚طھط© ظ„ظ„ط¹ظ…ظ„</h1>
+      <h2>نموذج رقم 18</h2>
+      <h1>طلب صرف سلفة مؤقتة للعمل</h1>
     </div>
 
-    <div class="reference-line">ط±ظ‚ظ… ظ…ط±ط¬ط¹ظٹ: ${escapeHtml(loan.refNumber)}</div>
+    <div class="reference-line">رقم مرجعي: ${escapeHtml(loan.refNumber)}</div>
 
     <div class="formal-text">
-      <p>ظ…ط¹ط§ظ„ظٹ ط±ط¦ظٹط³ ط§ظ„ط¬ط§ظ…ط¹ط©</p>
-      <p>ط§ظ„ط³ظ„ط§ظ… ط¹ظ„ظٹظƒظ… ظˆط±ط­ظ…ط© ط§ظ„ظ„ظ‡ ظˆط¨ط±ظƒط§طھظ‡</p>
-      <p>ط¢ظ…ظ„ ط§ظ„ظ…ظˆط§ظپظ‚ط© ط¹ظ„ظ‰ طµط±ظپ ط³ظ„ظپط© ظ†ظ‚ط¯ظٹط© ظ…ط¤ظ‚طھط© ظˆظپظ‚ ظ…ط§ ظٹظ„ظٹ:</p>
+      <p>معالي رئيس الجامعة</p>
+      <p>السلام عليكم ورحمة الله وبركاته</p>
+      <p>آمل الموافقة على صرف سلفة نقدية مؤقتة وفق ما يلي:</p>
     </div>
 
     <div class="meta-grid">
-      <div class="meta-row"><span class="meta-label">ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط© ط±ظ‚ظ…ظ‹ط§:</span><span class="meta-value">${formatNumber(loan.amount)}</span></div>
-      <div class="meta-row"><span class="meta-label">ظƒطھط§ط¨ط©:</span><span class="meta-value">${escapeHtml(numberToArabicWords(loan.amount))}</span></div>
-      <div class="meta-row"><span class="meta-label">ط§ط³ظ… ط§ظ„ظ†ط´ط§ط·:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
+      <div class="meta-row"><span class="meta-label">مبلغ السلفة رقمًا:</span><span class="meta-value">${formatNumber(loan.amount)}</span></div>
+      <div class="meta-row"><span class="meta-label">كتابة:</span><span class="meta-value">${escapeHtml(numberToArabicWords(loan.amount))}</span></div>
+      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
       <div class="choice-line">
-        <span class="choice-item"><span class="box">${budgetApproved ? 'âœ“' : ''}</span>ظ…ط¹طھظ…ط¯ ظپظٹ ط§ظ„ظ…ظˆط§ط²ظ†ط©</span>
-        <span class="choice-item"><span class="box">${budgetRejected ? 'âœ“' : ''}</span>ط؛ظٹط± ظ…ط¹طھظ…ط¯</span>
+        <span class="choice-item"><span class="box">${budgetApproved ? '✓' : ''}</span>معتمد في الموازنة</span>
+        <span class="choice-item"><span class="box">${budgetRejected ? '✓' : ''}</span>غير معتمد</span>
       </div>
-      <div class="meta-row"><span class="meta-label">ط§ظ„ط¬ظ‡ط© ط§ظ„ظ…ظ†ظپط°ط© ظ„ظ„ظ†ط´ط§ط·:</span><span class="meta-value">ظˆظƒط§ظ„ط© ط§ظ„طھط¯ط±ظٹط¨</span></div>
+      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
       <div></div>
-      <div class="meta-row"><span class="meta-label">ظپطھط±ط© طھظ†ظپظٹط° ط§ظ„ظ†ط´ط§ط·:</span><span class="meta-value">ظ…ظ† ${formatDate(loan.startDate)} ط¥ظ„ظ‰ ${formatDate(loan.endDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">ظ…ظƒط§ظ† ط§ظ„طھظ†ظپظٹط°:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
-      <div class="meta-row"><span class="meta-label">ط§ظ„ط³ظ„ظپط© ط¨ط§ط³ظ… ط§ظ„ظ…ظˆط¸ظپ:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
-      <div class="meta-row"><span class="meta-label">طھظˆظ‚ظٹط¹ ط·ط§ظ„ط¨ ط§ظ„ط³ظ„ظپط©:</span><span class="meta-value"></span></div>
+      <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
+      <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
+      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
     </div>
 
     <table class="form-grid" style="font-size: ${tableFontSize};">
       <thead>
         <tr>
-          <th style="width:5%;">ظ…</th>
-          <th style="width:16%;">ط§ظ„ظ…ط¨ظ„ط؛</th>
-          <th>ط£ظˆط¬ظ‡ ط§ظ„طµط±ظپ</th>
-          <th style="width:28%;">ط§ظ„ظ…ظ„ط§ط­ط¸ط§طھ</th>
+          <th style="width:5%;">م</th>
+          <th style="width:16%;">المبلغ</th>
+          <th>أوجه الصرف</th>
+          <th style="width:28%;">الملاحظات</th>
         </tr>
       </thead>
       <tbody>
@@ -590,42 +590,42 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
       </tbody>
       <tfoot>
         <tr>
-          <td colspan="4"><strong>ط§ظ„ط¥ط¬ظ…ط§ظ„ظٹ:</strong> ${formatNumber(loan.amount)} ط±ظٹط§ظ„</td>
+          <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
         </tr>
       </tfoot>
     </table>
 
     <div class="official-inline" style="grid-template-columns: 0.9fr 1fr 1.55fr 1fr;">
-      <span>ظ…ط³ط¤ظˆظ„ ط§ظ„ط¬ظ‡ط©:</span>
-      <span>ظˆظƒظٹظ„ ط§ظ„ط¬ط§ظ…ط¹ط© ظ„ظ„طھط¯ط±ظٹط¨</span>
-      <span>ط§ظ„ط§ط³ظ…: ط¯. ط¹ط¨ط¯ط§ظ„ط±ط²ط§ظ‚ ط¨ظ† ط¹ط¨ط¯ط§ظ„ط¹ط²ظٹط² ط§ظ„ظ…ط±ط¬ط§ظ†</span>
-      <span>ط§ظ„طھظˆظ‚ظٹط¹: <span class="signature-line"></span></span>
+      <span>مسؤول الجهة:</span>
+      <span>وكيل الجامعة للتدريب</span>
+      <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
     </div>
 
     <div class="official-panel">
-      <h3>ط±ط£ظٹ ط§ظ„ظ…ط±ط§ظ‚ط¨ ط§ظ„ظ…ط§ظ„ظٹ:</h3>
+      <h3>رأي المراقب المالي:</h3>
       <p class="row">
-        <span class="approval-choice"><span class="box"></span>ظ…ط³طھظˆظپظٹ</span>
-        <span class="approval-choice"><span class="box"></span>ط؛ظٹط± ظ…ط³طھظˆظپظٹ ظ„ظ„ط¢طھظٹ:</span>
+        <span class="approval-choice"><span class="box"></span>مستوفي</span>
+        <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
       </p>
       <div class="row nowrap" style="margin-top: 30px;">
-        <span>ط§ظ„ط§ط³ظ…: ط´ط±ظٹظپ ظ…ط­ظ…ط¯ ظ…طµط·ظپظ‰ ط§ظ„ط؛ط²ظˆظ„ظٹ</span>
-        <span>ط§ظ„طھظˆظ‚ظٹط¹: <span class="signature-line"></span></span>
-        <span>ط§ظ„طھط§ط±ظٹط®: <span class="signature-line"></span></span>
+        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
       </div>
     </div>
 
     <div class="official-panel">
-      <h3>ط§ط¹طھظ…ط§ط¯ ط±ط¦ظٹط³ ط§ظ„ط¬ط§ظ…ط¹ط©</h3>
+      <h3>اعتماد رئيس الجامعة</h3>
       <p class="row">
-        <span class="approval-choice"><span class="box"></span>ظ†ظˆط§ظپظ‚</span>
-        <span class="approval-choice"><span class="box"></span>ظ„ط§ ظ†ظˆط§ظپظ‚</span>
+        <span class="approval-choice"><span class="box"></span>نوافق</span>
+        <span class="approval-choice"><span class="box"></span>لا نوافق</span>
       </p>
-      <p style="margin-top: 10px;">ظˆط¹ظ„ظ‰ ظƒظ„ ظپظٹظ…ط§ ظٹط®طµظ‡ ط¥ظƒظ…ط§ظ„ ط§ظ„ظ„ط§ط²ظ… ظˆظپظ‚ ط§ظ„ط¶ظˆط§ط¨ط· ط§ظ„ظ…ط­ط¯ط¯ط©.</p>
+      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
       <div class="row" style="margin-top: 30px; flex-wrap: nowrap;">
-        <span>ط±ط¦ظٹط³ ط§ظ„ط¬ط§ظ…ط¹ط©: <span class="signature-line" style="min-width: 180px;"></span></span>
-        <span>ط§ظ„طھط§ط±ظٹط®: <span class="signature-line" style="min-width: 120px;"></span></span>
-        <span>ط§ظ„طھظˆظ‚ظٹط¹: <span class="signature-line"></span></span>
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
+        <span>التاريخ: <span class="signature-line" style="min-width: 120px;"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
       </div>
     </div>
   `
@@ -670,37 +670,37 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
 
   const body = `
     <div class="print-title">
-      <h2>ظ†ظ…ظˆط°ط¬ ط±ظ‚ظ… 19</h2>
-      <h1>ط·ظ„ط¨ طھط³ظˆظٹط© ط³ظ„ظپط© ظ…ط¤ظ‚طھط©</h1>
+      <h2>نموذج رقم 19</h2>
+      <h1>طلب تسوية سلفة مؤقتة</h1>
     </div>
-    <div class="reference-line">ط±ظ‚ظ… ط§ظ„ظ…ط±ط¬ط¹: ${escapeHtml(loan.refNumber)}</div>
+    <div class="reference-line">رقم المرجع: ${escapeHtml(loan.refNumber)}</div>
 
     <div class="formal-text">
-      <p>ظ„ظ…ط¹ط§ظ„ظٹ ط±ط¦ظٹط³ ط§ظ„ط¬ط§ظ…ط¹ط© ظ…ط¹ ط§ظ„ط§ط­طھط±ط§ظ… ظˆط§ظ„طھظ‚ط¯ظٹط±</p>
-      <p>ط§ظ„ط³ظ„ط§ظ… ط¹ظ„ظٹظƒظ… ظˆط±ط­ظ…ط© ط§ظ„ظ„ظ‡ ظˆط¨ط±ظƒط§طھظ‡</p>
-      <p>ط¢ظ…ظ„ ط§ظ„طھظپط¶ظ„ ط¨ط§ظ„ظ…ظˆط§ظپظ‚ط© ط¹ظ„ظ‰ طھط³ظˆظٹط© ط§ظ„ط³ظ„ظپط© ط§ظ„ظ…طµط±ظˆظپط© ط¨ط§ط³ظ…ظٹ ظˆظپظ‚ ط§ظ„ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…ط­ط¯ط¯ط© ط£ط¯ظ†ط§ظ‡:</p>
+      <p>لمعالي رئيس الجامعة مع الاحترام والتقدير</p>
+      <p>السلام عليكم ورحمة الله وبركاته</p>
+      <p>آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:</p>
     </div>
 
     <div class="meta-grid">
-      <div class="meta-row"><span class="meta-label">ط§ط³ظ… ط§ظ„ظ†ط´ط§ط·:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
-      <div class="meta-row"><span class="meta-label">ظ…ظƒط§ظ† ط§ظ„طھظ†ظپظٹط°:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
-      <div class="meta-row"><span class="meta-label">ط§ظ„ط¬ظ‡ط© ط§ظ„ظ…ظ†ظپط°ط© ظ„ظ„ظ†ط´ط§ط·:</span><span class="meta-value">ظˆظƒط§ظ„ط© ط§ظ„طھط¯ط±ظٹط¨</span></div>
+      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
+      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
       <div></div>
-      <div class="meta-row"><span class="meta-label">طھط§ط±ظٹط® ط¨ط¯ط§ظٹط© ط§ظ„ظ†ط´ط§ط·:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">ظ†ظ‡ط§ظٹط© ط§ظ„ظ†ط´ط§ط·:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">طھط§ط±ظٹط® ط¨ط¯ط§ظٹط© ط§ظ„طµط±ظپ:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">ظ†ظ‡ط§ظٹط© ط§ظ„طµط±ظپ:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
     </div>
 
     <table class="form-grid">
       <thead>
         <tr>
-          <th style="width:5%;">ظ…</th>
-          <th>ط£ظˆط¬ظ‡ ط§ظ„طµط±ظپ ط§ظ„ظپط¹ظ„ظٹط©</th>
-          <th style="width:12%;">ط§ظ„ظ…ط¨ظ„ط؛<br />ط¨ط§ظ„ط±ظٹط§ظ„</th>
-          <th style="width:11%;">ظ†ظˆط¹ظ‡</th>
-          <th style="width:14%;">طھط§ط±ظٹط®ظ‡</th>
-          <th style="width:21%;">ط§ظ„ط¬ظ‡ط© ط§ظ„ظ…طµط¯ط±ط© ظ„ظ‡</th>
+          <th style="width:5%;">م</th>
+          <th>أوجه الصرف الفعلية</th>
+          <th style="width:12%;">المبلغ<br />بالريال</th>
+          <th style="width:11%;">نوعه</th>
+          <th style="width:14%;">تاريخه</th>
+          <th style="width:21%;">الجهة المصدرة له</th>
         </tr>
       </thead>
       <tbody>
@@ -710,70 +710,70 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
 
     <table class="form-grid totals-table">
       <tr>
-        <td>ط§ظ„ظ…طµط±ظˆظپط§طھ ط§ظ„ظ…ط¤ظٹط¯ط© ط¨ظ…ط³طھظ†ط¯ط§طھ</td>
+        <td>المصروفات المؤيدة بمستندات</td>
         <td>${formatNumber(Number(settlement?.supported ?? 0))}</td>
       </tr>
       <tr>
-        <td>ط§ظ„ظ…طµط±ظˆظپط§طھ ط؛ظٹط± ط§ظ„ظ…ط¤ظٹط¯ط© ط¨ظ…ط³طھظ†ط¯ط§طھ</td>
+        <td>المصروفات غير المؤيدة بمستندات</td>
         <td>${formatNumber(Number(settlement?.unsupported ?? 0))}</td>
       </tr>
       <tr>
-        <td>ط¥ط¬ظ…ط§ظ„ظٹ ط§ظ„ظ…طµط±ظˆظپط§طھ ظ…ظ† ط§ظ„ط³ظ„ظپط©</td>
+        <td>إجمالي المصروفات من السلفة</td>
         <td>${formatNumber(Number(settlement?.total ?? 0))}</td>
       </tr>
       <tr>
-        <td>ظ…ط¨ظ„ط؛ ط§ظ„ط³ظ„ظپط©</td>
+        <td>مبلغ السلفة</td>
         <td>${formatNumber(loan.amount)}</td>
       </tr>
       <tr>
-        <td>ط§ظ„ظ…ط¨ظ„ط؛ ط§ظ„ظ…طµط±ظˆظپ ط¨ط§ظ„ط²ظٹط§ط¯ط© ط§ظ„ظ…ط·ظ„ظˆط¨ط© طµط±ظپظ‡</td>
+        <td>المبلغ المصروف بالزيادة المطلوبة صرفه</td>
         <td>${formatNumber(Number(settlement?.overage ?? 0))}</td>
       </tr>
       <tr>
-        <td>ظˆظپط± ط§ظ„ط³ظ„ظپط© ط§ظ„ظ†ظ‚ط¯ظٹ</td>
+        <td>وفر السلفة النقدي</td>
         <td>${formatNumber(Number(settlement?.savings ?? 0))}</td>
       </tr>
     </table>
 
     <div class="official-inline" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.7fr;">
-      <span>ط§ط³ظ… ظ…ط³طھظ„ظ… ط§ظ„ط³ظ„ظپط©: ${escapeHtml(loan.employee)}</span>
-      <span>ط±ظ‚ظ… ط³ظ†ط¯ ط§ظ„ظ‚ط¨ط¶: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
+      <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
+      <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
       <span></span>
-      <span>طھط§ط±ظٹط®ظ‡: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
+      <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">
-      <span>ظˆظƒظٹظ„ ط§ظ„ط¬ط§ظ…ط¹ط© ظ„ظ„طھط¯ط±ظٹط¨</span>
-      <span>ط¯. ط¹ط¨ط¯ط§ظ„ط±ط²ط§ظ‚ ط¨ظ† ط¹ط¨ط¯ط§ظ„ط¹ط²ظٹط² ط§ظ„ظ…ط±ط¬ط§ظ†</span>
-      <span>ط§ظ„طھظˆظ‚ظٹط¹: <span class="signature-line"></span></span>
+      <span>وكيل الجامعة للتدريب</span>
+      <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
     </div>
 
     <div class="official-panel">
-      <h3>ط±ط£ظٹ ط§ظ„ظ…ط±ط§ظ‚ط¨ ط§ظ„ظ…ط§ظ„ظٹ:</h3>
+      <h3>رأي المراقب المالي:</h3>
       <p class="row">
-        <span class="approval-choice"><span class="box"></span>ط§ظ„ظ…ط¹ط§ظ…ظ„ط© ظ…ط³طھظˆظپظٹط© ظ„ظ„ظ…طھط·ظ„ط¨ط§طھ ط§ظ„ظ†ط¸ط§ظ…ظٹط© ظ„ظ„طھط³ظˆظٹط©</span>
+        <span class="approval-choice"><span class="box"></span>المعاملة مستوفية للمتطلبات النظامية للتسوية</span>
       </p>
       <p class="row">
-        <span class="approval-choice"><span class="box"></span>ط§ظ„ظ…ط¹ط§ظ…ظ„ط© ط؛ظٹط± ظ…ط³طھظˆظپظٹط© ظ„ظ„ظ…طھط·ظ„ط¨ط§طھ ط§ظ„ظ†ط¸ط§ظ…ظٹط© ظ„ظ„طھط³ظˆظٹط© ظˆظٹط±ظپظ‚ ظ…ط°ظƒط±ط© ط¨ط§ظ„طھظپط§طµظٹظ„.</span>
+        <span class="approval-choice"><span class="box"></span>المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</span>
       </p>
       <div class="row nowrap" style="margin-top: 22px;">
-        <span>ط§ظ„ط§ط³ظ…: ط´ط±ظٹظپ ظ…ط­ظ…ط¯ ظ…طµط·ظپظ‰ ط§ظ„ط؛ط²ظˆظ„ظٹ</span>
-        <span>ط§ظ„طھظˆظ‚ظٹط¹: <span class="signature-line"></span></span>
-        <span>ط§ظ„طھط§ط±ظٹط®: <span class="signature-line"></span></span>
+        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
       </div>
     </div>
 
     <div class="official-panel">
-      <h3>ط§ط¹طھظ…ط§ط¯ ط±ط¦ظٹط³ ط§ظ„ط¬ط§ظ…ط¹ط©</h3>
+      <h3>اعتماد رئيس الجامعة</h3>
       <p class="row">
-        <span class="approval-choice"><span class="box"></span>ط£ظˆط§ظپظ‚ ط¹ظ„ظ‰ طھط³ظˆظٹط© ط§ظ„ط³ظ„ظپط© ظˆظپظ‚ ظ…ط§ ظ‡ظˆ ظ…ط­ط¯ط¯ ط£ط¹ظ„ط§ظ‡.</span>
-        <span class="approval-choice"><span class="box"></span>ظ„ط§ ط£ظˆط§ظپظ‚</span>
+        <span class="approval-choice"><span class="box"></span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
+        <span class="approval-choice"><span class="box"></span>لا أوافق</span>
       </p>
-      <p style="margin-top: 10px;">ظˆط¹ظ„ظ‰ ظƒظ„ ظپظٹظ…ط§ ظٹط®طµظ‡ ط¥ظƒظ…ط§ظ„ ط§ظ„ظ„ط§ط²ظ…</p>
+      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
       <div class="row nowrap" style="margin-top: 22px;">
-        <span>ط±ط¦ظٹط³ ط§ظ„ط¬ط§ظ…ط¹ط©: <span class="signature-line" style="min-width: 180px;"></span></span>
-        <span>ط§ظ„طھط§ط±ظٹط®: <span class="signature-line"></span></span>
-        <span>ط§ظ„طھظˆظ‚ظٹط¹: <span class="signature-line"></span></span>
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
       </div>
     </div>
     ${attachmentPages}
