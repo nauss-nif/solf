@@ -1859,8 +1859,11 @@ export default function DashboardClient({
                                 </span>
                               </div>
                               <div className="flex items-center gap-2">
-                                <label className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-lg font-bold text-primary">
-                                  ??
+                                <label
+                                  title={isPettyCash ? 'إرفاق موافقة المعالي' : 'إرفاق ملف الفاتورة'}
+                                  className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white text-primary"
+                                >
+                                  <AttachmentIcon />
                                   <input
                                     type="file"
                                     className="hidden"
@@ -2204,6 +2207,23 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-2 block text-xs font-semibold text-slate-500">{label}</span>
       {children}
     </label>
+  )
+}
+
+function AttachmentIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.2a2 2 0 0 1-2.82-2.83l8.48-8.48" />
+    </svg>
   )
 }
 
