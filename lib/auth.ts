@@ -2,7 +2,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypt
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { ensureAuthSetup } from '@/lib/database-setup'
+import { ensureAuthSetup, isRuntimeDatabaseSetupEnabled } from '@/lib/database-setup'
 
 const SESSION_COOKIE = 'naif_session'
 const AUTH_SECRET = process.env.AUTH_SECRET ?? 'change-this-auth-secret'
@@ -154,6 +154,8 @@ export function clearSessionCookie() {
 }
 
 export async function ensureDefaultAdmin() {
+  if (!isRuntimeDatabaseSetupEnabled()) return
+
   if (!defaultAdminPromise) {
     defaultAdminPromise = (async () => {
       await ensureAuthSetup()

@@ -85,9 +85,11 @@ type InvoiceDraft = {
 }
 
 type SettlementDraft = {
+  id: string
   category: string
   budget: number
   invoices: InvoiceDraft[]
+  isAdditional?: boolean
 }
 
 type SettlementMetaState = {
@@ -203,6 +205,28 @@ function createEmptyInvoice(currencyCode: CurrencyCode = 'SAR', exchangeRate = '
   }
 }
 
+function createDraftId(prefix: string) {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function createSettlementItem(
+  category: string,
+  budget: number,
+  options?: { isAdditional?: boolean },
+): SettlementDraft {
+  return {
+    id: createDraftId('settlement-item'),
+    category,
+    budget,
+    invoices: [createEmptyInvoice()],
+    isAdditional: options?.isAdditional ?? false,
+  }
+}
+
 function createEmptyAttachments(): Record<string, StoredFile | null> {
   return Object.fromEntries(
     LOAN_ATTACHMENT_DEFINITIONS.map((attachment) => [attachment.key, null]),
@@ -225,6 +249,16 @@ function sortSettlementItems(items: SettlementDraft[]) {
     if (aIsPettyCash === bIsPettyCash) return 0
     return aIsPettyCash ? 1 : -1
   })
+}
+
+function settlementItemHasUserContent(item: SettlementDraft) {
+  return item.invoices.some(
+    (invoice) =>
+      Boolean(invoice.amount) ||
+      Boolean(invoice.attachment) ||
+      Boolean(invoice.invoiceDate) ||
+      Boolean(invoice.issuer.trim()),
+  )
 }
 
 async function readFileAsDataUrl(file: File) {
@@ -351,30 +385,32 @@ function buildSettlementPayload(
 ): SettlementDetailRecord[] {
   const rateMap = buildRateMap(rates)
 
-  return items.map((item) => ({
-    category: item.category,
-    budget: item.budget,
-    invoices: item.invoices
-      .filter((invoice) => (Number.parseFloat(invoice.amount || '0') || 0) > 0)
-      .map(
-        (invoice) =>
-          ({
-            amount: Number.parseFloat(invoice.amount || '0') || 0,
-            currencyCode: invoice.currencyCode,
-            exchangeRate:
-              invoice.currencyCode === 'SAR'
-                ? 1
-                : rateMap.get(invoice.currencyCode) ??
-                  Number.parseFloat(invoice.exchangeRate || '0') ??
-                  0,
-            sar: recalculateInvoice(invoice, rateMap).sarAmount,
-            documentType: invoice.documentType,
-            invoiceDate: isPettyCashCategory(item.category) ? '' : invoice.invoiceDate,
-            issuer: isPettyCashCategory(item.category) ? '' : invoice.issuer.trim(),
-            attachment: cloneStoredFile(invoice.attachment),
-          }) satisfies SettlementInvoiceRecord,
-      ),
-  }))
+  return items
+    .filter((item) => !item.isAdditional || item.category.trim() || settlementItemHasUserContent(item))
+    .map((item) => ({
+      category: item.category.trim(),
+      budget: item.budget,
+      invoices: item.invoices
+        .filter((invoice) => (Number.parseFloat(invoice.amount || '0') || 0) > 0)
+        .map(
+          (invoice) =>
+            ({
+              amount: Number.parseFloat(invoice.amount || '0') || 0,
+              currencyCode: invoice.currencyCode,
+              exchangeRate:
+                invoice.currencyCode === 'SAR'
+                  ? 1
+                  : rateMap.get(invoice.currencyCode) ??
+                    Number.parseFloat(invoice.exchangeRate || '0') ??
+                    0,
+              sar: recalculateInvoice(invoice, rateMap).sarAmount,
+              documentType: invoice.documentType,
+              invoiceDate: isPettyCashCategory(item.category) ? '' : invoice.invoiceDate,
+              issuer: isPettyCashCategory(item.category) ? '' : invoice.issuer.trim(),
+              attachment: cloneStoredFile(invoice.attachment),
+            }) satisfies SettlementInvoiceRecord,
+        ),
+    }))
 }
 
 export default function DashboardClient({
@@ -607,11 +643,9 @@ export default function DashboardClient({
     setSettlementError('')
     setCurrencyRates([{ currencyCode: 'USD', rate: 3.75 }])
     setSettlementItems(
-      sortSettlementItems(loan.items.map((item) => ({
-        category: item.category,
-        budget: item.amount,
-        invoices: [createEmptyInvoice()],
-      }))),
+      sortSettlementItems(
+        loan.items.map((item) => createSettlementItem(item.category, item.amount)),
+      ),
     )
     setSettlementMeta({
       receiptNumber: '',
@@ -755,6 +789,29 @@ export default function DashboardClient({
     setCurrencyRates((current) => current.filter((_, rateIndex) => rateIndex !== index))
   }
 
+  function addSettlementItem() {
+    setSettlementItems((current) => [
+      ...current,
+      createSettlementItem('', 0, { isAdditional: true }),
+    ])
+  }
+
+  function updateSettlementItem(
+    itemIndex: number,
+    field: 'category',
+    value: string,
+  ) {
+    setSettlementItems((current) =>
+      current.map((item, currentIndex) =>
+        currentIndex === itemIndex ? { ...item, [field]: value } : item,
+      ),
+    )
+  }
+
+  function removeSettlementItem(itemIndex: number) {
+    setSettlementItems((current) => current.filter((_, currentIndex) => currentIndex !== itemIndex))
+  }
+
   function updateInvoice(
     itemIndex: number,
     invoiceIndex: number,
@@ -787,10 +844,7 @@ export default function DashboardClient({
         currentIndex === itemIndex
           ? {
               ...item,
-              invoices: [
-                ...item.invoices,
-                createEmptyInvoice(isPettyCashCategory(item.category) ? 'SAR' : 'SAR'),
-              ],
+              invoices: [...item.invoices, createEmptyInvoice('SAR')],
             }
           : item,
       ),
@@ -806,7 +860,7 @@ export default function DashboardClient({
               invoices:
                 item.invoices.length > 1
                   ? item.invoices.filter((_, idx) => idx !== invoiceIndex)
-                  : [createEmptyInvoice(isPettyCashCategory(item.category) ? 'SAR' : 'SAR')],
+                  : [createEmptyInvoice('SAR')],
             }
           : item,
       ),
@@ -820,6 +874,12 @@ export default function DashboardClient({
   ) {
     const file = fileList?.[0]
     if (!file) return
+
+    const item = settlementItems[itemIndex]
+    if (item && isPettyCashCategory(item.category) && !file.type.startsWith('image/')) {
+      setSettlementError('في بند النثريات يجب إرفاق موافقة المعالي كصورة فقط.')
+      return
+    }
 
     try {
       const stored = await fileToStoredFile(file)
@@ -858,6 +918,16 @@ export default function DashboardClient({
 
   async function submitSettlement() {
     if (!settlementLoan) return
+
+    const incompleteAdditionalItem = settlementItems.find(
+      (item) =>
+        item.isAdditional && !item.category.trim() && settlementItemHasUserContent(item),
+    )
+
+    if (incompleteAdditionalItem) {
+      setSettlementError('أدخل اسم البند الإضافي قبل حفظ التسوية.')
+      return
+    }
 
     const details = buildSettlementPayload(settlementItems, currencyRates)
     const allInvoices = details.flatMap((item) =>
@@ -1717,29 +1787,73 @@ export default function DashboardClient({
               </div>
 
               <div className="space-y-4">
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={addSettlementItem}
+                    className="rounded-xl border border-dashed border-slate-300 px-4 py-2 text-sm font-bold text-slate-700"
+                  >
+                    + إضافة بند إضافي
+                  </button>
+                </div>
+
                 {settlementItems.map((item, itemIndex) => {
                   const itemTotal = item.invoices.reduce((sum, invoice) => sum + invoice.sarAmount, 0)
                   const isPettyCash = isPettyCashCategory(item.category)
 
                   return (
                     <div
-                      key={`${item.category}-${itemIndex}`}
+                      key={item.id}
                       className="rounded-[24px] border border-slate-200 p-4"
                     >
-                      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <h4 className="font-bold text-slate-900">{item.category}</h4>
-                          <p className="text-xs text-slate-400">
-                            المعتمد: {formatCurrencySar(item.budget)}
-                          </p>
+                      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-[260px] flex-1">
+                          {item.isAdditional ? (
+                            <div className="space-y-3">
+                              <Field label="اسم البند الإضافي">
+                                <input
+                                  value={item.category}
+                                  onChange={(event) =>
+                                    updateSettlementItem(itemIndex, 'category', event.target.value)
+                                  }
+                                  className="input-shell"
+                                  placeholder="مثال: رسوم إضافية لم تكن مسجلة في طلب السلفة"
+                                />
+                              </Field>
+                              <p className="text-xs text-slate-500">
+                                هذا البند غير مدرج في طلب السلفة الأصلي، وسيظهر ضمن نموذج التسوية فقط.
+                              </p>
+                              <p className="text-xs text-slate-400">
+                                المعتمد في الطلب الأصلي: {formatCurrencySar(item.budget)}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <h4 className="font-bold text-slate-900">{item.category}</h4>
+                              <p className="text-xs text-slate-400">
+                                المعتمد: {formatCurrencySar(item.budget)}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => addInvoice(itemIndex)}
-                          className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700"
-                        >
-                          + إضافة فاتورة
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {item.isAdditional && (
+                            <button
+                              type="button"
+                              onClick={() => removeSettlementItem(itemIndex)}
+                              className="rounded-xl border border-danger/20 px-3 py-2 text-xs font-bold text-danger"
+                            >
+                              حذف البند
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => addInvoice(itemIndex)}
+                            className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700"
+                          >
+                            + إضافة فاتورة
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-3 space-y-3">
@@ -1791,7 +1905,8 @@ export default function DashboardClient({
                               </Field>
                               {isPettyCash ? (
                                 <div className="rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 md:col-span-2 xl:col-span-3">
-                                  ��� ����� ��� ��������ʡ ������ ��� ������ ������ ������� ��� ������ ��������.
+                                  في بند النثريات يجب إرفاق موافقة المعالي كصورة، ولا يقبل هذا الحقل
+                                  ملفات PDF.
                                 </div>
                               ) : (
                                 <>
@@ -1854,7 +1969,7 @@ export default function DashboardClient({
                                   {invoice.attachment
                                     ? invoice.attachment.name
                                     : isPettyCash
-                                      ? 'لا يلزم مرفق فاتورة لهذا البند'
+                                      ? 'يلزم إرفاق موافقة المعالي كصورة لهذا البند'
                                       : 'لم يتم رفع المرفق'}
                                 </span>
                               </div>
@@ -1867,7 +1982,7 @@ export default function DashboardClient({
                                   <input
                                     type="file"
                                     className="hidden"
-                                    accept=".pdf,image/*"
+                                    accept={isPettyCash ? 'image/*' : '.pdf,image/*'}
                                     onChange={(event) =>
                                       void uploadInvoiceAttachment(
                                         itemIndex,

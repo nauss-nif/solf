@@ -18,11 +18,11 @@ export async function GET(
     }
 
     const file = await buildSettlementDocx(loan)
-    const filename = `settlement-${toSafeFilename(loan.refNumber)}.doc`
+    const filename = `settlement-${toSafeFilename(loan.refNumber)}.docx`
 
     return new NextResponse(file, {
       headers: {
-        'Content-Type': 'application/octet-stream',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-store, max-age=0, must-revalidate',
       },

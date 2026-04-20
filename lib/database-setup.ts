@@ -2,6 +2,12 @@ import { prisma } from '@/lib/prisma'
 
 let setupPromise: Promise<void> | null = null
 let authSetupPromise: Promise<void> | null = null
+const runtimeDatabaseSetupEnabled =
+  process.env.ENABLE_RUNTIME_DB_SETUP === 'true' || process.env.NODE_ENV !== 'production'
+
+export function isRuntimeDatabaseSetupEnabled() {
+  return runtimeDatabaseSetupEnabled
+}
 
 async function runAuthSetup() {
   await prisma.$executeRawUnsafe(`
@@ -119,6 +125,8 @@ async function runSetup() {
 }
 
 export async function ensureAuthSetup() {
+  if (!runtimeDatabaseSetupEnabled) return
+
   if (!authSetupPromise) {
     authSetupPromise = runAuthSetup().catch((error) => {
       authSetupPromise = null
@@ -130,6 +138,8 @@ export async function ensureAuthSetup() {
 }
 
 export async function ensureDatabaseSetup() {
+  if (!runtimeDatabaseSetupEnabled) return
+
   if (!setupPromise) {
     setupPromise = runSetup().catch((error) => {
       setupPromise = null

@@ -13,11 +13,11 @@ export async function GET(
   try {
     const loan = await getAuthorizedLoan(params.id, { markPrinted: true })
     const file = await buildLoanRequestDocx(loan)
-    const filename = `loan-${toSafeFilename(loan.refNumber)}.doc`
+    const filename = `loan-${toSafeFilename(loan.refNumber)}.docx`
 
     return new NextResponse(file, {
       headers: {
-        'Content-Type': 'application/octet-stream',
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'Content-Disposition': `attachment; filename="${filename}"`,
         'Cache-Control': 'no-store, max-age=0, must-revalidate',
       },

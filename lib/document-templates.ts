@@ -1,3 +1,7 @@
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import Docxtemplater from 'docxtemplater'
+import PizZip from 'pizzip'
 import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
@@ -83,6 +87,43 @@ type PrintShellOptions = {
   sheetWidth?: string
   sheetMinHeight?: string
 }
+
+type TemplateReplacement = {
+  find: string
+  replace: string
+}
+
+const TEMPLATE_DIRECTORY = path.join(process.cwd(), 'templates')
+const LOAN_TEMPLATE_PATH = path.join(TEMPLATE_DIRECTORY, 'loan-form-18.docx')
+const SETTLEMENT_TEMPLATE_PATH = path.join(TEMPLATE_DIRECTORY, 'settlement-form-19.docx')
+
+const LOAN_TEMPLATE_REPLACEMENTS: TemplateReplacement[] = [
+  { find: '??? ?????: {referenceNumber}', replace: 'رقم مرجعي: {referenceNumber}' },
+  { find: '???? ?????? ?????: {amountNumber}', replace: 'مبلغ السلفة رقماً: {amountNumber}' },
+  { find: '?????: {amountWords} ????', replace: 'كتابة: {amountWords} ريال' },
+  { find: '??? ??????: {activity}', replace: 'اسم النشاط: {activity}' },
+  {
+    find: '???? ????? ??????: ?? {startDate} ??? {endDate}',
+    replace: 'فترة تنفيذ النشاط: من {startDate} إلى {endDate}',
+  },
+  { find: '???? ???????: {location}', replace: 'مكان التنفيذ: {location}' },
+  { find: '?????? ???? ??????: {employee}', replace: 'السلفة باسم الموظف: {employee}' },
+  { find: '????????: {totalAmount} ????', replace: 'الإجمالي: {totalAmount} ريال' },
+]
+
+const SETTLEMENT_TEMPLATE_REPLACEMENTS: TemplateReplacement[] = [
+  { find: '??? ??????: {referenceNumber}', replace: 'رقم المرجع: {referenceNumber}' },
+  { find: '??? ??????: {activity}', replace: 'اسم النشاط: {activity}' },
+  { find: '???? ???????: {location}', replace: 'مكان التنفيذ: {location}' },
+  { find: '????? ????? ??????: {startDate}', replace: 'تاريخ بداية النشاط: {startDate}' },
+  { find: '????? ??????: {endDate}', replace: 'نهاية النشاط: {endDate}' },
+  { find: '????? ????? ?????: {startDate}', replace: 'تاريخ بداية الصرف: {startDate}' },
+  { find: '????? ?????: {endDate}', replace: 'نهاية الصرف: {endDate}' },
+  { find: '??? ?????? ??????: {savingsAmount}', replace: 'وفر السلفة النقدي: {savingsAmount}' },
+  { find: '??? ??? ?????: {receiptNumber}', replace: 'رقم سند القبض: {receiptNumber}' },
+  { find: '??????: {receiptDate}', replace: 'تاريخه: {receiptDate}' },
+  { find: '??? ????? ??????: {employee}', replace: 'اسم مستلم السلفة: {employee}' },
+]
 
 function escapeHtml(value: string) {
   return value
@@ -519,12 +560,174 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
     .join('')
 }
 
+function joinPlainValues(values: Array<string | undefined>, separator = '\n') {
+  return values
+    .map((value) => value?.trim() ?? '')
+    .filter(Boolean)
+    .join(separator)
+}
+
+function normalizeSettlementDocxRows(loan: LoanDocumentRecord): SettlementTemplateRow[] {
+  const details = normalizeSettlementDetails(loan.settlement?.invoices)
+
+  return details.map((detail, index) => {
+    const invoices = detail.invoices ?? []
+    const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
+    const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
+    const isPettyCash = (detail.category ?? '').includes('نثريات')
+
+    return {
+      index: index + 1,
+      category: detail.category?.trim() || 'بند صرف',
+      amount: formatNumber(amount),
+      documentType: isPettyCash
+        ? 'موافقة المعالي'
+        : joinPlainValues(invoices.map((invoice) => invoice.type)),
+      documentDate: joinPlainValues(
+        invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
+      ),
+      issuer: isPettyCash ? '' : joinPlainValues(invoices.map((invoice) => invoice.issuer)),
+    }
+  })
+}
+
+function padLoanRows(rows: LoanTemplateRow[], minimumRows = 2) {
+  const paddedRows = [...rows]
+
+  while (paddedRows.length < minimumRows) {
+    paddedRows.push({
+      index: paddedRows.length + 1,
+      amount: '',
+      category: '',
+      notes: '',
+    })
+  }
+
+  return paddedRows
+}
+
+function padSettlementRows(rows: SettlementTemplateRow[], minimumRows = 9) {
+  const paddedRows = [...rows]
+
+  while (paddedRows.length < minimumRows) {
+    paddedRows.push({
+      index: paddedRows.length + 1,
+      category: '',
+      amount: '',
+      documentType: '',
+      documentDate: '',
+      issuer: '',
+    })
+  }
+
+  return paddedRows
+}
+
+const TEMPLATE_GUID_VALUE = '{28A0092B-C50C-407E-A947-70E740481C1C}'
+const TEMPLATE_GUID_TOKEN = '__DOCX_GUID_TOKEN__'
+
+function patchTemplateDocumentXml(xml: string, replacements: TemplateReplacement[]) {
+  return replacements.reduce(
+    (current, replacement) => current.replaceAll(replacement.find, replacement.replace),
+    xml,
+  )
+}
+
+async function loadPatchedTemplate(
+  templatePath: string,
+  replacements: TemplateReplacement[],
+) {
+  const buffer = await readFile(templatePath)
+  const zip = new PizZip(buffer)
+  const document = zip.file('word/document.xml')
+
+  if (!document) {
+    throw new Error(`Missing document.xml in template: ${path.basename(templatePath)}`)
+  }
+
+  const patchedXml = patchTemplateDocumentXml(document.asText(), replacements).replaceAll(
+    TEMPLATE_GUID_VALUE,
+    TEMPLATE_GUID_TOKEN,
+  )
+
+  zip.file('word/document.xml', patchedXml)
+
+  return zip
+}
+
+function renderDocxTemplate(
+  templateZip: PizZip,
+  data: Record<string, unknown>,
+) {
+  const doc = new Docxtemplater(templateZip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    nullGetter: () => '',
+  })
+
+  doc.render(data)
+
+  const outputZip = doc.getZip()
+  const renderedDocument = outputZip.file('word/document.xml')
+  if (renderedDocument) {
+    outputZip.file(
+      'word/document.xml',
+      renderedDocument.asText().replaceAll(TEMPLATE_GUID_TOKEN, TEMPLATE_GUID_VALUE),
+    )
+  }
+
+  return Buffer.from(outputZip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }))
+}
+
+function createLoanRequestTemplateData(loan: LoanDocumentRecord) {
+  return {
+    referenceNumber: loan.refNumber,
+    amountNumber: formatNumber(loan.amount),
+    amountWords: numberToArabicWords(loan.amount),
+    activity: loan.activity,
+    startDate: formatDate(loan.startDate),
+    endDate: formatDate(loan.endDate),
+    location: loan.location ?? '',
+    employee: loan.employee,
+    expenseRows: padLoanRows(normalizeLoanTemplateRows(loan)),
+    totalAmount: formatNumber(loan.amount),
+  }
+}
+
+function createSettlementTemplateData(loan: LoanDocumentRecord) {
+  const settlement = loan.settlement
+  const meta = normalizeSettlementMeta(settlement?.invoices)
+
+  return {
+    referenceNumber: loan.refNumber,
+    activity: loan.activity,
+    location: loan.location ?? '',
+    startDate: formatDate(loan.startDate),
+    endDate: formatDate(loan.endDate),
+    settlementRows: padSettlementRows(normalizeSettlementDocxRows(loan)),
+    supportedAmount: formatNumber(Number(settlement?.supported ?? 0)),
+    unsupportedAmount: formatNumber(Number(settlement?.unsupported ?? 0)),
+    totalAmount: formatNumber(Number(settlement?.total ?? 0)),
+    loanAmount: formatNumber(loan.amount),
+    overageAmount: formatNumber(Number(settlement?.overage ?? 0)),
+    savingsAmount: formatNumber(Number(settlement?.savings ?? 0)),
+    receiptNumber: meta.receiptNumber ?? '',
+    receiptDate: formatDateOrBlank(meta.receiptDate ?? ''),
+    employee: loan.employee,
+  }
+}
+
 export async function buildLoanRequestDocx(loan: LoanDocumentRecord) {
-  return createWordCompatibleDocument(buildLoanRequestWordHtml(loan))
+  const templateZip = await loadPatchedTemplate(LOAN_TEMPLATE_PATH, LOAN_TEMPLATE_REPLACEMENTS)
+  return renderDocxTemplate(templateZip, createLoanRequestTemplateData(loan))
 }
 
 export async function buildSettlementDocx(loan: LoanDocumentRecord) {
-  return createWordCompatibleDocument(buildSettlementWordHtml(loan))
+  const templateZip = await loadPatchedTemplate(
+    SETTLEMENT_TEMPLATE_PATH,
+    SETTLEMENT_TEMPLATE_REPLACEMENTS,
+  )
+  return renderDocxTemplate(templateZip, createSettlementTemplateData(loan))
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
