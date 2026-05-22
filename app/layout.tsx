@@ -1,21 +1,18 @@
 import type { Metadata } from 'next'
-import '@fontsource/cairo/400.css'
-import '@fontsource/cairo/600.css'
-import '@fontsource/cairo/700.css'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'منصة طلب السلف المؤقتة',
-  description: 'وكالة التدريب بجامعة نايف العربية للعلوم الامنية',
+  title: 'منصة السلف المؤقتة — وكالة التدريب',
+  description: 'نظام إدارة طلبات السلف المؤقتة والتسويات المالية — جامعة نايف العربية للعلوم الأمنية',
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      </head>
       <body>{children}</body>
     </html>
   )

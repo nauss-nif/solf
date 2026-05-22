@@ -7,6 +7,7 @@ import {
   setSessionCookie,
   verifyPassword,
 } from '@/lib/auth'
+import { getPublicApiError } from '@/lib/api-errors'
 import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function POST(request: Request) {
@@ -53,8 +54,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, role: getPrimaryRole(roles), roles })
   } catch (error) {
+    console.error('Login failed', error)
+
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Login failed' },
+      { error: getPublicApiError(error, 'Login failed') },
       { status: 500 },
     )
   }

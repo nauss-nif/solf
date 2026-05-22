@@ -551,8 +551,8 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
 
       return `
         <section class="attachment-page">
-          <h2>���� ������ ${index}</h2>
-          <p>�����: ${escapeHtml(category)} | ��� �������: ${escapeHtml(documentType || '-')} | ����� ������� ��: ${escapeHtml(issuer || '-')}</p>
+          <h2>مرفق رقم ${index}</h2>
+          <p>البند: ${escapeHtml(category)} | نوع المستند: ${escapeHtml(documentType || '-')} | الجهة المصدرة: ${escapeHtml(issuer || '-')}</p>
           ${preview}
         </section>
       `

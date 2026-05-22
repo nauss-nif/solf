@@ -40,20 +40,49 @@ export const SETTLEMENT_DOCUMENT_TYPES = [
 ] as const
 
 export const CURRENCY_OPTIONS = [
-  { code: 'SAR', label: 'ريال سعودي', symbol: 'ر.س' },
-  { code: 'USD', label: 'دولار أمريكي', symbol: 'USD' },
-  { code: 'EUR', label: 'يورو', symbol: 'EUR' },
-  { code: 'GBP', label: 'جنيه إسترليني', symbol: 'GBP' },
-  { code: 'AED', label: 'درهم إماراتي', symbol: 'AED' },
-  { code: 'KWD', label: 'دينار كويتي', symbol: 'KWD' },
-  { code: 'BHD', label: 'دينار بحريني', symbol: 'BHD' },
-  { code: 'OMR', label: 'ريال عماني', symbol: 'OMR' },
-  { code: 'QAR', label: 'ريال قطري', symbol: 'QAR' },
-  { code: 'JOD', label: 'دينار أردني', symbol: 'JOD' },
-  { code: 'EGP', label: 'جنيه مصري', symbol: 'EGP' },
-  { code: 'TRY', label: 'ليرة تركية', symbol: 'TRY' },
-  { code: 'CHF', label: 'فرنك سويسري', symbol: 'CHF' },
-  { code: 'JPY', label: 'ين ياباني', symbol: 'JPY' },
+  // الريال السعودي أولًا
+  { code: 'SAR', label: 'ريال سعودي',         symbol: 'ر.س'  },
+  // دول الخليج
+  { code: 'AED', label: 'درهم إماراتي',        symbol: 'AED'  },
+  { code: 'KWD', label: 'دينار كويتي',         symbol: 'KWD'  },
+  { code: 'BHD', label: 'دينار بحريني',        symbol: 'BHD'  },
+  { code: 'OMR', label: 'ريال عماني',          symbol: 'OMR'  },
+  { code: 'QAR', label: 'ريال قطري',          symbol: 'QAR'  },
+  // الدول العربية
+  { code: 'JOD', label: 'دينار أردني',         symbol: 'JOD'  },
+  { code: 'EGP', label: 'جنيه مصري',          symbol: 'EGP'  },
+  { code: 'MAD', label: 'درهم مغربي',          symbol: 'MAD'  },
+  { code: 'TND', label: 'دينار تونسي',         symbol: 'TND'  },
+  { code: 'DZD', label: 'دينار جزائري',        symbol: 'DZD'  },
+  { code: 'LYD', label: 'دينار ليبي',          symbol: 'LYD'  },
+  { code: 'IQD', label: 'دينار عراقي',         symbol: 'IQD'  },
+  { code: 'LBP', label: 'ليرة لبنانية',        symbol: 'LBP'  },
+  { code: 'SDG', label: 'جنيه سوداني',         symbol: 'SDG'  },
+  { code: 'YER', label: 'ريال يمني',           symbol: 'YER'  },
+  // عملات رئيسية
+  { code: 'USD', label: 'دولار أمريكي',        symbol: 'USD'  },
+  { code: 'EUR', label: 'يورو',                symbol: 'EUR'  },
+  { code: 'GBP', label: 'جنيه إسترليني',       symbol: 'GBP'  },
+  { code: 'CHF', label: 'فرنك سويسري',         symbol: 'CHF'  },
+  { code: 'CAD', label: 'دولار كندي',          symbol: 'CAD'  },
+  { code: 'AUD', label: 'دولار أسترالي',       symbol: 'AUD'  },
+  { code: 'SEK', label: 'كرون سويدي',          symbol: 'SEK'  },
+  { code: 'NOK', label: 'كرون نرويجي',         symbol: 'NOK'  },
+  { code: 'DKK', label: 'كرون دنماركي',        symbol: 'DKK'  },
+  // آسيا
+  { code: 'CNY', label: 'يوان صيني',           symbol: 'CNY'  },
+  { code: 'JPY', label: 'ين ياباني',           symbol: 'JPY'  },
+  { code: 'KRW', label: 'وون كوري جنوبي',      symbol: 'KRW'  },
+  { code: 'INR', label: 'روبية هندية',         symbol: 'INR'  },
+  { code: 'PKR', label: 'روبية باكستانية',     symbol: 'PKR'  },
+  { code: 'MYR', label: 'رينغيت ماليزي',      symbol: 'MYR'  },
+  { code: 'IDR', label: 'روبية إندونيسية',    symbol: 'IDR'  },
+  { code: 'SGD', label: 'دولار سنغافوري',      symbol: 'SGD'  },
+  { code: 'THB', label: 'بات تايلاندي',        symbol: 'THB'  },
+  { code: 'TRY', label: 'ليرة تركية',          symbol: 'TRY'  },
+  // أخرى
+  { code: 'ZAR', label: 'راند جنوب أفريقي',   symbol: 'ZAR'  },
+  { code: 'RUB', label: 'روبل روسي',           symbol: 'RUB'  },
 ] as const
 
 export const LOAN_ATTACHMENT_DEFINITIONS = [
