@@ -8,27 +8,90 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ─────────────────────────────────────────────────────────────
+// تصنيف الوجهة — يحدد أيام التحضير والإقفال ومهلة التسوية
+// ─────────────────────────────────────────────────────────────
+enum DestinationCategory {
+  DOMESTIC        // داخل المملكة    : +1 قبل +1 بعد
+  ARAB            // دول عربية       : +2 قبل +2 بعد
+  EUROPE_MAGHREB  // أوروبا/المغرب   : +3 قبل +3 بعد
+  AMERICAS_FAR    // أمريكا/أستراليا : +4 قبل +4 بعد
+}
+
+// ─────────────────────────────────────────────────────────────
+// حالة المراجعة
+// ─────────────────────────────────────────────────────────────
+enum ReviewStatus {
+  PENDING   // بانتظار المراجعة
+  REVIEWED  // تمت المراجعة
+  RETURNED  // أُعيد للمراجعة
+}
+
+// ─────────────────────────────────────────────────────────────
+// حالة التسوية (مستوى أدق من isSettled البولياني)
+// ─────────────────────────────────────────────────────────────
+enum SettlementStatus {
+  NOT_STARTED   // لم تبدأ
+  IN_PROGRESS   // بدأت لكن لم تُرسل
+  SUBMITTED     // أُرسلت للمراجعة
+  APPROVED      // اعتُمدت
+  OVERDUE       // تجاوزت المهلة
+}
+
+// ─────────────────────────────────────────────────────────────
+// نوع الإشعار
+// ─────────────────────────────────────────────────────────────
+enum NotificationType {
+  LOAN_CREATED          // سلفة جديدة
+  LOAN_REVIEWED         // تمت مراجعة السلفة
+  LOAN_RETURNED         // أُعيدت للمراجعة
+  SETTLEMENT_REMINDER   // تذكير بالتسوية
+  SETTLEMENT_OVERDUE    // تأخر التسوية
+  SETTLEMENT_APPROVED   // اعتمدت التسوية
+  EXCEPTION_GRANTED     // استثناء ممنوح
+  SYSTEM                // إشعار عام
+}
+
+// ─────────────────────────────────────────────────────────────
+// User — الحساب الموحد لجميع المستخدمين
+// ─────────────────────────────────────────────────────────────
 model User {
-  id           String     @id @default(uuid())
+  id           String   @id @default(uuid())
   fullName     String
-  email        String     @unique
+  email        String   @unique
   mobile       String
   extension    String
   passwordHash String
-  role         String     @default("EMPLOYEE")
-  roles        Json?
-  status       String     @default("ACTIVE")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  role         String   @default("EMPLOYEE")  // PRIMARY role للعرض
+  roles        Json?                           // مصفوفة الأدوار الكاملة
+  status       String   @default("ACTIVE")    // ACTIVE | DISABLED
+  
+  // ربط اختياري بنظام الإقفال
+  // نفس email = نفس الشخص في النظامين
+  closureSystemUserId  String?  // User.id من نظام الإقفال (اختياري)
 
-  loans        Loan[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  loans              Loan[]           @relation("UserLoans")
+  grantedExceptions  Loan[]           @relation("ExceptionGranter")
+  notifications      LoanNotification[]
+  sentAlerts         LoanAlert[]      @relation("AlertSender")
 
   @@map("users")
 }
 
+// ─────────────────────────────────────────────────────────────
+// Loan — طلب السلفة المؤقتة
+// ─────────────────────────────────────────────────────────────
 model Loan {
   id          String   @id @default(uuid())
+  
+  // الرقم المرجعي — تسلسل عام للنظام بغض النظر عن المستخدم
+  // شكل: وت/26/0001
   refNumber   String   @unique
+  
+  // بيانات الطلب
   userId      String?
   employee    String
   activity    String
@@ -37,42 +100,139 @@ model Loan {
   budgetApproved Boolean?
   startDate   DateTime
   endDate     DateTime
-  files       Json?
-  reviewStatus String @default("PENDING")
-  reviewNote   String?
-  isSettled   Boolean  @default(false)
+  files       Json?    // مرفقات الطلب (base64)
+
+  // ─── تصنيف الوجهة ───────────────────────────────────────
+  destinationCategory  DestinationCategory @default(DOMESTIC)
+  
+  // المهلة = endDate + أيام بعد التصنيف + 10 أيام عمل
+  // تُحسب تلقائياً عند الحفظ
+  settlementDeadline   DateTime?
+
+  // ─── حالة المراجعة ──────────────────────────────────────
+  reviewStatus  ReviewStatus @default(PENDING)
+  reviewNote    String?
+  printedAt     DateTime?
+
+  // ─── حالة التسوية ───────────────────────────────────────
+  isSettled          Boolean         @default(false)
+  settlementStatus   SettlementStatus @default(NOT_STARTED)
+
+  // ─── الاستثناء: سماح بسلفتين معاً ──────────────────────
+  // يمنحه ADMIN أو REVIEWER فقط
+  exceptionGrantedById String?
+  exceptionGrantedAt   DateTime?
+  exceptionNote        String?   // سبب الاستثناء
+
+  // ─── ربط نظام الإقفال (اختياري) ─────────────────────────
+  // عندما تكون السلفة مرتبطة بدورة تدريبية
+  courseId    String?   // Course.id من نظام الإقفال
+  courseCode  String?   // رقم الدورة للعرض
+
+  // ─── التتبع ──────────────────────────────────────────────
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  printedAt   DateTime?
-  
-  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  settlement  Settlement?
-  items       LoanItem[]
+
+  // العلاقات
+  user              User?       @relation("UserLoans", fields: [userId], references: [id], onDelete: SetNull)
+  exceptionGranter  User?       @relation("ExceptionGranter", fields: [exceptionGrantedById], references: [id], onDelete: SetNull)
+  settlement        Settlement?
+  items             LoanItem[]
+  alerts            LoanAlert[]
 
   @@map("loans")
+  @@index([userId])
+  @@index([reviewStatus])
+  @@index([settlementStatus])
+  @@index([settlementDeadline])
+  @@index([courseId])
 }
 
+// ─────────────────────────────────────────────────────────────
+// LoanItem — بنود الصرف
+// ─────────────────────────────────────────────────────────────
 model LoanItem {
   id       String @id @default(uuid())
   category String
   amount   Float
   loanId   String
   loan     Loan   @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  
+
   @@map("loan_items")
+  @@index([loanId])
 }
 
+// ─────────────────────────────────────────────────────────────
+// Settlement — تسوية السلفة
+// ─────────────────────────────────────────────────────────────
 model Settlement {
-  id             String   @id @default(uuid())
-  supported      Float    @default(0)
-  unsupported    Float    @default(0)
-  total          Float    @default(0)
-  savings        Float    @default(0)
-  overage        Float    @default(0)
-  invoices       Json?
-  loanId         String   @unique
-  loan           Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
-  createdAt      DateTime @default(now())
+  id          String   @id @default(uuid())
+  loanId      String   @unique
+  
+  // ملخص الأرقام
+  supported   Float    @default(0)   // مؤيد بمستندات
+  unsupported Float    @default(0)   // غير مؤيد
+  total       Float    @default(0)   // الإجمالي
+  savings     Float    @default(0)   // الوفر
+  overage     Float    @default(0)   // الزيادة
+  
+  // البيانات التفصيلية (فواتير، عملات، مرفقات)
+  invoices    Json?
+  
+  createdAt   DateTime @default(now())
+  
+  loan        Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
 
   @@map("settlements")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LoanNotification — إشعارات داخلية
+// ─────────────────────────────────────────────────────────────
+model LoanNotification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  metadata  Json?            // بيانات إضافية (loanId، refNumber...)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("loan_notifications")
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// LoanAlert — سجل الإنذارات المُرسلة (تجنب التكرار)
+// ─────────────────────────────────────────────────────────────
+model LoanAlert {
+  id         String   @id @default(uuid())
+  loanId     String
+  alertType  String   // REMINDER_3DAYS | OVERDUE | SEVERE_OVERDUE
+  sentAt     DateTime @default(now())
+  sentById   String?  // null = تلقائي، uuid = يدوي من مدير
+  emailSent  Boolean  @default(false)
+  emailTo    String?
+
+  loan       Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  sentBy     User?    @relation("AlertSender", fields: [sentById], references: [id], onDelete: SetNull)
+
+  @@map("loan_alerts")
+  @@index([loanId])
+  @@index([sentAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// LoanSequence — عداد الرقم المرجعي (atomic)
+// حل race condition: بدلاً من MAX(refNumber) + 1
+// ─────────────────────────────────────────────────────────────
+model LoanSequence {
+  id          String @id @default("singleton")
+  lastNumber  Int    @default(0)
+
+  @@map("loan_sequence")
 }
