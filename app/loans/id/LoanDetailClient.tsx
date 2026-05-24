@@ -36,6 +36,7 @@ type Settlement = {
 type Loan = {
   id: string
   refNumber: string
+  userId?: string | null
   employee: string
   activity: string
   location: string | null
