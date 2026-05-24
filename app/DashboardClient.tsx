@@ -190,6 +190,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [settlementMeta, setSettlementMeta] = useState<SettlementMetaState>({ receiptNumber: '', receiptDate: '', overageReason: '' })
 
   const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
+  const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
 
   async function refreshLoans() {
     try { setIsLoadingLoans(true); setLoadError(''); const res = await fetch('/api/loans', { cache: 'no-store' }); if (!res.ok) throw new Error(); const data = await res.json() as LoanDashboardRecord[]; setLoans(data.map(normalizeLoanRecord)) }
@@ -261,7 +262,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   function openLoanModal() { resetLoanForm(); setLoanModalOpen(true) }
 
   function openEditLoanModal(loanId: string) {
-    const loan = loans.find((l) => l.id === loanId); if (!loan || loan.printedAt || loan.isSettled) return
+    const loan = loans.find((l) => l.id === loanId); if (!loan || loan.isSettled || (!isAdminOrReviewer && loan.reviewStatus === 'REVIEWED')) return
     setLoanError(''); setEditingLoanId(loan.id)
     setLoanForm({ requestDate: loan.createdAt.slice(0, 10), refNumber: loan.refNumber, agencyCode: AGENCY_CODE, employee: loan.employee, activity: loan.activity, location: loan.location, startDate: loan.startDate.slice(0, 10), endDate: loan.endDate.slice(0, 10), budgetApproved: loan.budgetApproved })
     setExpenses(loan.items.length > 0 ? loan.items.map((i) => ({ category: i.category, amount: String(i.amount) })) : [{ category: '', amount: '' }])
@@ -442,7 +443,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </button>
           ))}
 
-          {isAdminOrReviewer && (
+          {isSuperAdmin && (
             <>
               <p className="sidebar-section-label mt-4">الإدارة</p>
               <button type="button" onClick={() => router.push('/admin')}
@@ -595,7 +596,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 ) : (
                   <div className="space-y-3">
                     {requestLoans.map((loan) => (
-                      <LoanCard key={loan.id} loan={loan} canReview={isAdminOrReviewer}
+                      <LoanCard key={loan.id} loan={loan} canReview={isAdminOrReviewer} canModify={isAdminOrReviewer || loan.reviewStatus !== 'REVIEWED'}
                         onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -619,7 +620,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     <p className="empty-state-desc">ستظهر هنا الطلبات بعد إتمام تسويتها</p>
                   </div>
                 ) : settledLoans.map((loan) => (
-                  <LoanCard key={loan.id} loan={loan} archived canReview={isAdminOrReviewer}
+                  <LoanCard key={loan.id} loan={loan} archived canReview={isAdminOrReviewer} canModify={isAdminOrReviewer}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -755,7 +756,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <input type="date" value={loanForm.requestDate} onChange={(e) => setLoanForm((c) => ({ ...c, requestDate: e.target.value }))} className="input-shell" />
                 </Field>
                 <Field label="الرقم المرجعي">
-                  <input value={loanForm.refNumber} readOnly className="input-shell" />
+                  <input value={loanForm.refNumber} readOnly={!isSuperAdmin} onChange={(e) => setLoanForm((c) => ({ ...c, refNumber: e.target.value }))} className="input-shell" />
                 </Field>
                 <Field label="كود الوكالة">
                   <input value={loanForm.agencyCode} readOnly className="input-shell" />
@@ -1092,8 +1093,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function LoanCard({ loan, archived = false, canReview = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onWordLoan, onPrintSettlement, onWordSettlement }: {
-  loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onWordLoan, onPrintSettlement, onWordSettlement }: {
+  loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onWordLoan: () => void; onPrintSettlement: () => void; onWordSettlement: () => void
@@ -1147,7 +1148,7 @@ function LoanCard({ loan, archived = false, canReview = false, onEdit, onDelete,
             <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-gold btn-sm sm:col-span-2">📝 بدء تسوية السلفة</button>
           )}
 
-          {!archived && !loan.printedAt && !loan.isSettled && (
+          {!archived && canModify && !loan.isSettled && (
             <>
               <button type="button" onClick={() => onEdit(loan.id)} className="btn btn-success btn-sm">✏️ تعديل</button>
               <button type="button" onClick={() => onDelete(loan.id)} className="btn btn-danger btn-sm">🗑️ حذف</button>

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { canManageAllLoans, getSessionUser } from '@/lib/auth'
+import { canManageAllLoans, getSessionUser, isSuperAdmin } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
+import { notifyLoanReviewed } from '@/lib/notifications'
 
 async function getEditableLoan(id: string) {
   await ensureDatabaseSetup()
@@ -27,6 +28,13 @@ async function getEditableLoan(id: string) {
   return { currentUser, loan }
 }
 
+function canEmployeeControlLoan(
+  currentUser: NonNullable<ReturnType<typeof getSessionUser>>,
+  loan: { userId: string | null; reviewStatus: string; isSettled: boolean },
+) {
+  return loan.userId === currentUser.userId && loan.reviewStatus !== 'REVIEWED' && !loan.isSettled
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
@@ -37,16 +45,9 @@ export async function PATCH(
 
     const { loan, currentUser } = result
 
-    if (loan.printedAt && !canManageAllLoans(currentUser)) {
+    if (!canManageAllLoans(currentUser) && !canEmployeeControlLoan(currentUser, loan)) {
       return NextResponse.json(
-        { error: 'لا يمكن تعديل الطلب بعد طباعته أو تصديره.' },
-        { status: 409 },
-      )
-    }
-
-    if (loan.isSettled && !canManageAllLoans(currentUser)) {
-      return NextResponse.json(
-        { error: 'لا يمكن تعديل الطلب بعد تسويته.' },
+        { error: 'لا يمكن تعديل المعاملة بعد اعتماد المراجع.' },
         { status: 409 },
       )
     }
@@ -58,19 +59,66 @@ export async function PATCH(
       !('startDate' in body) &&
       canManageAllLoans(currentUser)
     ) {
+      const nextStatus = body.reviewStatus as 'REVIEWED' | 'RETURNED'
       const reviewedLoan = await prisma.loan.update({
         where: { id: loan.id },
         data: {
-          reviewStatus: body.reviewStatus,
+          reviewStatus: nextStatus,
           reviewNote: String(body.reviewNote ?? '').trim() || null,
         },
         include: dashboardLoanInclude,
       })
 
+      if (loan.userId && (nextStatus === 'REVIEWED' || nextStatus === 'RETURNED')) {
+        const owner = await prisma.user.findUnique({
+          where: { id: loan.userId },
+          select: { email: true },
+        })
+
+        if (owner?.email) {
+          void notifyLoanReviewed({
+            userId: loan.userId,
+            userEmail: owner.email,
+            refNumber: loan.refNumber,
+            loanId: loan.id,
+            status: nextStatus,
+            note: String(body.reviewNote ?? '').trim() || undefined,
+          }).catch(console.error)
+        }
+      }
+
       return NextResponse.json(reviewedLoan)
     }
 
     const items = Array.isArray(body.items) ? body.items : []
+
+    const updateData: Record<string, unknown> = {
+      activity: String(body.activity ?? '').trim(),
+      location: String(body.location ?? '').trim(),
+      amount: Number(body.amount ?? 0),
+      budgetApproved:
+        typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
+      reviewStatus: canManageAllLoans(currentUser)
+        ? ((body.reviewStatus ?? loan.reviewStatus) as 'PENDING' | 'REVIEWED' | 'RETURNED')
+        : 'PENDING',
+      reviewNote: canManageAllLoans(currentUser)
+        ? String(body.reviewNote ?? '').trim() || null
+        : null,
+      files: body.files ?? undefined,
+      startDate: new Date(body.startDate),
+      endDate: new Date(body.endDate),
+      items: {
+        create: items.map((item: { category: string; amount: number }) => ({
+          category: item.category,
+          amount: item.amount,
+        })),
+      },
+    }
+
+    if (isSuperAdmin(currentUser) && typeof body.refNumber === 'string') {
+      const refNumber = body.refNumber.trim()
+      if (refNumber) updateData.refNumber = refNumber
+    }
 
     const updatedLoan = await prisma.$transaction(async (tx) => {
       await tx.loanItem.deleteMany({
@@ -79,24 +127,7 @@ export async function PATCH(
 
       return tx.loan.update({
         where: { id: loan.id },
-        data: {
-          activity: String(body.activity ?? '').trim(),
-          location: String(body.location ?? '').trim(),
-          amount: Number(body.amount ?? 0),
-          budgetApproved:
-            typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
-          reviewStatus: (body.reviewStatus ?? loan.reviewStatus) as 'PENDING' | 'REVIEWED' | 'RETURNED',
-          reviewNote: String(body.reviewNote ?? '').trim() || null,
-          files: body.files ?? undefined,
-          startDate: new Date(body.startDate),
-          endDate: new Date(body.endDate),
-          items: {
-            create: items.map((item: { category: string; amount: number }) => ({
-              category: item.category,
-              amount: item.amount,
-            })),
-          },
-        },
+        data: updateData,
         include: dashboardLoanInclude,
       })
     })
@@ -120,16 +151,9 @@ export async function DELETE(
 
     const { loan, currentUser } = result
 
-    if (loan.printedAt && !canManageAllLoans(currentUser)) {
+    if (!canManageAllLoans(currentUser) && !canEmployeeControlLoan(currentUser, loan)) {
       return NextResponse.json(
-        { error: 'لا يمكن حذف الطلب بعد طباعته أو تصديره.' },
-        { status: 409 },
-      )
-    }
-
-    if (loan.isSettled && !canManageAllLoans(currentUser)) {
-      return NextResponse.json(
-        { error: 'لا يمكن حذف الطلب بعد تسويته.' },
+        { error: 'لا يمكن حذف المعاملة بعد اعتماد المراجع.' },
         { status: 409 },
       )
     }

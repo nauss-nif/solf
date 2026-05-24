@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { ensureDefaultAdmin, getSessionUser, hasRole, normalizeRoles } from '@/lib/auth'
+import { ensureDefaultAdmin, getSessionUser, isSuperAdmin, normalizeRoles } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
     await ensureAuthSetup()
     await ensureDefaultAdmin()
     const currentUser = getSessionUser()
-    if (!hasRole(currentUser, 'ADMIN')) {
+    if (!isSuperAdmin(currentUser)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

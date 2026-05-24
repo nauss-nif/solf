@@ -6,6 +6,7 @@ import { ensureAuthSetup, isRuntimeDatabaseSetupEnabled } from '@/lib/database-s
 
 const SESSION_COOKIE = 'naif_session'
 const AUTH_SECRET = process.env.AUTH_SECRET ?? 'change-this-auth-secret'
+export const SUPER_ADMIN_EMAIL = 'od@nauss.edu.sa'
 let defaultAdminPromise: Promise<void> | null = null
 
 export type SessionRole = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
@@ -51,6 +52,10 @@ export function canManageAllLoans(user: Pick<SessionUser, 'role' | 'roles'> | Se
   }
 
   return hasRole(user, 'ADMIN') || hasRole(user, 'REVIEWER')
+}
+
+export function isSuperAdmin(user: Pick<SessionUser, 'email'> | null | undefined) {
+  return user?.email.toLowerCase() === SUPER_ADMIN_EMAIL
 }
 
 function toBase64Url(value: string) {
@@ -136,6 +141,12 @@ export function requireSessionUser() {
 export function requireAdminUser() {
   const user = requireSessionUser()
   if (!hasRole(user, 'ADMIN')) redirect('/')
+  return user
+}
+
+export function requireSuperAdminUser() {
+  const user = requireSessionUser()
+  if (!isSuperAdmin(user)) redirect('/')
   return user
 }
 

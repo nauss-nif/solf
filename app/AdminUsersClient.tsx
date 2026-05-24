@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 
 type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
 type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; createdAt: string }
+type SequenceState = { lastNumber: number; nextNumber: number; nextRefNumber: string }
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string }> = [
   { value: 'EMPLOYEE', label: 'موظف',    color: '#1B4332' },
@@ -16,6 +17,8 @@ export default function AdminUsersClient() {
   const [loadError, setLoadError] = useState('')
   const [isPending, startTransition] = useTransition()
   const [successMsg, setSuccessMsg] = useState('')
+  const [sequence, setSequence] = useState<SequenceState | null>(null)
+  const [sequenceDraft, setSequenceDraft] = useState('')
 
   async function loadUsers() {
     const res = await fetch('/api/admin/users', { cache: 'no-store' })
@@ -24,7 +27,15 @@ export default function AdminUsersClient() {
     setLoadError(''); setUsers(data)
   }
 
-  useEffect(() => { void loadUsers() }, [])
+  async function loadSequence() {
+    const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
+    const data = await res.json()
+    if (!res.ok) return
+    setSequence(data)
+    setSequenceDraft(String(data.lastNumber))
+  }
+
+  useEffect(() => { void loadUsers(); void loadSequence() }, [])
 
   function showSuccess(msg: string) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 2500) }
 
@@ -32,6 +43,55 @@ export default function AdminUsersClient() {
     <div className="space-y-5 animate-fade-up">
       {loadError  && <div className="alert alert-error">{loadError}</div>}
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
+
+      <div className="section-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="font-bold" style={{ color: '#0D1F18' }}>تسلسل أرقام المعاملات</h2>
+            <p className="mt-1 text-sm" style={{ color: '#4A7A65' }}>
+              استخدم هذا الحقل لضبط آخر رقم مستخدم. إذا كان آخر رقم يدوي هو 27 فسيكون الطلب القادم {sequence?.nextRefNumber ?? 'وت/26/0028'}.
+            </p>
+            {sequence && (
+              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <span className="badge badge-neutral">آخر رقم: {sequence.lastNumber}</span>
+                <span className="badge badge-primary">القادم: {sequence.nextRefNumber}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="block">
+              <span className="field-label">آخر رقم مستخدم</span>
+              <input
+                type="number"
+                min="0"
+                value={sequenceDraft}
+                onChange={(e) => setSequenceDraft(e.target.value)}
+                className="input-shell"
+                style={{ width: 180 }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={isPending}
+              className="btn btn-primary"
+              onClick={() => {
+                startTransition(async () => {
+                  const res = await fetch('/api/admin/sequence', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lastNumber: Number(sequenceDraft) }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok) { setLoadError(data.error ?? 'تعذر تحديث التسلسل'); return }
+                  setSequence(data); setSequenceDraft(String(data.lastNumber)); showSuccess('تم تحديث تسلسل المعاملات.')
+                })
+              }}
+            >
+              حفظ التسلسل
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">

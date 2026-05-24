@@ -1,10 +1,10 @@
-import { requireAdminUser } from '@/lib/auth'
+import { requireSuperAdminUser } from '@/lib/auth'
 import AdminUsersClient from '@/app/AdminUsersClient'
 import Link from 'next/link'
 import Image from 'next/image'
 
 export default function AdminPage() {
-  const user = requireAdminUser()
+  const user = requireSuperAdminUser()
 
   return (
     <div className="app-layout">

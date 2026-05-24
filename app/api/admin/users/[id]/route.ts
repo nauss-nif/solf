@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import {
   getPrimaryRole,
   getSessionUser,
-  hasRole,
   hashPassword,
+  isSuperAdmin,
   normalizeRoles,
 } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
@@ -16,7 +16,7 @@ export async function PATCH(
   try {
     await ensureAuthSetup()
     const currentUser = getSessionUser()
-    if (!hasRole(currentUser, 'ADMIN')) {
+    if (!isSuperAdmin(currentUser)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     if (!currentUser) {
@@ -72,7 +72,7 @@ export async function DELETE(
   try {
     await ensureAuthSetup()
     const currentUser = getSessionUser()
-    if (!hasRole(currentUser, 'ADMIN')) {
+    if (!isSuperAdmin(currentUser)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
     if (!currentUser) {

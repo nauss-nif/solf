@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { workingDaysUntilDeadline } from '@/lib/settlement-deadline'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ''
-const FROM_EMAIL = 'نظام السلف المؤقتة <loans@nauss.edu.sa>'
+const FROM_EMAIL = process.env.FROM_EMAIL ?? 'منصة طلبات السلف <loans@nauss.edu.sa>'
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@nauss.edu.sa'
 
 // ─────────────────────────────────────────────────────────────
@@ -146,7 +146,74 @@ export async function notifyNewLoan(loan: {
       message,
       metadata: { loanId: loan.id, refNumber: loan.refNumber },
     })
+
+    await sendEmail({
+      to: reviewer.email,
+      subject: `طلب سلفة جديد — ${loan.refNumber}`,
+      html: emailTemplate({
+        title: `طلب سلفة جديد — ${loan.refNumber}`,
+        body: `<p>${message}</p>`,
+      }),
+    })
   }
+}
+
+export async function sendWelcomeEmail(options: {
+  to: string
+  fullName: string
+}): Promise<boolean> {
+  return sendEmail({
+    to: options.to,
+    subject: 'مرحباً بك في منصة طلبات السلف',
+    html: emailTemplate({
+      title: `مرحباً ${options.fullName}`,
+      body: `
+        <p>تم إنشاء حسابك في منصة طلبات السلف بنجاح.</p>
+        <p>يمكنك الآن الدخول للنظام وتقديم طلبات السلف ومتابعة حالتها وتسويتها.</p>
+      `,
+    }),
+  })
+}
+
+export async function sendRegistrationCodeEmail(options: {
+  to: string
+  fullName: string
+  code: string
+}): Promise<boolean> {
+  return sendEmail({
+    to: options.to,
+    subject: 'كود إكمال التسجيل في منصة طلبات السلف',
+    html: emailTemplate({
+      title: 'كود إكمال التسجيل',
+      body: `
+        <p>مرحباً ${options.fullName}،</p>
+        <p>كود إكمال التسجيل الخاص بك هو:</p>
+        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;color:#016564;">${options.code}</p>
+        <p>ينتهي هذا الكود خلال مدة محدودة. إذا لم تطلب التسجيل فتجاهل هذه الرسالة.</p>
+      `,
+    }),
+  })
+}
+
+export async function sendPasswordResetCodeEmail(options: {
+  to: string
+  fullName: string
+  code: string
+}): Promise<boolean> {
+  return sendEmail({
+    to: options.to,
+    subject: 'كود استعادة كلمة المرور لمنصة طلبات السلف',
+    html: emailTemplate({
+      title: 'استعادة كلمة المرور',
+      body: `
+        <p>مرحباً ${options.fullName}،</p>
+        <p>كود استعادة كلمة المرور الخاص بك هو:</p>
+        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;color:#016564;">${options.code}</p>
+        <p>إذا لم تطلب استعادة كلمة المرور فتجاهل هذه الرسالة.</p>
+      `,
+      isUrgent: true,
+    }),
+  })
 }
 
 // ─────────────────────────────────────────────────────────────

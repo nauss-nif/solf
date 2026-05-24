@@ -8,6 +8,7 @@ import {
   setSessionCookie,
 } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
+import { sendWelcomeEmail } from '@/lib/notifications'
 
 export async function POST(request: Request) {
   try {
@@ -60,6 +61,11 @@ export async function POST(request: Request) {
       role: getPrimaryRole(roles),
       roles,
     })
+
+    void sendWelcomeEmail({
+      to: user.email,
+      fullName: user.fullName,
+    }).catch(console.error)
 
     return NextResponse.json({ success: true })
   } catch (error) {
