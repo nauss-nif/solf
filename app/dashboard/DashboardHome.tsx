@@ -23,6 +23,7 @@ type CurrentUser = {
 type LoanRecord = {
   id: string
   refNumber: string
+  userId?: string | null
   employee: string
   activity: string
   location: string
