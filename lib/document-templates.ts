@@ -1076,7 +1076,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
 export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
   const settlement = loan.settlement
   const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
-  const rows = padSettlementRows(normalizeSettlementTemplateRows(loan), 9)
+  const rows = normalizeSettlementTemplateRows(loan)
     .map(
       (row) => `
         <tr>
