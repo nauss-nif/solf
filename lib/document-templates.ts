@@ -5,10 +5,10 @@ import PizZip from 'pizzip'
 import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
-type LoanItemLike = { category: string; amount: number }
+type LoanItemLike = {
+  category: string
+  amount: number
+}
 
 type SettlementInvoiceLike = {
   amount?: number
@@ -78,11 +78,21 @@ type SettlementTemplateRow = {
   issuer: string
 }
 
-type TemplateReplacement = { find: string; replace: string }
+type PrintShellOptions = {
+  pageMargins: string
+  fontFamily?: string
+  fontSize?: string
+  fontFaceCss?: string
+  lineHeight?: string
+  sheetWidth?: string
+  sheetMinHeight?: string
+}
 
-// ─────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────
+type TemplateReplacement = {
+  find: string
+  replace: string
+}
+
 const TEMPLATE_DIRECTORY = path.join(process.cwd(), 'templates')
 const LOAN_TEMPLATE_PATH = path.join(TEMPLATE_DIRECTORY, 'loan-form-18.docx')
 const SETTLEMENT_TEMPLATE_PATH = path.join(TEMPLATE_DIRECTORY, 'settlement-form-19.docx')
@@ -92,7 +102,10 @@ const LOAN_TEMPLATE_REPLACEMENTS: TemplateReplacement[] = [
   { find: '???? ?????? ?????: {amountNumber}', replace: 'مبلغ السلفة رقماً: {amountNumber}' },
   { find: '?????: {amountWords} ????', replace: 'كتابة: {amountWords} ريال' },
   { find: '??? ??????: {activity}', replace: 'اسم النشاط: {activity}' },
-  { find: '???? ????? ??????: ?? {startDate} ??? {endDate}', replace: 'فترة تنفيذ النشاط: من {startDate} إلى {endDate}' },
+  {
+    find: '???? ????? ??????: ?? {startDate} ??? {endDate}',
+    replace: 'فترة تنفيذ النشاط: من {startDate} إلى {endDate}',
+  },
   { find: '???? ???????: {location}', replace: 'مكان التنفيذ: {location}' },
   { find: '?????? ???? ??????: {employee}', replace: 'السلفة باسم الموظف: {employee}' },
   { find: '????????: {totalAmount} ????', replace: 'الإجمالي: {totalAmount} ريال' },
@@ -112,9 +125,6 @@ const SETTLEMENT_TEMPLATE_REPLACEMENTS: TemplateReplacement[] = [
   { find: '??? ????? ??????: {employee}', replace: 'اسم مستلم السلفة: {employee}' },
 ]
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
 function escapeHtml(value: string) {
   return value
     .replaceAll('&', '&amp;')
@@ -127,11 +137,18 @@ function escapeHtml(value: string) {
 function formatDate(value: Date | string | null | undefined) {
   if (!value) return ''
   const date = new Date(value)
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+
+  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}/${date.getFullYear()}`
 }
 
 function formatNumber(value: number) {
-  return formatEnglishNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return formatEnglishNumber(value, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 function formatDateOrBlank(value: string) {
@@ -139,21 +156,266 @@ function formatDateOrBlank(value: string) {
 }
 
 function joinValues(values: Array<string | undefined>, separator = '<br />') {
-  return values.map(v => v?.trim() ?? '').filter(Boolean).map(v => escapeHtml(v)).join(separator)
+  return values
+    .map((value) => value?.trim() ?? '')
+    .filter(Boolean)
+    .map((value) => escapeHtml(value))
+    .join(separator)
 }
 
-function joinPlainValues(values: Array<string | undefined>, separator = '\n') {
-  return values.map(v => v?.trim() ?? '').filter(Boolean).join(separator)
+function printShell(body: string, options: PrintShellOptions) {
+  const fontFamily = options.fontFamily ?? '"Cairo", Tahoma, Arial, sans-serif'
+  const fontSize = options.fontSize ?? '14px'
+  const lineHeight = options.lineHeight ?? '1.7'
+  const sheetWidth = options.sheetWidth ?? '100%'
+  const sheetMinHeight = options.sheetMinHeight ?? 'auto'
+
+  return `
+  <style>
+    ${options.fontFaceCss ?? ''}
+    @page { size: A4; margin: ${options.pageMargins}; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #fff;
+      color: #111827;
+    }
+    body {
+      font-family: ${fontFamily};
+      font-size: ${fontSize};
+      line-height: ${lineHeight};
+      direction: rtl;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-sheet {
+      width: ${sheetWidth};
+      min-height: ${sheetMinHeight};
+      margin: 0 auto;
+      background: #fff;
+      color: #111827;
+    }
+    .print-title {
+      text-align: center;
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+    .print-title h1,
+    .print-title h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+    .reference-line {
+      text-align: right;
+      margin: 6px 0 8px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .formal-text {
+      text-align: right;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .formal-text p { margin: 0 0 2px; }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px 14px;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .meta-label { font-weight: 700; }
+    .meta-value {
+      flex: 1;
+      min-height: 18px;
+      border-bottom: 1px solid #111827;
+      padding-inline: 4px;
+      text-align: right;
+    }
+    .choice-line {
+      display: flex;
+      gap: 28px;
+      align-items: center;
+      min-height: 32px;
+    }
+    .choice-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+    .box {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #111827;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
+    }
+    table.form-grid {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    table.form-grid th,
+    table.form-grid td {
+      border: 1px solid #111827;
+      padding: 4px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    table.form-grid th {
+      background: #d9d9d9;
+      font-weight: 700;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .text-right { text-align: right !important; }
+    .text-top { vertical-align: top !important; }
+    .official-inline {
+      display: grid;
+      gap: 8px;
+      margin: 8px 0 10px;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .signature-line {
+      display: inline-block;
+      min-width: 140px;
+      border-bottom: 1px solid #111827;
+      height: 18px;
+      vertical-align: middle;
+    }
+    .official-panel {
+      border: 1px solid #ababab;
+      background: #d9d9d9;
+      border-radius: 16px;
+      padding: 10px 14px;
+      margin-top: 8px;
+      min-height: 112px;
+      break-inside: avoid-page;
+      page-break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .official-panel h3 {
+      margin: 0 0 10px;
+      text-align: right;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .official-panel p { margin: 0 0 6px; }
+    .official-panel .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .official-panel .row.nowrap {
+      flex-wrap: nowrap;
+    }
+    .approval-choice {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-inline-start: 14px;
+    }
+    .totals-table {
+      margin-top: 10px;
+      margin-right: auto;
+      width: 58%;
+    }
+    .attachment-page {
+      page-break-before: always;
+      min-height: 250mm;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .attachment-page h2 {
+      margin: 0;
+      font-size: 16px;
+      text-align: right;
+    }
+    .attachment-page p {
+      margin: 0;
+      font-size: 12px;
+      color: #475569;
+    }
+    .attachment-preview {
+      border: 1px solid #d1d5db;
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 190mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+    }
+    .attachment-preview img {
+      max-width: 100%;
+      max-height: 180mm;
+      object-fit: contain;
+    }
+    .attachment-note {
+      border: 1px dashed #94a3b8;
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      color: #475569;
+      background: #f8fafc;
+    }
+    @media print {
+      html, body { background: #fff; }
+      .print-sheet { width: 100%; min-height: auto; }
+    }
+  </style>
+  <div class="print-sheet">${body}</div>`
 }
 
-// ─────────────────────────────────────────────────────────────
-// Normalizers
-// ─────────────────────────────────────────────────────────────
+function createWordCompatibleDocument(html: string) {
+  return Buffer.from(
+    `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8" /></head><body>${html}</body></html>`,
+    'utf8',
+  )
+}
+
 function normalizeStoredFile(value: unknown): StoredFile | null {
-  if (!value || typeof value !== 'object') return null
-  const c = value as Partial<StoredFile>
-  if (typeof c.name !== 'string' || typeof c.type !== 'string' || typeof c.dataUrl !== 'string') return null
-  return { name: c.name, type: c.type, dataUrl: c.dataUrl, size: typeof c.size === 'number' ? c.size : 0 }
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const candidate = value as Partial<StoredFile>
+
+  if (
+    typeof candidate.name !== 'string' ||
+    typeof candidate.type !== 'string' ||
+    typeof candidate.dataUrl !== 'string'
+  ) {
+    return null
+  }
+
+  return {
+    name: candidate.name,
+    type: candidate.type,
+    dataUrl: candidate.dataUrl,
+    size: typeof candidate.size === 'number' ? candidate.size : 0,
+  }
 }
 
 function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
@@ -185,8 +447,12 @@ function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
 }
 
 function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
-  if (!raw || typeof raw !== 'object') return {}
+  if (!raw || typeof raw !== 'object') {
+    return {}
+  }
+
   const source = raw as Record<string, unknown>
+
   return {
     receiptNumber: typeof source.receiptNumber === 'string' ? source.receiptNumber : '',
     receiptDate: typeof source.receiptDate === 'string' ? source.receiptDate : '',
@@ -197,6 +463,7 @@ function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
 
 function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] {
   const items = loan.items.length > 0 ? loan.items : [{ category: 'سلفة مؤقتة', amount: loan.amount }]
+
   return items.map((item, index) => ({
     index: index + 1,
     amount: formatNumber(item.amount),
@@ -207,70 +474,58 @@ function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] 
 
 function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTemplateRow[] {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
+
   const rows = details.map((detail, index) => {
     const invoices = detail.invoices ?? []
-    const totalSar = invoices.reduce((sum, inv) => sum + Number(inv.sar ?? 0), 0)
+    const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
     const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
     const isPettyCash = (detail.category ?? '').includes('نثريات')
+
     return {
       index: index + 1,
       category: detail.category?.trim() || 'بند صرف',
       amount: formatNumber(amount),
-      documentType: isPettyCash ? 'موافقة المعالي' : joinValues(invoices.map(inv => inv.type), '<br />'),
-      documentDate: joinValues(invoices.map(inv => formatDateOrBlank(inv.date ?? '')), '<br />'),
-      issuer: isPettyCash ? '' : joinValues(invoices.map(inv => inv.issuer), '<br />'),
+      documentType: isPettyCash
+        ? 'موافقة المعالي'
+        : joinValues(invoices.map((invoice) => invoice.type), '<br />'),
+      documentDate: joinValues(
+        invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
+        '<br />',
+      ),
+      issuer: isPettyCash ? '' : joinValues(invoices.map((invoice) => invoice.issuer), '<br />'),
     }
   })
-  return rows.length > 0 ? rows : [{ index: 1, category: 'لا توجد بنود صرف مسجلة', amount: formatNumber(0), documentType: '', documentDate: '', issuer: '' }]
+
+  return rows.length > 0
+    ? rows
+    : [
+        {
+          index: 1,
+          category: 'لا توجد بنود صرف مسجلة',
+          amount: formatNumber(0),
+          documentType: '',
+          documentDate: '',
+          issuer: '',
+        },
+      ]
 }
 
-function normalizeSettlementDocxRows(loan: LoanDocumentRecord): SettlementTemplateRow[] {
-  const details = normalizeSettlementDetails(loan.settlement?.invoices)
-  return details.map((detail, index) => {
-    const invoices = detail.invoices ?? []
-    const totalSar = invoices.reduce((sum, inv) => sum + Number(inv.sar ?? 0), 0)
-    const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
-    const isPettyCash = (detail.category ?? '').includes('نثريات')
-    return {
-      index: index + 1,
-      category: detail.category?.trim() || 'بند صرف',
-      amount: formatNumber(amount),
-      documentType: isPettyCash ? 'موافقة المعالي' : joinPlainValues(invoices.map(inv => inv.type)),
-      documentDate: joinPlainValues(invoices.map(inv => formatDateOrBlank(inv.date ?? ''))),
-      issuer: isPettyCash ? '' : joinPlainValues(invoices.map(inv => inv.issuer)),
-    }
-  })
-}
-
-function padLoanRows(rows: LoanTemplateRow[], min = 2): LoanTemplateRow[] {
-  const result = [...rows]
-  while (result.length < min) result.push({ index: result.length + 1, amount: '', category: '', notes: '' })
-  return result
-}
-
-function padSettlementRows(rows: SettlementTemplateRow[], min = 9): SettlementTemplateRow[] {
-  const result = [...rows]
-  while (result.length < min) result.push({ index: result.length + 1, category: '', amount: '', documentType: '', documentDate: '', issuer: '' })
-  return result
-}
-
-// ─────────────────────────────────────────────────────────────
-// Attachment pages
-// ─────────────────────────────────────────────────────────────
-function buildSettlementAttachmentPages(loan: LoanDocumentRecord): string {
+function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
   const meta = normalizeSettlementMeta(loan.settlement?.invoices)
-
   const attachments = details.flatMap((detail) =>
     (detail.invoices ?? [])
-      .map(inv => ({ ...inv, attachment: normalizeStoredFile(inv.attachment) }))
-      .filter(inv => inv.attachment)
-      .map((inv, i) => ({
+      .map((invoice) => ({
+        ...invoice,
+        attachment: normalizeStoredFile(invoice.attachment),
+      }))
+      .filter((invoice) => invoice.attachment)
+      .map((invoice, index) => ({
         category: detail.category?.trim() || 'بند صرف',
-        index: i + 1,
-        documentType: inv.type || '',
-        issuer: inv.issuer || '',
-        attachment: inv.attachment as StoredFile,
+        index: index + 1,
+        documentType: invoice.type || '',
+        issuer: invoice.issuer || '',
+        attachment: invoice.attachment as StoredFile,
       })),
   )
 
@@ -284,454 +539,143 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord): string {
     })
   }
 
-  return attachments.map(({ category, index, documentType, issuer, attachment }) => {
-    const preview = attachment.type.startsWith('image/')
-      ? `<div class="att-preview"><img src="${attachment.dataUrl}" alt="${escapeHtml(attachment.name)}" /></div>`
-      : `<div class="att-note">تم إرفاق الملف: ${escapeHtml(attachment.name)}<br/>نوع المستند: ${escapeHtml(documentType || 'مرفق')}</div>`
-    return `
-      <div class="att-page">
-        <h2>مرفق رقم ${index}</h2>
-        <p>البند: ${escapeHtml(category)} | نوع المستند: ${escapeHtml(documentType || '-')} | الجهة المصدرة: ${escapeHtml(issuer || '-')}</p>
-        ${preview}
-      </div>`
-  }).join('')
+  return attachments
+    .map(({ category, index, documentType, issuer, attachment }) => {
+      const preview = attachment.type.startsWith('image/')
+        ? `<div class="attachment-preview"><img src="${attachment.dataUrl}" alt="${escapeHtml(
+            attachment.name,
+          )}" /></div>`
+        : `<div class="attachment-note">تم إرفاق الملف: ${escapeHtml(
+            attachment.name,
+          )}<br />نوع المستند: ${escapeHtml(documentType || 'مرفق')}</div>`
+
+      return `
+        <section class="attachment-page">
+          <h2>مرفق رقم ${index}</h2>
+          <p>البند: ${escapeHtml(category)} | نوع المستند: ${escapeHtml(documentType || '-')} | الجهة المصدرة: ${escapeHtml(issuer || '-')}</p>
+          ${preview}
+        </section>
+      `
+    })
+    .join('')
 }
 
-// ─────────────────────────────────────────────────────────────
-// CSS مشترك للنموذجين
-// ─────────────────────────────────────────────────────────────
-const SHARED_CSS = `
-@font-face {
-  font-family: "BoutrosJazirah";
-  src: url("/fonts/BoutrosJazirahTextLight.ttf") format("truetype");
-  font-weight: normal;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { background: #fff; color: #000; }
-body {
-  font-family: "BoutrosJazirah", "Traditional Arabic", Tahoma, Arial, sans-serif;
-  direction: rtl;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-.page { margin: 0 auto; background: #fff; }
-
-/* العنوان */
-.title-block { text-align: center; margin-bottom: 6pt; }
-.t1 { font-size: 14pt; font-weight: bold; display: block; }
-.t2 { font-size: 14pt; font-weight: bold; display: block; margin-top: 1pt; }
-
-/* رقم مرجعي */
-.ref { text-align: right; font-size: 13pt; font-weight: bold; margin-bottom: 3pt; }
-
-/* الأسطر الرسمية */
-.formal { text-align: right; font-size: 12.5pt; font-weight: bold; margin-bottom: 1.5pt; }
-.formal-last { margin-bottom: 6pt; }
-
-/* جداول المعلومات */
-.info { width: 100%; border-collapse: collapse; margin-bottom: 3pt; }
-.info td { font-size: 12pt; padding: 2pt 3pt; vertical-align: bottom; }
-.lbl { font-weight: bold; white-space: nowrap; }
-.val { border-bottom: 1pt solid #000; min-width: 30pt; }
-
-/* الجدول الرئيسي */
-.tbl { width: 100%; border-collapse: collapse; font-size: 11.5pt; margin: 4pt 0; }
-.tbl th, .tbl td { border: 1pt solid #000; padding: 3pt 5pt; text-align: center; vertical-align: middle; }
-.tbl th { background: #d9d9d9; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.tbl .tr { text-align: right; }
-
-/* مربعات الاختيار */
-.chk { display: inline-block; width: 12pt; height: 12pt; border: 1pt solid #000; text-align: center; line-height: 12pt; font-size: 10pt; vertical-align: middle; }
-
-/* خط التوقيع */
-.sig { display: inline-block; min-width: 50pt; border-bottom: 1pt solid #000; height: 11pt; vertical-align: bottom; }
-
-/* المربعات الرسمية */
-.box {
-  border: 1pt solid #aaa;
-  background: #d9d9d9;
-  border-radius: 5pt;
-  padding: 8pt 12pt;
-  margin-top: 6pt;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-}
-.box-title { font-weight: bold; font-size: 13pt; margin-bottom: 5pt; text-align: right; display: block; }
-.chk-row { text-align: right; margin-bottom: 3pt; font-size: 12pt; }
-
-/* جدول الملخص */
-.totals { width: 55%; border-collapse: collapse; font-size: 11pt; margin-top: 4pt; }
-.totals td { border: 1pt solid #000; padding: 2pt 5pt; }
-.tot-l { text-align: right; font-weight: bold; width: 74%; }
-.tot-r { text-align: center; width: 26%; }
-
-/* صفحات المرفقات */
-.att-page { page-break-before: always; padding: 10pt; }
-.att-page h2 { font-size: 13pt; margin-bottom: 4pt; text-align: right; }
-.att-page p { font-size: 10pt; color: #555; margin-bottom: 8pt; text-align: right; }
-.att-preview { border: 1pt solid #ddd; border-radius: 6pt; padding: 8pt; min-height: 160mm; display: flex; align-items: center; justify-content: center; }
-.att-preview img { max-width: 100%; max-height: 155mm; object-fit: contain; }
-.att-note { border: 1pt dashed #aaa; border-radius: 6pt; padding: 20pt; text-align: center; color: #555; font-size: 12pt; }
-
-@media print { html, body { background: #fff; } }
-`
-
-// ─────────────────────────────────────────────────────────────
-// buildLoanRequestWordHtml — نموذج 18
-// ─────────────────────────────────────────────────────────────
-export function buildLoanRequestWordHtml(loan: LoanDocumentRecord): string {
-  const rows = padLoanRows(normalizeLoanTemplateRows(loan))
-  const budgetApproved = loan.budgetApproved === true
-  const budgetRejected = loan.budgetApproved === false
-  const total = formatNumber(loan.amount)
-  const words = numberToArabicWords(loan.amount)
-  const refSeq = loan.refNumber.split('/')[2] ?? '....'
-
-  const tableRows = rows.map(r => `
-    <tr>
-      <td style="width:7%;">${r.index}.</td>
-      <td style="width:20%;">${escapeHtml(r.amount)}</td>
-      <td style="text-align:right;padding:3pt 6pt;">${escapeHtml(r.category)}</td>
-      <td style="width:28%;"></td>
-    </tr>`).join('')
-
-  const body = `
-<div class="page" style="width:170mm;padding:0;">
-
-  <div class="title-block">
-    <span class="t1">نموذج رقم 18</span>
-    <span class="t2">طلب صرف سلفة مؤقتة للعمل</span>
-  </div>
-
-  <p class="ref">رقم مرجعي:&nbsp; وت /&nbsp;26 /&nbsp;${escapeHtml(refSeq)}</p>
-
-  <p class="formal">معالي رئيس الجامعة</p>
-  <p class="formal">السلام عليكم ورحمة الله وبركاته</p>
-  <p class="formal formal-last">آمل الموافقة على صرف سلفة نقدية مؤقتة وفق ما يلي:</p>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">مبلغ السلفة رقماً:</td>
-      <td class="val" style="width:22%;">${total}</td>
-      <td class="lbl" style="width:10%;">كتابة:</td>
-      <td class="val">${escapeHtml(words)}&nbsp;ريال</td>
-    </tr>
-  </table>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">اسم النشاط:</td>
-      <td class="val" style="width:22%;">${escapeHtml(loan.activity)}</td>
-      <td style="width:26%;padding:2pt 4pt;vertical-align:bottom;font-size:11.5pt;">
-        <span class="chk">${budgetApproved ? '✓' : '&nbsp;'}</span>&nbsp;معتمد في الموازنة
-      </td>
-      <td style="width:28%;padding:2pt 4pt;vertical-align:bottom;font-size:11.5pt;">
-        <span class="chk">${budgetRejected ? '✓' : '&nbsp;'}</span>&nbsp;غير معتمد
-      </td>
-    </tr>
-  </table>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">الجهة المنفذة للنشاط:</td>
-      <td class="val">وكالة التدريب</td>
-    </tr>
-  </table>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">فترة تنفيذ النشاط:</td>
-      <td class="val" style="width:36%;">من ${escapeHtml(formatDate(loan.startDate))} إلى ${escapeHtml(formatDate(loan.endDate))}</td>
-      <td class="lbl" style="width:14%;">مكان التنفيذ:</td>
-      <td class="val">${escapeHtml(loan.location ?? '')}</td>
-    </tr>
-  </table>
-
-  <table class="info" style="margin-bottom:7pt;">
-    <tr>
-      <td class="lbl" style="width:24%;">السلفة باسم الموظف:</td>
-      <td class="val" style="width:28%;">${escapeHtml(loan.employee)}</td>
-      <td class="lbl" style="width:22%;">توقيع طالب السلفة:</td>
-      <td class="val"></td>
-    </tr>
-  </table>
-
-  <table class="tbl">
-    <thead>
-      <tr>
-        <th style="width:7%;">م</th>
-        <th style="width:20%;">المبلغ</th>
-        <th>أوجه الصرف</th>
-        <th style="width:28%;">الملاحظات</th>
-      </tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-    <tfoot>
-      <tr>
-        <td colspan="2" style="text-align:right;padding:3pt 6pt;border:1pt solid #000;">
-          <strong>الإجمالي: ${total}&nbsp;.................. ريال</strong>
-        </td>
-        <td colspan="2" style="border:1pt solid #000;padding:3pt 6pt;">&nbsp;</td>
-      </tr>
-    </tfoot>
-  </table>
-
-  <table class="info" style="margin-top:5pt;margin-bottom:8pt;">
-    <tr>
-      <td style="width:20%;font-weight:bold;">مسؤول الجهة:</td>
-      <td style="width:28%;">وكيل الجامعة للتدريب</td>
-      <td style="width:34%;font-weight:bold;">الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</td>
-      <td>التوقيع: <span class="sig"></span></td>
-    </tr>
-  </table>
-
-  <div class="box">
-    <span class="box-title">رأي المراقب المالي:</span>
-    <p class="chk-row"><span class="chk">&nbsp;</span>&nbsp;&nbsp;مستوفي</p>
-    <p class="chk-row"><span class="chk">&nbsp;</span>&nbsp;&nbsp;غير مستوفي للآتي:</p>
-    <table class="info" style="margin-top:14pt;">
-      <tr>
-        <td style="width:40%;">الاسم: شريف محمد مصطفى الغزولي</td>
-        <td style="width:30%;">التوقيع: <span class="sig"></span></td>
-        <td>التاريخ: .... / ...... / ......</td>
-      </tr>
-    </table>
-  </div>
-
-  <div class="box" style="margin-top:6pt;">
-    <span class="box-title">اعتماد رئيس الجامعة</span>
-    <p style="font-size:12pt;margin-bottom:6pt;">
-      <span class="chk">&nbsp;</span>&nbsp;نوافق
-      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-      <span class="chk">&nbsp;</span>&nbsp;لا نوافق
-    </p>
-    <p style="font-size:12pt;margin-bottom:8pt;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
-    <table class="info">
-      <tr>
-        <td style="width:12%;">رئيس</td>
-        <td style="width:36%;">الجامعة: <span class="sig" style="min-width:90pt;"></span></td>
-        <td style="width:22%;">التوقيع: <span class="sig"></span></td>
-        <td>التاريخ: .... / ...... / ......</td>
-      </tr>
-    </table>
-  </div>
-
-</div>`
-
-  return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8"/>
-<style>
-@page { size: A4; margin: 28mm 22mm 18mm 22mm; }
-${SHARED_CSS}
-</style>
-</head>
-<body>${body}</body>
-</html>`
+function joinPlainValues(values: Array<string | undefined>, separator = '\n') {
+  return values
+    .map((value) => value?.trim() ?? '')
+    .filter(Boolean)
+    .join(separator)
 }
 
-// ─────────────────────────────────────────────────────────────
-// buildSettlementWordHtml — نموذج 19
-// ─────────────────────────────────────────────────────────────
-export function buildSettlementWordHtml(loan: LoanDocumentRecord): string {
-  const settlement = loan.settlement
-  const meta = normalizeSettlementMeta(settlement?.invoices)
-  const rows = padSettlementRows(normalizeSettlementTemplateRows(loan))
-  const refSeq = loan.refNumber.split('/')[2] ?? '....'
+function normalizeSettlementDocxRows(loan: LoanDocumentRecord): SettlementTemplateRow[] {
+  const details = normalizeSettlementDetails(loan.settlement?.invoices)
 
-  const tableRows = rows.map(r => `
-    <tr>
-      <td style="width:5%;">${r.index}.</td>
-      <td class="tr" style="padding:2pt 5pt;">${escapeHtml(r.category)}</td>
-      <td style="width:12%;">${escapeHtml(r.amount)}</td>
-      <td style="width:11%;">${r.documentType}</td>
-      <td style="width:13%;">${r.documentDate}</td>
-      <td style="width:21%;">${escapeHtml(r.issuer)}</td>
-    </tr>`).join('')
+  return details.map((detail, index) => {
+    const invoices = detail.invoices ?? []
+    const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
+    const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
+    const isPettyCash = (detail.category ?? '').includes('نثريات')
 
-  const sup    = formatNumber(Number(settlement?.supported   ?? 0))
-  const unsup  = formatNumber(Number(settlement?.unsupported ?? 0))
-  const total  = formatNumber(Number(settlement?.total       ?? 0))
-  const loanAmt = formatNumber(loan.amount)
-  const overage = formatNumber(Number(settlement?.overage    ?? 0))
-  const savings = formatNumber(Number(settlement?.savings    ?? 0))
-  const receiptNum = escapeHtml(meta.receiptNumber ?? '')
-  const receiptDt  = escapeHtml(formatDateOrBlank(meta.receiptDate ?? ''))
-  const attachPages = buildSettlementAttachmentPages(loan)
-
-  const body = `
-<div class="page" style="width:170mm;padding:0;">
-
-  <div class="title-block">
-    <span class="t1">نموذج رقم 19</span>
-    <span class="t2">طلب تسوية سلفة مؤقتة</span>
-  </div>
-
-  <p class="ref">رقم المرجع: وت/25/${escapeHtml(refSeq)}</p>
-
-  <p class="formal">لمعالي رئيس الجامعة مع الاحترام والتقدير</p>
-  <p class="formal">السلام عليكم ورحمة الله وبركاته</p>
-  <p class="formal formal-last">آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:</p>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">اسم النشاط:</td>
-      <td class="val" style="width:26%;">${escapeHtml(loan.activity)}</td>
-      <td class="lbl" style="width:15%;">مكان التنفيذ:</td>
-      <td class="val">${escapeHtml(loan.location ?? '')}</td>
-    </tr>
-  </table>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">الجهة المنفذة للنشاط:</td>
-      <td class="val">وكالة التدريب</td>
-    </tr>
-  </table>
-
-  <table class="info">
-    <tr>
-      <td class="lbl" style="width:24%;">تاريخ بداية النشاط:</td>
-      <td class="val" style="width:18%;">${escapeHtml(formatDate(loan.startDate))}</td>
-      <td class="lbl" style="width:20%;">نهاية النشاط:</td>
-      <td class="val">${escapeHtml(formatDate(loan.endDate))}</td>
-    </tr>
-  </table>
-
-  <table class="info" style="margin-bottom:7pt;">
-    <tr>
-      <td class="lbl" style="width:24%;">تاريخ بداية الصرف:</td>
-      <td class="val" style="width:18%;">${escapeHtml(formatDate(loan.startDate))}</td>
-      <td class="lbl" style="width:20%;">نهاية الصرف:</td>
-      <td class="val">${escapeHtml(formatDate(loan.endDate))}</td>
-    </tr>
-  </table>
-
-  <table class="tbl">
-    <thead>
-      <tr>
-        <th style="width:5%;" rowspan="2">م</th>
-        <th rowspan="2">أوجه الصرف الفعلية</th>
-        <th style="width:12%;" rowspan="2">المبلغ<br/>بالريال</th>
-        <th colspan="3">المستندات المؤيدة</th>
-      </tr>
-      <tr>
-        <th style="width:11%;">نوعه</th>
-        <th style="width:13%;">تاريخه</th>
-        <th style="width:21%;">الجهة المصدرة له</th>
-      </tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-  </table>
-
-  <table class="totals">
-    <tr><td class="tot-l">المصروفات المؤيدة بمستندات</td><td class="tot-r">${sup}</td></tr>
-    <tr><td class="tot-l">المصروفات غير المؤيدة بمستندات</td><td class="tot-r">${unsup}</td></tr>
-    <tr><td class="tot-l">إجمالي المصروفات من السلفة</td><td class="tot-r">${total}</td></tr>
-    <tr><td class="tot-l">مبلغ السلفة</td><td class="tot-r">${loanAmt}</td></tr>
-    <tr><td class="tot-l">المبلغ المصروف بالزيادة المطلوبة صرفه</td><td class="tot-r">${overage}</td></tr>
-  </table>
-
-  <table class="info" style="margin-top:4pt;">
-    <tr>
-      <td class="lbl" style="width:24%;font-size:11pt;">وفر السلفة النقدي:</td>
-      <td class="val" style="width:16%;">${savings}</td>
-      <td class="lbl" style="width:22%;font-size:10.5pt;">رقم سند القبض:&nbsp;${receiptNum}</td>
-      <td class="lbl" style="width:12%;font-size:10.5pt;">تاريخه:</td>
-      <td class="val">${receiptDt}</td>
-    </tr>
-  </table>
-
-  <table class="info" style="margin-top:6pt;margin-bottom:8pt;">
-    <tr>
-      <td style="width:34%;">اسم مستلم السلفة: ${escapeHtml(loan.employee)}</td>
-      <td style="width:32%;">التوقيع: <span class="sig"></span></td>
-      <td>التاريخ: <span class="sig" style="min-width:55pt;"></span></td>
-    </tr>
-    <tr>
-      <td>وكيل الجامعة للتدريب</td>
-      <td>د. عبدالرزاق بن عبدالعزيز المرجان</td>
-      <td>التوقيع: <span class="sig"></span></td>
-    </tr>
-  </table>
-
-  <div class="box">
-    <span class="box-title">رأي المراقب المالي:</span>
-    <p class="chk-row"><span class="chk">&nbsp;</span>&nbsp;المعاملة مستوفية للمتطلبات النظامية للتسوية</p>
-    <p class="chk-row"><span class="chk">&nbsp;</span>&nbsp;المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</p>
-    <table class="info" style="margin-top:12pt;">
-      <tr>
-        <td style="width:38%;">الاسم: شريف محمد مصطفى الغزولي</td>
-        <td style="width:31%;">التوقيع: <span class="sig"></span></td>
-        <td>التاريخ: /&nbsp;&nbsp;&nbsp;&nbsp;/</td>
-      </tr>
-    </table>
-  </div>
-
-  <div class="box" style="margin-top:6pt;">
-    <span class="box-title">اعتماد رئيس الجامعة</span>
-    <p style="font-size:12pt;margin-bottom:5pt;">
-      <span class="chk">&nbsp;</span>&nbsp;أوافق على تسوية السلفة وفق ما هو محدد أعلاه.
-      &nbsp;&nbsp;&nbsp;
-      <span class="chk">&nbsp;</span>&nbsp;لا نوافق
-    </p>
-    <p style="font-size:12pt;margin-bottom:7pt;">وعلى كل فيما يخصه إكمال اللازم</p>
-    <table class="info">
-      <tr>
-        <td style="width:34%;">رئيس الجامعة: <span class="sig" style="min-width:65pt;"></span></td>
-        <td style="width:32%;">التوقيع: <span class="sig"></span></td>
-        <td>التاريخ: /&nbsp;&nbsp;&nbsp;&nbsp;/</td>
-      </tr>
-    </table>
-  </div>
-
-  ${attachPages}
-
-</div>`
-
-  return `<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8"/>
-<style>
-@page { size: A4; margin: 26mm 22mm 16mm 22mm; }
-${SHARED_CSS}
-</style>
-</head>
-<body>${body}</body>
-</html>`
+    return {
+      index: index + 1,
+      category: detail.category?.trim() || 'بند صرف',
+      amount: formatNumber(amount),
+      documentType: isPettyCash
+        ? 'موافقة المعالي'
+        : joinPlainValues(invoices.map((invoice) => invoice.type)),
+      documentDate: joinPlainValues(
+        invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
+      ),
+      issuer: isPettyCash ? '' : joinPlainValues(invoices.map((invoice) => invoice.issuer)),
+    }
+  })
 }
 
-// ─────────────────────────────────────────────────────────────
-// DOCX builders (unchanged logic)
-// ─────────────────────────────────────────────────────────────
+function padLoanRows(rows: LoanTemplateRow[], minimumRows = 2) {
+  const paddedRows = [...rows]
+
+  while (paddedRows.length < minimumRows) {
+    paddedRows.push({
+      index: paddedRows.length + 1,
+      amount: '',
+      category: '',
+      notes: '',
+    })
+  }
+
+  return paddedRows
+}
+
+function padSettlementRows(rows: SettlementTemplateRow[], minimumRows = 9) {
+  const paddedRows = [...rows]
+
+  while (paddedRows.length < minimumRows) {
+    paddedRows.push({
+      index: paddedRows.length + 1,
+      category: '',
+      amount: '',
+      documentType: '',
+      documentDate: '',
+      issuer: '',
+    })
+  }
+
+  return paddedRows
+}
+
 const TEMPLATE_GUID_VALUE = '{28A0092B-C50C-407E-A947-70E740481C1C}'
 const TEMPLATE_GUID_TOKEN = '__DOCX_GUID_TOKEN__'
 
 function patchTemplateDocumentXml(xml: string, replacements: TemplateReplacement[]) {
-  return replacements.reduce((cur, r) => cur.replaceAll(r.find, r.replace), xml)
+  return replacements.reduce(
+    (current, replacement) => current.replaceAll(replacement.find, replacement.replace),
+    xml,
+  )
 }
 
-async function loadPatchedTemplate(templatePath: string, replacements: TemplateReplacement[]) {
+async function loadPatchedTemplate(
+  templatePath: string,
+  replacements: TemplateReplacement[],
+) {
   const buffer = await readFile(templatePath)
   const zip = new PizZip(buffer)
   const document = zip.file('word/document.xml')
-  if (!document) throw new Error(`Missing document.xml in template: ${path.basename(templatePath)}`)
-  const patchedXml = patchTemplateDocumentXml(document.asText(), replacements)
-    .replaceAll(TEMPLATE_GUID_VALUE, TEMPLATE_GUID_TOKEN)
+
+  if (!document) {
+    throw new Error(`Missing document.xml in template: ${path.basename(templatePath)}`)
+  }
+
+  const patchedXml = patchTemplateDocumentXml(document.asText(), replacements).replaceAll(
+    TEMPLATE_GUID_VALUE,
+    TEMPLATE_GUID_TOKEN,
+  )
+
   zip.file('word/document.xml', patchedXml)
+
   return zip
 }
 
-function renderDocxTemplate(templateZip: PizZip, data: Record<string, unknown>) {
-  const doc = new Docxtemplater(templateZip, { paragraphLoop: true, linebreaks: true, nullGetter: () => '' })
+function renderDocxTemplate(
+  templateZip: PizZip,
+  data: Record<string, unknown>,
+) {
+  const doc = new Docxtemplater(templateZip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    nullGetter: () => '',
+  })
+
   doc.render(data)
+
   const outputZip = doc.getZip()
   const renderedDocument = outputZip.file('word/document.xml')
   if (renderedDocument) {
-    outputZip.file('word/document.xml', renderedDocument.asText().replaceAll(TEMPLATE_GUID_TOKEN, TEMPLATE_GUID_VALUE))
+    outputZip.file(
+      'word/document.xml',
+      renderedDocument.asText().replaceAll(TEMPLATE_GUID_TOKEN, TEMPLATE_GUID_VALUE),
+    )
   }
+
   return Buffer.from(outputZip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }))
 }
 
@@ -753,6 +697,7 @@ function createLoanRequestTemplateData(loan: LoanDocumentRecord) {
 function createSettlementTemplateData(loan: LoanDocumentRecord) {
   const settlement = loan.settlement
   const meta = normalizeSettlementMeta(settlement?.invoices)
+
   return {
     referenceNumber: loan.refNumber,
     activity: loan.activity,
@@ -778,6 +723,280 @@ export async function buildLoanRequestDocx(loan: LoanDocumentRecord) {
 }
 
 export async function buildSettlementDocx(loan: LoanDocumentRecord) {
-  const templateZip = await loadPatchedTemplate(SETTLEMENT_TEMPLATE_PATH, SETTLEMENT_TEMPLATE_REPLACEMENTS)
+  const templateZip = await loadPatchedTemplate(
+    SETTLEMENT_TEMPLATE_PATH,
+    SETTLEMENT_TEMPLATE_REPLACEMENTS,
+  )
   return renderDocxTemplate(templateZip, createSettlementTemplateData(loan))
 }
+
+export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
+  const tableFontSize =
+    loan.items.length >= 5 ? '11px' : loan.items.length >= 3 ? '12px' : '13px'
+  const rows = normalizeLoanTemplateRows(loan)
+    .map(
+      (item) => `
+        <tr>
+          <td style="width:5%;">${item.index}.</td>
+          <td style="width:16%;">${item.amount}</td>
+          <td class="text-right">${escapeHtml(item.category)}</td>
+          <td style="width:28%;">${escapeHtml(item.notes)}</td>
+        </tr>
+      `,
+    )
+    .join('')
+
+  const budgetApproved = loan.budgetApproved === true
+  const budgetRejected = loan.budgetApproved === false
+
+  const body = `
+    <div class="print-title">
+      <h2>نموذج رقم 18</h2>
+      <h1>طلب صرف سلفة مؤقتة للعمل</h1>
+    </div>
+
+    <div class="reference-line">رقم مرجعي: ${escapeHtml(loan.refNumber)}</div>
+
+    <div class="formal-text">
+      <p>معالي رئيس الجامعة</p>
+      <p>السلام عليكم ورحمة الله وبركاته</p>
+      <p>آمل الموافقة على صرف سلفة نقدية مؤقتة وفق ما يلي:</p>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-row"><span class="meta-label">مبلغ السلفة رقمًا:</span><span class="meta-value">${formatNumber(loan.amount)}</span></div>
+      <div class="meta-row"><span class="meta-label">كتابة:</span><span class="meta-value">${escapeHtml(numberToArabicWords(loan.amount))}</span></div>
+      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
+      <div class="choice-line">
+        <span class="choice-item"><span class="box">${budgetApproved ? '✓' : ''}</span>معتمد في الموازنة</span>
+        <span class="choice-item"><span class="box">${budgetRejected ? '✓' : ''}</span>غير معتمد</span>
+      </div>
+      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
+      <div></div>
+      <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
+      <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
+      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
+    </div>
+
+    <table class="form-grid" style="font-size: ${tableFontSize};">
+      <thead>
+        <tr>
+          <th style="width:5%;">م</th>
+          <th style="width:16%;">المبلغ</th>
+          <th>أوجه الصرف</th>
+          <th style="width:28%;">الملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="official-inline" style="grid-template-columns: 0.9fr 1fr 1.55fr 1fr;">
+      <span>مسؤول الجهة:</span>
+      <span>وكيل الجامعة للتدريب</span>
+      <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
+    </div>
+
+    <div class="official-panel">
+      <h3>رأي المراقب المالي:</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>مستوفي</span>
+        <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
+      </p>
+      <div class="row nowrap" style="margin-top: 30px;">
+        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+      </div>
+    </div>
+
+    <div class="official-panel">
+      <h3>اعتماد رئيس الجامعة</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>نوافق</span>
+        <span class="approval-choice"><span class="box"></span>لا نوافق</span>
+      </p>
+      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
+      <div class="row" style="margin-top: 30px; flex-wrap: nowrap;">
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
+        <span>التاريخ: <span class="signature-line" style="min-width: 120px;"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+      </div>
+    </div>
+  `
+
+  return printShell(body, {
+    pageMargins: '30mm 14mm 16mm 14mm',
+    fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
+    fontSize: '12.8pt',
+    lineHeight: '1.26',
+    sheetWidth: '182mm',
+    sheetMinHeight: '215mm',
+    fontFaceCss: `
+      @font-face {
+        font-family: "BoutrosJazirahTextLight";
+        src: url("/fonts/BoutrosJazirahTextLight.ttf") format("truetype");
+        font-weight: 300;
+        font-style: normal;
+      }
+    `,
+  })
+}
+
+export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
+  const settlement = loan.settlement
+  const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
+  const rows = normalizeSettlementTemplateRows(loan)
+    .map(
+      (row) => `
+        <tr>
+          <td style="width:5%;">${row.index}.</td>
+          <td class="text-right text-top">${escapeHtml(row.category)}</td>
+          <td style="width:12%;">${row.amount}</td>
+          <td style="width:11%;" class="text-top">${row.documentType}</td>
+          <td style="width:14%;" class="text-top">${row.documentDate}</td>
+          <td style="width:21%;" class="text-top">${row.issuer}</td>
+        </tr>
+      `,
+    )
+    .join('')
+
+  const attachmentPages = buildSettlementAttachmentPages(loan)
+
+  const body = `
+    <div class="print-title">
+      <h2>نموذج رقم 19</h2>
+      <h1>طلب تسوية سلفة مؤقتة</h1>
+    </div>
+    <div class="reference-line">رقم المرجع: ${escapeHtml(loan.refNumber)}</div>
+
+    <div class="formal-text">
+      <p>لمعالي رئيس الجامعة مع الاحترام والتقدير</p>
+      <p>السلام عليكم ورحمة الله وبركاته</p>
+      <p>آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:</p>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
+      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
+      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
+      <div></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+    </div>
+
+    <table class="form-grid">
+      <thead>
+        <tr>
+          <th style="width:5%;">م</th>
+          <th>أوجه الصرف الفعلية</th>
+          <th style="width:12%;">المبلغ<br />بالريال</th>
+          <th style="width:11%;">نوعه</th>
+          <th style="width:14%;">تاريخه</th>
+          <th style="width:21%;">الجهة المصدرة له</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+
+    <table class="form-grid totals-table">
+      <tr>
+        <td>المصروفات المؤيدة بمستندات</td>
+        <td>${formatNumber(Number(settlement?.supported ?? 0))}</td>
+      </tr>
+      <tr>
+        <td>المصروفات غير المؤيدة بمستندات</td>
+        <td>${formatNumber(Number(settlement?.unsupported ?? 0))}</td>
+      </tr>
+      <tr>
+        <td>إجمالي المصروفات من السلفة</td>
+        <td>${formatNumber(Number(settlement?.total ?? 0))}</td>
+      </tr>
+      <tr>
+        <td>مبلغ السلفة</td>
+        <td>${formatNumber(loan.amount)}</td>
+      </tr>
+      <tr>
+        <td>المبلغ المصروف بالزيادة المطلوبة صرفه</td>
+        <td>${formatNumber(Number(settlement?.overage ?? 0))}</td>
+      </tr>
+      <tr>
+        <td>وفر السلفة النقدي</td>
+        <td>${formatNumber(Number(settlement?.savings ?? 0))}</td>
+      </tr>
+    </table>
+
+    <div class="official-inline" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.7fr;">
+      <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
+      <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
+      <span></span>
+      <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
+    </div>
+
+    <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">
+      <span>وكيل الجامعة للتدريب</span>
+      <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
+    </div>
+
+    <div class="official-panel">
+      <h3>رأي المراقب المالي:</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>المعاملة مستوفية للمتطلبات النظامية للتسوية</span>
+      </p>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</span>
+      </p>
+      <div class="row nowrap" style="margin-top: 22px;">
+        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+      </div>
+    </div>
+
+    <div class="official-panel">
+      <h3>اعتماد رئيس الجامعة</h3>
+      <p class="row">
+        <span class="approval-choice"><span class="box"></span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
+        <span class="approval-choice"><span class="box"></span>لا أوافق</span>
+      </p>
+      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
+      <div class="row nowrap" style="margin-top: 22px;">
+        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
+        <span>التاريخ: <span class="signature-line"></span></span>
+        <span>التوقيع: <span class="signature-line"></span></span>
+      </div>
+    </div>
+    ${attachmentPages}
+  `
+
+  return printShell(body, {
+    pageMargins: '32mm 15mm 16mm 15mm',
+    fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
+    fontSize: '13.4pt',
+    lineHeight: '1.24',
+    sheetWidth: '178mm',
+    sheetMinHeight: '218mm',
+    fontFaceCss: `
+      @font-face {
+        font-family: "BoutrosJazirahTextLight";
+        src: url("/fonts/BoutrosJazirahTextLight.ttf") format("truetype");
+        font-weight: 300;
+        font-style: normal;
+      }
+    `,
+  })
+}
+
