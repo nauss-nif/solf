@@ -74,8 +74,13 @@ body {
 
 /* ── SIDEBAR COMPONENTS ─────────────────────────────────── */
 .sidebar-logo {
-  padding: 1.25rem 1rem;
+  padding: 1.35rem 1rem 1.15rem;
   border-bottom: 1px solid #1A3527;
+  text-align: center;
+}
+
+.sidebar-logo img {
+  margin-inline: auto;
 }
 
 .sidebar-section-label {

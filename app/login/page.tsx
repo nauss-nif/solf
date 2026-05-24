@@ -15,25 +15,25 @@ export default function LoginPage() {
         <div className="absolute inset-0" style={{
           background: 'radial-gradient(circle at 20% 80%, rgba(201,148,58,0.15) 0%, transparent 60%)',
         }} />
-        <div className="relative z-10 flex flex-col justify-between p-10 w-full">
+        <div className="relative z-10 flex w-full flex-col items-center justify-center p-10 text-center">
           <Image
-            src="/logo-footer.png"
+            src="/nauss-login-brand.png"
             alt="جامعة نايف العربية للعلوم الأمنية"
-            width={340}
-            height={76}
-            className="h-auto w-[260px]"
+            width={520}
+            height={150}
+            className="h-auto w-full max-w-[420px]"
             priority
           />
-          <div>
+          <div className="mt-12 flex flex-col items-center">
             <h1 className="text-3xl xl:text-4xl font-bold text-white leading-snug mb-4">
               منصة طلب<br />السلف المؤقتة
             </h1>
-            <p className="text-base text-white/70 leading-7 max-w-sm">
+            <p className="text-base text-white/70 leading-7 max-w-sm text-center">
               إدارة طلبات السلف والتسويات المالية بشكل رقمي متكامل مع إنتاج النماذج الرسمية المعتمدة جاهزة للتوقيع.
             </p>
-            <div className="mt-8 flex flex-col gap-3">
+            <div className="mt-8 flex flex-col items-center gap-3">
               {['نموذج ١٨ — طلب صرف سلفة مؤقتة', 'نموذج ١٩ — تسوية السلفة المؤقتة', 'تصدير Word وطباعة النماذج الرسمية'].map((feat) => (
-                <div key={feat} className="flex items-center gap-3 text-sm text-white/80">
+                <div key={feat} className="flex items-center justify-center gap-3 text-sm text-white/80">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: 'rgba(201,148,58,0.3)' }}>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-yellow-400">
@@ -45,7 +45,7 @@ export default function LoginPage() {
               ))}
             </div>
           </div>
-          <p className="text-xs text-white/30">وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
+          <p className="mt-12 text-xs text-white/40">وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-10">
         {/* Mobile logo */}
         <div className="lg:hidden mb-8 text-center">
-          <Image src="/logo-footer.png" alt="الجامعة" width={280} height={60} className="h-auto w-[220px] mx-auto" priority />
+          <Image src="/nauss-login-brand.png" alt="الجامعة" width={360} height={104} className="h-auto w-[280px] mx-auto" priority />
         </div>
 
         <div className="w-full max-w-md">

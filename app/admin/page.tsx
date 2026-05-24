@@ -11,8 +11,8 @@ export default function AdminPage() {
       {/* Sidebar */}
       <aside className="app-sidebar">
         <div className="sidebar-logo">
-          <Image src="/logo-footer.png" alt="الجامعة" width={200} height={46} className="h-auto w-full max-w-[170px]" priority />
-          <p className="text-xs mt-2" style={{ color: '#4A7A65' }}>منصة السلف المؤقتة</p>
+          <Image src="/nauss-login-brand.png" alt="جامعة نايف العربية للعلوم الأمنية" width={330} height={95} className="h-auto w-full max-w-[205px]" priority />
+          <p className="text-xs mt-3" style={{ color: '#D4A853' }}>منصة السلف المؤقتة</p>
         </div>
         <nav className="flex-1 py-3">
           <p className="sidebar-section-label">القائمة الرئيسية</p>
