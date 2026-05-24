@@ -27,6 +27,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const savings = Number(body.savings ?? 0)
+    const receiptNumber = String(body.receiptNumber ?? '').trim()
+    const receiptDate = String(body.receiptDate ?? '').trim()
+
+    if (savings > 0 && (!receiptNumber || receiptNumber === '-' || !receiptDate)) {
+      return NextResponse.json(
+        { error: 'يجب إدخال رقم سند قبض صحيح وتاريخه عند وجود وفر في السلفة النقدية.' },
+        { status: 400 },
+      )
+    }
+
     await prisma.$transaction([
       prisma.settlement.create({
         data: {
@@ -34,14 +45,14 @@ export async function POST(request: Request) {
           supported: body.supported,
           unsupported: body.unsupported,
           total: body.total,
-          savings: body.savings,
+          savings,
           overage: body.overage,
           invoices: {
             settlementDate: new Date().toISOString(),
             currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
             details: Array.isArray(body.details) ? body.details : [],
-            receiptNumber: String(body.receiptNumber ?? '').trim(),
-            receiptDate: String(body.receiptDate ?? '').trim(),
+            receiptNumber,
+            receiptDate,
             overageReason: String(body.overageReason ?? '').trim(),
             pettyCashApproval: body.pettyCashApproval ?? null,
           },

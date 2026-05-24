@@ -452,9 +452,13 @@ function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
   }
 
   const source = raw as Record<string, unknown>
+  const receiptNumber = typeof source.receiptNumber === 'string'
+    ? source.receiptNumber.trim()
+    : ''
+  const normalizedReceiptNumber = receiptNumber === '-' ? '' : receiptNumber
 
   return {
-    receiptNumber: typeof source.receiptNumber === 'string' ? source.receiptNumber : '',
+    receiptNumber: normalizedReceiptNumber,
     receiptDate: typeof source.receiptDate === 'string' ? source.receiptDate : '',
     overageReason: typeof source.overageReason === 'string' ? source.overageReason : '',
     pettyCashApproval: normalizeStoredFile(source.pettyCashApproval),
