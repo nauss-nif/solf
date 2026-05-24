@@ -1158,17 +1158,18 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
         <td>المبلغ المصروف بالزيادة المطلوبة صرفه</td>
         <td>${formatNumber(Number(settlement?.overage ?? 0))}</td>
       </tr>
-      <tr>
-        <td>وفر السلفة النقدي</td>
-        <td>${formatNumber(Number(settlement?.savings ?? 0))}</td>
-      </tr>
     </table>
 
-    <div class="official-inline" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.7fr;">
-      <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
+    <div class="official-inline" style="grid-template-columns: 1fr 1fr 1fr; direction: rtl; text-align: right;">
+      <span>وفر السلفة النقدي: ${formatNumber(Number(settlement?.savings ?? 0))}</span>
       <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
-      <span></span>
       <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
+    </div>
+
+    <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right;">
+      <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
+      <span>التوقيع: <span class="signature-line"></span></span>
+      <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">
