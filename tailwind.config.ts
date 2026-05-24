@@ -61,8 +61,8 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ['"IBM Plex Sans Arabic"', 'Cairo', 'Tahoma', 'Arial', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'monospace'],
+        sans: ['Cairo', 'Tahoma', 'Arial', 'sans-serif'],
+        mono: ['Cairo', 'Tahoma', 'Arial', 'sans-serif'],
       },
       borderRadius: {
         'xs':   '0.25rem',

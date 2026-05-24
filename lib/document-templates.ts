@@ -717,17 +717,234 @@ function createSettlementTemplateData(loan: LoanDocumentRecord) {
   }
 }
 
+function escapeXml(value: string | number | null | undefined) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;')
+}
+
+type WordParagraphOptions = {
+  align?: 'right' | 'center' | 'left'
+  bold?: boolean
+  size?: number
+  before?: number
+  after?: number
+}
+
+type WordCellOptions = {
+  width?: number
+  shade?: string
+  bold?: boolean
+  align?: 'right' | 'center' | 'left'
+  size?: number
+}
+
+const WORD_FORM_FONT = 'Arial'
+const WORD_PAGE_WIDTH = 11906
+const WORD_PAGE_HEIGHT = 16838
+
+function wordRun(text: string | number, options: WordParagraphOptions = {}) {
+  const bold = options.bold ? '<w:b/>' : ''
+  const size = options.size ?? 20
+  const content = String(text ?? '')
+    .split('\n')
+    .map((part, index) => `${index > 0 ? '<w:br/>' : ''}<w:t xml:space="preserve">${escapeXml(part)}</w:t>`)
+    .join('')
+
+  return `<w:r><w:rPr><w:rFonts w:ascii="${WORD_FORM_FONT}" w:hAnsi="${WORD_FORM_FONT}" w:cs="${WORD_FORM_FONT}"/>${bold}<w:sz w:val="${size}"/><w:szCs w:val="${size}"/></w:rPr>${content}</w:r>`
+}
+
+function wordParagraph(text: string | number = '', options: WordParagraphOptions = {}) {
+  const align = options.align ?? 'right'
+  const before = options.before ?? 0
+  const after = options.after ?? 80
+
+  return `<w:p><w:pPr><w:bidi/><w:jc w:val="${align}"/><w:spacing w:before="${before}" w:after="${after}"/></w:pPr>${wordRun(text, options)}</w:p>`
+}
+
+function wordCell(content: string, options: WordCellOptions = {}) {
+  const width = options.width ? `<w:tcW w:w="${options.width}" w:type="dxa"/>` : ''
+  const shade = options.shade ? `<w:shd w:fill="${options.shade}"/>` : ''
+  const paragraph = content.startsWith('<w:p') || content.startsWith('<w:tbl')
+    ? content
+    : wordParagraph(content, {
+        align: options.align ?? 'center',
+        bold: options.bold,
+        size: options.size ?? 18,
+        after: 0,
+      })
+
+  return `<w:tc><w:tcPr>${width}${shade}<w:vAlign w:val="center"/></w:tcPr>${paragraph}</w:tc>`
+}
+
+function wordRow(cells: string[], height = 330) {
+  return `<w:tr><w:trPr><w:trHeight w:val="${height}" w:hRule="atLeast"/></w:trPr>${cells.join('')}</w:tr>`
+}
+
+function wordTable(rows: string[], width = 9800) {
+  return `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${width}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/><w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>${rows.join('')}</w:tbl>`
+}
+
+function wordSpacer(height: number) {
+  return `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/><w:rPr><w:sz w:val="2"/></w:rPr></w:pPr><w:r><w:rPr><w:sz w:val="2"/></w:rPr><w:t></w:t></w:r></w:p><w:p><w:pPr><w:spacing w:before="${height}" w:after="0"/></w:pPr></w:p>`
+}
+
+function wordInfoLine(label: string, value = '') {
+  return wordParagraph(`${label}${value}`, { size: 19, after: 40 })
+}
+
+function wordBorderlessTable(rows: string[], width = 9000) {
+  return `<w:tbl><w:tblPr><w:bidiVisual/><w:tblW w:w="${width}" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr>${rows.join('')}</w:tbl>`
+}
+
+function wordPanel(title: string, lines: string[]) {
+  const body = [
+    wordParagraph(title, { bold: true, size: 20, after: 120 }),
+    ...lines.map((line) => wordParagraph(line, { size: 18, after: 80 })),
+  ].join('')
+
+  return wordTable([wordRow([wordCell(body, { shade: 'D9D9D9', align: 'right' })], 1300)], 9000)
+}
+
+function buildDocxBuffer(documentBody: string, options?: { top?: number; bottom?: number; left?: number; right?: number }) {
+  const top = options?.top ?? 900
+  const bottom = options?.bottom ?? 900
+  const left = options?.left ?? 850
+  const right = options?.right ?? 850
+  const zip = new PizZip()
+
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`)
+  zip.folder('_rels')?.file('.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`)
+  zip.folder('word')?.file('_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`)
+  zip.folder('word')?.file('styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${WORD_FORM_FONT}" w:hAnsi="${WORD_FORM_FONT}" w:cs="${WORD_FORM_FONT}"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:bidi/></w:pPr></w:pPrDefault></w:docDefaults></w:styles>`)
+  zip.folder('word')?.file('document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${documentBody}<w:sectPr><w:bidi/><w:pgSz w:w="${WORD_PAGE_WIDTH}" w:h="${WORD_PAGE_HEIGHT}"/><w:pgMar w:top="${top}" w:right="${right}" w:bottom="${bottom}" w:left="${left}" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`)
+
+  return Buffer.from(zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }))
+}
+
+function buildLoanRequestFormalDocx(loan: LoanDocumentRecord) {
+  const rows = padLoanRows(normalizeLoanTemplateRows(loan), 2)
+  const budgetApproved = loan.budgetApproved === true ? '☑' : '☐'
+  const budgetRejected = loan.budgetApproved === false ? '☑' : '☐'
+  const expenseRows = rows.map((row) =>
+    wordRow([
+      wordCell(`${row.index}.`, { width: 550 }),
+      wordCell(row.amount, { width: 1500, bold: row.index === 0 }),
+      wordCell(row.category, { width: 5000, bold: row.index === 0 }),
+      wordCell(row.notes, { width: 2700, bold: row.index === 0 }),
+    ]),
+  )
+  const expenseTable = wordTable([
+    wordRow([
+      wordCell('م', { width: 550, shade: 'D9D9D9', bold: true }),
+      wordCell('المبلغ', { width: 1500, shade: 'D9D9D9', bold: true }),
+      wordCell('أوجه الصرف', { width: 5000, shade: 'D9D9D9', bold: true }),
+      wordCell('الملاحظات', { width: 2700, shade: 'D9D9D9', bold: true }),
+    ]),
+    ...expenseRows,
+    wordRow([
+      wordCell('', { shade: 'D9D9D9' }),
+      wordCell('', { shade: 'D9D9D9' }),
+      wordCell('الإجمالي كتابة:', { shade: 'D9D9D9', bold: true }),
+      wordCell(formatNumber(loan.amount), { shade: 'D9D9D9', bold: true }),
+    ]),
+  ])
+
+  const metaRows = [
+    wordRow([wordCell(wordInfoLine('مبلغ السلفة رقمًا: ', formatNumber(loan.amount)), { width: 4600, align: 'right' }), wordCell(wordInfoLine('كتابة: ', numberToArabicWords(loan.amount)), { width: 4600, align: 'right' })], 330),
+    wordRow([wordCell(wordInfoLine('اسم النشاط: ', loan.activity), { align: 'right' }), wordCell(wordParagraph(`${budgetApproved} معتمد في الموازنة        ${budgetRejected} غير معتمد`, { size: 18, after: 0 }), { align: 'right' })], 330),
+    wordRow([wordCell(wordInfoLine('الجهة المنفذة للنشاط: ', 'وكالة التدريب'), { align: 'right' }), wordCell('', {})], 330),
+    wordRow([wordCell(wordInfoLine('فترة تنفيذ النشاط: من ', `${formatDate(loan.startDate)}     إلى     ${formatDate(loan.endDate)}`), { align: 'right' }), wordCell(wordInfoLine('مكان التنفيذ: ', loan.location ?? ''), { align: 'right' })], 330),
+    wordRow([wordCell(wordInfoLine('السلفة باسم الموظف: ', loan.employee), { align: 'right' }), wordCell(wordInfoLine('توقيع طالب السلفة: ', ''), { align: 'right' })], 330),
+  ]
+
+  const body = [
+    wordSpacer(2100),
+    wordParagraph('نموذج رقم 18', { align: 'center', bold: true, size: 22, after: 80 }),
+    wordParagraph('طلب صرف سلفة مؤقتة للعمل', { align: 'center', bold: true, size: 24, after: 260 }),
+    wordParagraph(`رقم مرجعي: ${loan.refNumber}`, { align: 'right', bold: true, size: 20, after: 150 }),
+    wordParagraph('معالي رئيس الجامعة', { bold: true, size: 20, after: 80 }),
+    wordParagraph('السلام عليكم ورحمة الله وبركاته', { bold: true, size: 20, after: 160 }),
+    wordParagraph('آمل الموافقة على صرف سلفة نقدية مؤقتة وفق ما يلي:', { size: 19, after: 160 }),
+    wordBorderlessTable(metaRows, 9200),
+    expenseTable,
+    wordParagraph('مسؤول الجهة:      وكيل الجامعة للتدريب      الاسم: د. عبدالرزاق بن عبدالعزيز المرجان      التوقيع: ................', { bold: true, size: 18, after: 180 }),
+    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', 'الاسم: شريف محمد مصطفى الغزولي        التوقيع: ........................        التاريخ: .... / .... / ....']),
+    wordParagraph('', { after: 80 }),
+    wordPanel('اعتماد رئيس الجامعة', ['☐ نوافق        ☐ لا نوافق', 'وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة', 'رئيس الجامعة: ................................        التوقيع: ........................        التاريخ: .... / .... / ....']),
+  ].join('')
+
+  return buildDocxBuffer(body, { top: 720, right: 900, left: 900, bottom: 720 })
+}
+
+function buildSettlementFormalDocx(loan: LoanDocumentRecord) {
+  const settlement = loan.settlement
+  const meta = normalizeSettlementMeta(settlement?.invoices)
+  const rows = padSettlementRows(normalizeSettlementDocxRows(loan), 9)
+  const settlementRows = rows.map((row) =>
+    wordRow([
+      wordCell(`${row.index}.`, { width: 450 }),
+      wordCell(row.category, { width: 3400, align: 'right' }),
+      wordCell(row.amount, { width: 1100 }),
+      wordCell(row.documentType, { width: 1000 }),
+      wordCell(row.documentDate, { width: 1600 }),
+      wordCell(row.issuer, { width: 2100 }),
+    ], 285),
+  )
+  const totals = [
+    ['المصروفات المؤيدة بمستندات', formatNumber(Number(settlement?.supported ?? 0))],
+    ['المصروفات غير المؤيدة بمستندات', formatNumber(Number(settlement?.unsupported ?? 0))],
+    ['إجمالي المصروفات من السلفة', formatNumber(Number(settlement?.total ?? 0))],
+    ['مبلغ السلفة', formatNumber(loan.amount)],
+    ['المبلغ المصروف بالزيادة المطلوبة صرفه', formatNumber(Number(settlement?.overage ?? 0))],
+    ['وفر السلفة النقدي', formatNumber(Number(settlement?.savings ?? 0))],
+  ].map(([label, amount]) => wordRow([wordCell(label, { width: 3500, align: 'right' }), wordCell(amount, { width: 2400, shade: 'D9D9D9' })], 330))
+
+  const body = [
+    wordSpacer(1600),
+    wordParagraph('نموذج رقم 19', { align: 'center', bold: true, size: 22, after: 80 }),
+    wordParagraph('طلب تسوية سلفة مؤقتة', { align: 'center', bold: true, size: 22, after: 220 }),
+    wordParagraph(`رقم المرجع: ${loan.refNumber}`, { align: 'right', bold: true, size: 20, after: 100 }),
+    wordParagraph('لمعالي رئيس الجامعة مع الاحترام والتقدير', { bold: true, size: 20, after: 60 }),
+    wordParagraph('السلام عليكم ورحمة الله وبركاته', { bold: true, size: 20, after: 150 }),
+    wordParagraph('آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:', { size: 18, after: 150 }),
+    wordBorderlessTable([
+      wordRow([wordCell(wordInfoLine('اسم النشاط: ', loan.activity), { align: 'right' }), wordCell(wordInfoLine('مكان التنفيذ: ', loan.location ?? ''), { align: 'right' })], 300),
+      wordRow([wordCell(wordInfoLine('الجهة المنفذة للنشاط: ', 'وكالة التدريب'), { align: 'right' }), wordCell('', {})], 300),
+      wordRow([wordCell(wordInfoLine('تاريخ بداية النشاط: ', formatDate(loan.startDate)), { align: 'right' }), wordCell(wordInfoLine('نهاية النشاط: ', formatDate(loan.endDate)), { align: 'right' })], 300),
+      wordRow([wordCell(wordInfoLine('تاريخ بداية الصرف: ', formatDate(loan.startDate)), { align: 'right' }), wordCell(wordInfoLine('نهاية الصرف: ', formatDate(loan.endDate)), { align: 'right' })], 300),
+    ], 9000),
+    wordTable([
+      wordRow([
+        wordCell('م', { width: 450, shade: 'D9D9D9', bold: true }),
+        wordCell('أوجه الصرف الفعلية', { width: 3400, shade: 'D9D9D9', bold: true }),
+        wordCell('المبلغ\nبالريال', { width: 1100, shade: 'D9D9D9', bold: true }),
+        wordCell('نوعه', { width: 1000, shade: 'D9D9D9', bold: true }),
+        wordCell('تاريخه', { width: 1600, shade: 'D9D9D9', bold: true }),
+        wordCell('المستندات المؤيدة\nالجهة المصدرة له', { width: 2100, shade: 'D9D9D9', bold: true }),
+      ], 360),
+      ...settlementRows,
+    ], 9650),
+    wordBorderlessTable(totals, 6000),
+    wordParagraph(`اسم مستلم السلفة: ${loan.employee}        رقم سند القبض: ${meta.receiptNumber ?? ''}        تاريخه: ${formatDateOrBlank(meta.receiptDate ?? '')}`, { size: 18, after: 120 }),
+    wordParagraph('وكيل الجامعة للتدريب        د. عبدالرزاق بن عبدالعزيز المرجان        التوقيع: ........................', { bold: true, size: 18, after: 140 }),
+    wordPanel('رأي المراقب المالي:', ['☐ المعاملة مستوفية للمتطلبات النظامية للتسوية', '☐ المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.', 'الاسم: شريف محمد مصطفى الغزولي        التوقيع: ........................        التاريخ: .... / .... / ....']),
+    wordParagraph('', { after: 80 }),
+    wordPanel('اعتماد رئيس الجامعة', ['☐ أوافق على تسوية السلفة وفق ما هو محدد أعلاه.        ☐ لا أوافق', 'وعلى كل فيما يخصه إكمال اللازم', 'رئيس الجامعة: ................................        التوقيع: ........................        التاريخ: .... / .... / ....']),
+  ].join('')
+
+  return buildDocxBuffer(body, { top: 720, right: 900, left: 900, bottom: 720 })
+}
+
 export async function buildLoanRequestDocx(loan: LoanDocumentRecord) {
-  const templateZip = await loadPatchedTemplate(LOAN_TEMPLATE_PATH, LOAN_TEMPLATE_REPLACEMENTS)
-  return renderDocxTemplate(templateZip, createLoanRequestTemplateData(loan))
+  return buildLoanRequestFormalDocx(loan)
 }
 
 export async function buildSettlementDocx(loan: LoanDocumentRecord) {
-  const templateZip = await loadPatchedTemplate(
-    SETTLEMENT_TEMPLATE_PATH,
-    SETTLEMENT_TEMPLATE_REPLACEMENTS,
-  )
-  return renderDocxTemplate(templateZip, createSettlementTemplateData(loan))
+  return buildSettlementFormalDocx(loan)
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {

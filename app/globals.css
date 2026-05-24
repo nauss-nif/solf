@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+@import '@fontsource/cairo/400.css';
 
 @tailwind base;
 @tailwind components;
@@ -16,7 +16,7 @@ html {
 }
 
 body {
-  font-family: 'IBM Plex Sans Arabic', Cairo, Tahoma, Arial, sans-serif;
+  font-family: 'Cairo', Tahoma, Arial, sans-serif;
   background-color: #F0F5F2;
   color: #0D1F18;
   line-height: 1.6;
@@ -151,7 +151,7 @@ body {
   font-size: 2rem;
   font-weight: 700;
   line-height: 1.1;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Cairo', Tahoma, Arial, sans-serif;
 }
 
 .stat-label {
@@ -544,7 +544,7 @@ textarea.input-shell { resize: vertical; min-height: 80px; }
 }
 
 .summary-pill-label { font-size: 0.7rem; color: #4A7A65; font-weight: 500; }
-.summary-pill-value { font-size: 1.125rem; font-weight: 700; color: #0D1F18; margin-top: 0.25rem; font-family: 'IBM Plex Mono', monospace; }
+.summary-pill-value { font-size: 1.125rem; font-weight: 700; color: #0D1F18; margin-top: 0.25rem; font-family: 'Cairo', Tahoma, Arial, sans-serif; }
 
 /* ── SCROLLBAR ───────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
