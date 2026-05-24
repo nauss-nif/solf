@@ -1076,16 +1076,16 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
 export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
   const settlement = loan.settlement
   const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
-  const rows = normalizeSettlementTemplateRows(loan)
+  const rows = padSettlementRows(normalizeSettlementTemplateRows(loan), 9)
     .map(
       (row) => `
         <tr>
-          <td style="width:5%;">${row.index}.</td>
-          <td class="text-right text-top">${escapeHtml(row.category)}</td>
-          <td style="width:12%;">${row.amount}</td>
-          <td style="width:11%;" class="text-top">${row.documentType}</td>
-          <td style="width:14%;" class="text-top">${row.documentDate}</td>
-          <td style="width:21%;" class="text-top">${row.issuer}</td>
+          <td class="num-col">${row.index}.</td>
+          <td class="spend-col text-right text-top">${escapeHtml(row.category)}</td>
+          <td class="amount-col">${row.amount}</td>
+          <td class="type-col text-top">${row.documentType}</td>
+          <td class="date-col text-top">${row.documentDate}</td>
+          <td class="issuer-col text-top">${row.issuer}</td>
         </tr>
       `,
     )
@@ -1094,38 +1094,77 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
   const attachmentPages = buildSettlementAttachmentPages(loan)
 
   const body = `
-    <div class="print-title">
-      <h2>نموذج رقم 19</h2>
-      <h1>طلب تسوية سلفة مؤقتة</h1>
-    </div>
-    <div class="reference-line">رقم المرجع: ${escapeHtml(loan.refNumber)}</div>
+    <style>
+      .form19 { width: 100%; padding-top: 24mm; font-size: 10.2pt; line-height: 1.22; color: #000; }
+      .form19 * { box-sizing: border-box; }
+      .form19-title { text-align: center; font-weight: 700; margin-bottom: 5mm; }
+      .form19-title h2 { margin: 0 0 1mm; font-size: 11pt; }
+      .form19-title h1 { margin: 0; font-size: 10.8pt; }
+      .form19-intro { width: 44%; margin-right: auto; font-weight: 700; font-size: 9.8pt; line-height: 1.55; }
+      .form19-intro p { margin: 0; }
+      .form19-intro .request-text { margin-top: 1.5mm; font-weight: 400; white-space: nowrap; }
+      .form19-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8mm 25mm; margin: 4mm 0 1.5mm; font-size: 9.6pt; }
+      .form19-field { display: grid; grid-template-columns: 31mm 1fr; align-items: end; min-height: 5.2mm; }
+      .form19-field .label { font-weight: 700; text-align: right; }
+      .form19-field .line { border-bottom: 1px solid #000; min-height: 4.5mm; padding: 0 2mm; text-align: center; }
+      .form19-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 1.5mm; font-size: 9.3pt; }
+      .form19-table th, .form19-table td { border: 1px solid #000; padding: 1mm 1.4mm; height: 5.2mm; text-align: center; vertical-align: middle; }
+      .form19-table th { background: #d9d9d9; font-weight: 700; }
+      .form19-table .num-col { width: 4.5%; }
+      .form19-table .spend-col { width: 37%; }
+      .form19-table .amount-col { width: 12%; }
+      .form19-table .type-col { width: 10.5%; }
+      .form19-table .date-col { width: 13.5%; }
+      .form19-table .issuer-col { width: 22.5%; }
+      .form19-summary { display: grid; grid-template-columns: 37mm 28mm 1fr; gap: 0 6mm; margin-top: 1mm; align-items: start; font-size: 9.5pt; }
+      .form19-summary-values { grid-column: 1 / 2; }
+      .form19-summary-labels { grid-column: 3 / 4; }
+      .form19-summary .value-box { height: 5.3mm; border: 1px solid #000; background: #d9d9d9; text-align: center; padding-top: 1mm; margin-bottom: 1mm; font-weight: 700; }
+      .form19-summary .label-row { height: 5.3mm; margin-bottom: 1mm; display: flex; align-items: center; justify-content: flex-start; }
+      .form19-receipt { display: grid; grid-template-columns: 30mm 13mm 28mm 21mm 31mm 1fr; align-items: center; gap: 3mm; margin-top: 1mm; font-size: 9.3pt; }
+      .form19-receipt .box-line { height: 5.3mm; border: 1px solid #000; background: #d9d9d9; text-align: center; }
+      .form19-sign { display: grid; grid-template-columns: 34mm 22mm 1fr 42mm; gap: 6mm; margin-top: 1mm; font-size: 9.3pt; align-items: center; }
+      .form19-sign .blue-line { color: #0645ad; text-decoration: underline; font-weight: 700; }
+      .form19-panel { border: 1px solid #9b9b9b; background: #d9d9d9; border-radius: 7px; min-height: 22mm; margin-top: 3mm; padding: 3mm 6mm; font-size: 9.5pt; break-inside: avoid; }
+      .form19-panel h3 { margin: 0 0 2mm; font-size: 9.8pt; font-weight: 700; }
+      .form19-panel .choice { display: flex; align-items: center; gap: 2mm; margin-bottom: 2mm; }
+      .form19-panel .check { width: 5mm; height: 5mm; border: 1px solid #000; background: #fff; display: inline-block; }
+      .form19-panel-footer { display: grid; grid-template-columns: 1fr 38mm 38mm; gap: 7mm; align-items: end; margin-top: 3mm; }
+      .form19-line { display: inline-block; min-width: 35mm; border-bottom: 1px solid #000; height: 4mm; vertical-align: bottom; }
+    </style>
+    <div class="form19">
+      <div class="form19-title">
+        <h2>نموذج رقم 19</h2>
+        <h1>طلب تسوية سلفة مؤقتة</h1>
+      </div>
 
-    <div class="formal-text">
-      <p>لمعالي رئيس الجامعة مع الاحترام والتقدير</p>
-      <p>السلام عليكم ورحمة الله وبركاته</p>
-      <p>آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:</p>
-    </div>
+      <div class="form19-intro">
+        <p>رقم المرجع: ${escapeHtml(loan.refNumber)}</p>
+        <p>لمعالي رئيس الجامعة مع الاحترام والتقدير</p>
+        <p>السلام عليكم ورحمة الله وبركاته</p>
+        <p class="request-text">آمل التفضل بالموافقة على تسوية السلفة المصروفة باسمي وفق البيانات المحددة أدناه:</p>
+      </div>
 
-    <div class="meta-grid">
-      <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
-      <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
-      <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
-      <div></div>
-      <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
-    </div>
+      <div class="form19-meta">
+        <div class="form19-field"><span class="label">مكان التنفيذ:</span><span class="line">${escapeHtml(loan.location ?? '')}</span></div>
+        <div class="form19-field"><span class="label">اسم النشاط:</span><span class="line">${escapeHtml(loan.activity)}</span></div>
+        <div class="form19-field"><span class="label"></span><span class="line"></span></div>
+        <div class="form19-field"><span class="label">الجهة المنفذة للنشاط:</span><span class="line">وكالة التدريب</span></div>
+        <div class="form19-field"><span class="label">نهاية النشاط</span><span class="line">${formatDate(loan.endDate)}</span></div>
+        <div class="form19-field"><span class="label">تاريخ بداية النشاط:</span><span class="line">${formatDate(loan.startDate)}</span></div>
+        <div class="form19-field"><span class="label">نهاية الصرف:</span><span class="line">${formatDate(loan.endDate)}</span></div>
+        <div class="form19-field"><span class="label">تاريخ بداية الصرف:</span><span class="line">${formatDate(loan.startDate)}</span></div>
+      </div>
 
-    <table class="form-grid">
+      <table class="form19-table">
       <thead>
         <tr>
-          <th style="width:5%;">م</th>
-          <th>أوجه الصرف الفعلية</th>
-          <th style="width:12%;">المبلغ<br />بالريال</th>
-          <th style="width:11%;">نوعه</th>
-          <th style="width:14%;">تاريخه</th>
-          <th style="width:21%;">الجهة المصدرة له</th>
+          <th class="num-col">م</th>
+          <th class="spend-col">أوجه الصرف الفعلية</th>
+          <th class="amount-col">المبلغ<br />بالريال</th>
+          <th class="type-col">نوعه</th>
+          <th class="date-col">تاريخه</th>
+          <th class="issuer-col">المستندات المؤيدة<br />الجهة المصدرة له</th>
         </tr>
       </thead>
       <tbody>
@@ -1133,84 +1172,77 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </tbody>
     </table>
 
-    <table class="form-grid totals-table">
-      <tr>
-        <td>المصروفات المؤيدة بمستندات</td>
-        <td>${formatNumber(Number(settlement?.supported ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>المصروفات غير المؤيدة بمستندات</td>
-        <td>${formatNumber(Number(settlement?.unsupported ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>إجمالي المصروفات من السلفة</td>
-        <td>${formatNumber(Number(settlement?.total ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>مبلغ السلفة</td>
-        <td>${formatNumber(loan.amount)}</td>
-      </tr>
-      <tr>
-        <td>المبلغ المصروف بالزيادة المطلوبة صرفه</td>
-        <td>${formatNumber(Number(settlement?.overage ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>وفر السلفة النقدي</td>
-        <td>${formatNumber(Number(settlement?.savings ?? 0))}</td>
-      </tr>
-    </table>
-
-    <div class="official-inline" style="grid-template-columns: 1.2fr 0.9fr 0.6fr 0.7fr;">
-      <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
-      <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
-      <span></span>
-      <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
-    </div>
-
-    <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">
-      <span>وكيل الجامعة للتدريب</span>
-      <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
-      <span>التوقيع: <span class="signature-line"></span></span>
-    </div>
-
-    <div class="official-panel">
-      <h3>رأي المراقب المالي:</h3>
-      <p class="row">
-        <span class="approval-choice"><span class="box"></span>المعاملة مستوفية للمتطلبات النظامية للتسوية</span>
-      </p>
-      <p class="row">
-        <span class="approval-choice"><span class="box"></span>المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</span>
-      </p>
-      <div class="row nowrap" style="margin-top: 22px;">
-        <span>الاسم: شريف محمد مصطفى الغزولي</span>
-        <span>التوقيع: <span class="signature-line"></span></span>
-        <span>التاريخ: <span class="signature-line"></span></span>
+      <div class="form19-summary">
+        <div class="form19-summary-values">
+          <div class="value-box">${formatNumber(Number(settlement?.supported ?? 0))}</div>
+          <div class="value-box">${formatNumber(Number(settlement?.unsupported ?? 0))}</div>
+          <div class="value-box">${formatNumber(Number(settlement?.total ?? 0))}</div>
+          <div class="value-box">${formatNumber(loan.amount)}</div>
+          <div class="value-box">${formatNumber(Number(settlement?.overage ?? 0))}</div>
+        </div>
+        <div class="form19-summary-labels">
+          <div class="label-row">المصروفات المؤيدة بمستندات</div>
+          <div class="label-row">المصروفات غير المؤيدة بمستندات</div>
+          <div class="label-row">إجمالي المصروفات من السلفة</div>
+          <div class="label-row">مبلغ السلفة</div>
+          <div class="label-row">المبلغ المصروف بالزيادة المطلوبة صرفه</div>
+          <div class="label-row">وفر السلفة النقدي</div>
+        </div>
       </div>
-    </div>
 
-    <div class="official-panel">
-      <h3>اعتماد رئيس الجامعة</h3>
-      <p class="row">
-        <span class="approval-choice"><span class="box"></span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
-        <span class="approval-choice"><span class="box"></span>لا أوافق</span>
-      </p>
-      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
-      <div class="row nowrap" style="margin-top: 22px;">
-        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
-        <span>التاريخ: <span class="signature-line"></span></span>
-        <span>التوقيع: <span class="signature-line"></span></span>
+      <div class="form19-receipt">
+        <span class="box-line"></span>
+        <span>تاريخه</span>
+        <span class="box-line">${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
+        <span>رقم سند القبض</span>
+        <span class="box-line">${escapeHtml(settlementMeta.receiptNumber || '')}</span>
+        <span></span>
+      </div>
+
+      <div class="form19-sign">
+        <span>التاريخ:</span>
+        <span class="blue-line">التوقيع:</span>
+        <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
+        <span>وكيل الجامعة للتدريب</span>
+        <span>التاريخ:</span>
+        <span class="blue-line">التوقيع:</span>
+        <span></span>
+        <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
+      </div>
+
+      <div class="form19-panel">
+        <h3>رأي المراقب المالي:</h3>
+        <div class="choice"><span class="check"></span><span>المعاملة مستوفية للمتطلبات النظامية للتسوية</span></div>
+        <div class="choice"><span class="check"></span><span>المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</span></div>
+        <div class="form19-panel-footer">
+          <span>الاسم: شريف محمد مصطفى الغزولي</span>
+          <span>التوقيع:<span class="form19-line"></span></span>
+          <span>التاريخ: / &nbsp;&nbsp; /</span>
+        </div>
+      </div>
+
+      <div class="form19-panel">
+        <h3>اعتماد رئيس الجامعة</h3>
+        <div class="choice"><span class="check"></span><span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span><span class="check" style="margin-right:18mm;"></span><span>لا أوافق</span></div>
+        <div>وعلى كل فيما يخصه إكمال اللازم</div>
+        <div style="margin-top:2mm;">رئيس الجامعة: <span class="form19-line" style="min-width:45mm;"></span></div>
+        <div class="form19-panel-footer">
+          <span></span>
+          <span>التوقيع:<span class="form19-line"></span></span>
+          <span>التاريخ: / &nbsp;&nbsp; /</span>
+        </div>
       </div>
     </div>
     ${attachmentPages}
   `
 
   return printShell(body, {
-    pageMargins: '32mm 15mm 16mm 15mm',
+    pageMargins: '0',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
-    fontSize: '13.4pt',
-    lineHeight: '1.24',
-    sheetWidth: '178mm',
-    sheetMinHeight: '218mm',
+    fontSize: '10pt',
+    lineHeight: '1.2',
+    sheetWidth: '182mm',
+    sheetMinHeight: '257mm',
     fontFaceCss: `
       @font-face {
         font-family: "BoutrosJazirahTextLight";

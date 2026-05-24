@@ -367,7 +367,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     }
     if (settlementSummary.overage > 0 && !settlementMeta.overageReason.trim()) { setSettlementError('أدخل مبرر الزيادة عند تجاوز إجمالي المصروفات مبلغ السلفة.'); return }
     if (settlementSummary.savings > 0) {
-      if (!settlementMeta.receiptNumber.trim() || settlementMeta.receiptNumber.trim() === '-') { setSettlementError('أدخل رقم سند قبض صحيح عند وجود وفر في السلفة النقدية.'); return }
+      if (!settlementMeta.receiptNumber.trim()) { setSettlementError('أدخل رقم سند القبض عند وجود وفر في السلفة النقدية.'); return }
       if (!settlementMeta.receiptDate) { setSettlementError('أدخل تاريخ سند القبض.'); return }
     }
     startTransition(async () => {
