@@ -5,7 +5,6 @@
 html {
   scroll-behavior: smooth;
   font-family: "Cairo", Tahoma, Arial, sans-serif;
-  font-weight: 400;
 }
 
 body {
@@ -15,15 +14,23 @@ body {
   font-weight: 400;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 400;
-}
-
-button, input, select, textarea {
+/* ── توحيد الخط Cairo العادي في كل العناصر ── */
+h1, h2, h3, h4, h5, h6,
+button, input, select, textarea, label, span, p, a, td, th, div {
   font-family: "Cairo", Tahoma, Arial, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+}
+
+p, span, a, td, th, label, button, input, select, textarea {
   font-weight: 400;
 }
 
+/* ─────────────────────────────────────────────────────────── */
+/* الخلفيات والتدرجات                                          */
+/* ─────────────────────────────────────────────────────────── */
 .bg-app-gradient {
   background:
     radial-gradient(circle at top right, rgba(1, 101, 100, 0.16), transparent 30%),
@@ -37,10 +44,16 @@ button, input, select, textarea {
     linear-gradient(45deg, rgba(208, 178, 132, 0.3), transparent 60%);
 }
 
+/* ─────────────────────────────────────────────────────────── */
+/* الظلال                                                      */
+/* ─────────────────────────────────────────────────────────── */
 .shadow-soft {
   box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
 }
 
+/* ─────────────────────────────────────────────────────────── */
+/* Modal                                                        */
+/* ─────────────────────────────────────────────────────────── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -67,6 +80,9 @@ button, input, select, textarea {
   box-shadow: 0 32px 80px rgba(15, 23, 42, 0.22);
 }
 
+/* ─────────────────────────────────────────────────────────── */
+/* Input Shell                                                  */
+/* ─────────────────────────────────────────────────────────── */
 .input-shell {
   width: 100%;
   border-radius: 18px;
@@ -93,3 +109,24 @@ button, input, select, textarea {
   color: #94a3b8;
   font-weight: 400;
 }
+
+/* ─────────────────────────────────────────────────────────── */
+/* Tailwind color overrides للألوان المخصصة                    */
+/* ─────────────────────────────────────────────────────────── */
+.text-primary   { color: #016564; }
+.text-secondary { color: #d0b284; }
+.text-success   { color: #059669; }
+.text-warning   { color: #d97706; }
+.text-danger    { color: #dc2626; }
+
+.bg-primary   { background-color: #016564; }
+.bg-secondary { background-color: #d0b284; }
+.bg-success   { background-color: #059669; }
+.bg-warning   { background-color: #d97706; }
+.bg-danger    { background-color: #dc2626; }
+
+.border-primary   { border-color: #016564; }
+.border-secondary { border-color: #d0b284; }
+.border-success   { border-color: #059669; }
+.border-warning   { border-color: #d97706; }
+.border-danger    { border-color: #dc2626; }
