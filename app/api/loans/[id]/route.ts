@@ -85,7 +85,7 @@ export async function PATCH(
           amount: Number(body.amount ?? 0),
           budgetApproved:
             typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
-          reviewStatus: String(body.reviewStatus ?? loan.reviewStatus),
+          reviewStatus: (body.reviewStatus ?? loan.reviewStatus) as 'PENDING' | 'REVIEWED' | 'RETURNED',
           reviewNote: String(body.reviewNote ?? '').trim() || null,
           files: body.files ?? undefined,
           startDate: new Date(body.startDate),
