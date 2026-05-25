@@ -448,7 +448,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               <p className="sidebar-section-label mt-4">الإدارة</p>
               <button type="button" onClick={() => router.push('/admin')}
                 className="nav-item w-full text-right">
-                <span>⚙️</span> إدارة المستخدمين
+                <span>👥</span> إدارة المستخدمين
+              </button>
+              <button type="button" onClick={() => router.push('/admin/settings')}
+                className="nav-item w-full text-right">
+                <span>⚙️</span> إعدادات النظام
               </button>
             </>
           )}

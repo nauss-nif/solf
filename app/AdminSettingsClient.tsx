@@ -1,0 +1,157 @@
+'use client'
+
+import { useEffect, useState, useTransition } from 'react'
+
+type SequenceState = { lastNumber: number; nextNumber: number; nextRefNumber: string }
+type SystemSettings = { allowPrintBeforeReview: boolean; trainingVicePresidentName: string; financialControllerName: string }
+
+export default function AdminSettingsClient() {
+  const [loadError, setLoadError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
+  const [isPending, startTransition] = useTransition()
+  const [sequence, setSequence] = useState<SequenceState | null>(null)
+  const [sequenceDraft, setSequenceDraft] = useState('')
+  const [settings, setSettings] = useState<SystemSettings | null>(null)
+  const [settingsDraft, setSettingsDraft] = useState<SystemSettings | null>(null)
+
+  async function loadSequence() {
+    const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
+    const data = await res.json()
+    if (!res.ok) { setLoadError(data.error ?? 'تعذر تحميل تسلسل المعاملات'); return }
+    setSequence(data)
+    setSequenceDraft(String(data.lastNumber))
+  }
+
+  async function loadSettings() {
+    const res = await fetch('/api/admin/settings', { cache: 'no-store' })
+    const data = await res.json()
+    if (!res.ok) { setLoadError(data.error ?? 'تعذر تحميل إعدادات النظام'); return }
+    setSettings(data)
+    setSettingsDraft(data)
+  }
+
+  useEffect(() => { void loadSequence(); void loadSettings() }, [])
+
+  function showSuccess(msg: string) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 2500) }
+
+  return (
+    <div className="space-y-5 animate-fade-up">
+      {loadError && <div className="alert alert-error">{loadError}</div>}
+      {successMsg && <div className="alert alert-success">{successMsg}</div>}
+
+      <div className="section-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="font-bold" style={{ color: '#0D1F18' }}>إعدادات النظام</h2>
+            <p className="mt-1 text-sm" style={{ color: '#4A7A65' }}>
+              تتحكم هذه الإعدادات في الطباعة والأسماء الرسمية الظاهرة في النماذج.
+            </p>
+            {settings && (
+              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <span className="badge badge-neutral">الطباعة قبل الاعتماد: {settings.allowPrintBeforeReview ? 'نعم' : 'لا'}</span>
+                <span className="badge badge-primary">وكيل الجامعة: {settings.trainingVicePresidentName}</span>
+              </div>
+            )}
+          </div>
+          <div className="grid w-full gap-3 lg:max-w-3xl lg:grid-cols-[auto_1fr_1fr_auto] lg:items-end">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm">
+              <input
+                type="checkbox"
+                checked={settingsDraft?.allowPrintBeforeReview ?? true}
+                onChange={(e) => setSettingsDraft((prev) => prev ? { ...prev, allowPrintBeforeReview: e.target.checked } : prev)}
+              />
+              <span>السماح بالطباعة قبل الاعتماد</span>
+            </label>
+            <label className="block">
+              <span className="field-label">اسم وكيل الجامعة للتدريب</span>
+              <input
+                type="text"
+                value={settingsDraft?.trainingVicePresidentName ?? ''}
+                onChange={(e) => setSettingsDraft((prev) => prev ? { ...prev, trainingVicePresidentName: e.target.value } : prev)}
+                className="input-shell"
+              />
+            </label>
+            <label className="block">
+              <span className="field-label">اسم المراقب المالي</span>
+              <input
+                type="text"
+                value={settingsDraft?.financialControllerName ?? ''}
+                onChange={(e) => setSettingsDraft((prev) => prev ? { ...prev, financialControllerName: e.target.value } : prev)}
+                className="input-shell"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={isPending || !settingsDraft}
+              className="btn btn-primary"
+              onClick={() => {
+                if (!settingsDraft) return
+                startTransition(async () => {
+                  const res = await fetch('/api/admin/settings', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settingsDraft),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok) { setLoadError(data.error ?? 'تعذر تحديث الإعدادات'); return }
+                  setSettings(data); setSettingsDraft(data); showSuccess('تم تحديث إعدادات النظام.')
+                })
+              }}
+            >
+              حفظ الإعدادات
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="section-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="font-bold" style={{ color: '#0D1F18' }}>تسلسل أرقام المعاملات</h2>
+            <p className="mt-1 text-sm" style={{ color: '#4A7A65' }}>
+              استخدم هذا الحقل لضبط آخر رقم مستخدم. إذا كان آخر رقم يدوي هو 27 فسيكون الطلب القادم {sequence?.nextRefNumber ?? 'وت/26/0028'}.
+            </p>
+            {sequence && (
+              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <span className="badge badge-neutral">آخر رقم: {sequence.lastNumber}</span>
+                <span className="badge badge-primary">القادم: {sequence.nextRefNumber}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="block">
+              <span className="field-label">آخر رقم مستخدم</span>
+              <input
+                type="number"
+                min="0"
+                value={sequenceDraft}
+                onChange={(e) => setSequenceDraft(e.target.value)}
+                className="input-shell"
+                style={{ width: 180 }}
+              />
+            </label>
+            <button
+              type="button"
+              disabled={isPending}
+              className="btn btn-primary"
+              onClick={() => {
+                startTransition(async () => {
+                  const res = await fetch('/api/admin/sequence', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lastNumber: Number(sequenceDraft) }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok) { setLoadError(data.error ?? 'تعذر تحديث التسلسل'); return }
+                  setSequence(data); setSequenceDraft(String(data.lastNumber)); showSuccess('تم تحديث تسلسل المعاملات.')
+                })
+              }}
+            >
+              حفظ التسلسل
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

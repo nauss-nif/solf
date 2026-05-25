@@ -1,14 +1,13 @@
 import { requireSuperAdminUser } from '@/lib/auth'
-import AdminUsersClient from '@/app/AdminUsersClient'
+import AdminSettingsClient from '@/app/AdminSettingsClient'
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default function AdminPage() {
+export default function AdminSettingsPage() {
   const user = requireSuperAdminUser()
 
   return (
     <div className="app-layout">
-      {/* Sidebar */}
       <aside className="app-sidebar">
         <div className="sidebar-logo">
           <Image src="/nauss-login-brand.png" alt="جامعة نايف العربية للعلوم الأمنية" width={330} height={95} className="h-auto w-full max-w-[205px]" priority />
@@ -20,10 +19,10 @@ export default function AdminPage() {
             <span>📋</span> لوحة التحكم
           </Link>
           <p className="sidebar-section-label mt-4">الإدارة</p>
-          <Link href="/admin" className="nav-item active">
+          <Link href="/admin" className="nav-item">
             <span>👥</span> إدارة المستخدمين
           </Link>
-          <Link href="/admin/settings" className="nav-item">
+          <Link href="/admin/settings" className="nav-item active">
             <span>⚙️</span> إعدادات النظام
           </Link>
         </nav>
@@ -44,16 +43,15 @@ export default function AdminPage() {
         </div>
       </aside>
 
-      {/* Content */}
       <div className="app-content">
         <header className="app-topbar">
           <div>
-            <h1 className="text-base font-bold" style={{ color: '#0D1F18' }}>إدارة المستخدمين والصلاحيات</h1>
+            <h1 className="text-base font-bold" style={{ color: '#0D1F18' }}>إعدادات النظام</h1>
             <p className="text-xs" style={{ color: '#6B9A88' }}>{user.fullName} • {user.email}</p>
           </div>
         </header>
         <main className="app-main">
-          <AdminUsersClient />
+          <AdminSettingsClient />
         </main>
       </div>
     </div>

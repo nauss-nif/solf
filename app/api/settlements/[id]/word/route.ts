@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { buildSettlementDocx } from '@/lib/document-templates'
 import { getAuthorizedLoan } from '@/lib/loan-records'
+import { getSystemSettings } from '@/lib/system-settings'
 
 function toSafeFilename(value: string) {
   return value.replaceAll('/', '-').replace(/[^\x20-\x7E]/g, '-').replace(/-+/g, '-')
@@ -11,13 +12,18 @@ export async function GET(
   { params }: { params: { id: string } },
 ) {
   try {
+    const settings = await getSystemSettings()
     const loan = await getAuthorizedLoan(params.id)
+
+    if (!settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
+      return NextResponse.json({ error: 'Printing is not allowed before review' }, { status: 403 })
+    }
 
     if (!loan.settlement) {
       return NextResponse.json({ error: 'Settlement not found' }, { status: 404 })
     }
 
-    const file = await buildSettlementDocx(loan)
+    const file = await buildSettlementDocx(loan, { settings })
     const filename = `settlement-${toSafeFilename(loan.refNumber)}.docx`
 
     return new NextResponse(file, {

@@ -3,6 +3,7 @@ import path from 'node:path'
 import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
 import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
+import { DEFAULT_SYSTEM_SETTINGS, type SystemSettings } from '@/lib/system-settings'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
 type LoanItemLike = {
@@ -58,8 +59,13 @@ export type LoanDocumentRecord = {
   startDate: Date | string
   endDate: Date | string
   createdAt: Date | string
+  reviewStatus?: string | null
   items: LoanItemLike[]
   settlement?: SettlementLike | null
+}
+
+type DocumentRenderOptions = {
+  settings?: SystemSettings
 }
 
 type LoanTemplateRow = {
@@ -345,15 +351,37 @@ function printShell(body: string, options: PrintShellOptions) {
       flex-direction: column;
       gap: 14px;
     }
+    .attachment-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 2px solid #111827;
+      padding-bottom: 8px;
+      font-weight: 700;
+    }
     .attachment-page h2 {
       margin: 0;
       font-size: 16px;
       text-align: right;
     }
-    .attachment-page p {
-      margin: 0;
+    .attachment-meta {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
       font-size: 12px;
-      color: #475569;
+    }
+    .attachment-meta th,
+    .attachment-meta td {
+      border: 1px solid #111827;
+      padding: 7px 8px;
+      text-align: right;
+      vertical-align: middle;
+    }
+    .attachment-meta th {
+      width: 18%;
+      background: #D9D9D9;
+      font-weight: 700;
     }
     .attachment-preview {
       border: 1px solid #d1d5db;
@@ -522,9 +550,10 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
         attachment: normalizeStoredFile(invoice.attachment),
       }))
       .filter((invoice) => invoice.attachment)
-      .map((invoice, index) => ({
+      .map((invoice) => ({
         category: detail.category?.trim() || 'بند صرف',
-        index: index + 1,
+        amount: Number(invoice.sar ?? invoice.amount ?? 0),
+        date: formatDateOrBlank(invoice.date ?? ''),
         documentType: invoice.type || '',
         issuer: invoice.issuer || '',
         attachment: invoice.attachment as StoredFile,
@@ -534,7 +563,8 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   if (meta.pettyCashApproval) {
     attachments.push({
       category: 'النثريات',
-      index: attachments.length + 1,
+      amount: 0,
+      date: '',
       documentType: 'موافقة المعالي',
       issuer: 'اعتماد النثريات',
       attachment: meta.pettyCashApproval,
@@ -542,7 +572,8 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   }
 
   return attachments
-    .map(({ category, index, documentType, issuer, attachment }) => {
+    .map(({ category, amount, date, documentType, issuer, attachment }, index) => {
+      const attachmentNumber = index + 1
       const preview = attachment.type.startsWith('image/')
         ? `<div class="attachment-preview"><img src="${attachment.dataUrl}" alt="${escapeHtml(
             attachment.name,
@@ -553,8 +584,32 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
 
       return `
         <section class="attachment-page">
-          <h2>مرفق رقم ${index}</h2>
-          <p>البند: ${escapeHtml(category)} | نوع المستند: ${escapeHtml(documentType || '-')} | الجهة المصدرة: ${escapeHtml(issuer || '-')}</p>
+          <div class="attachment-header">
+            <h2>مرفقات نموذج 19</h2>
+            <span>رقم المرجع: ${escapeHtml(loan.refNumber)}</span>
+          </div>
+          <table class="attachment-meta">
+            <tbody>
+              <tr>
+                <th>رقم المرفق</th>
+                <td>${attachmentNumber}</td>
+                <th>البند</th>
+                <td>${escapeHtml(category)}</td>
+              </tr>
+              <tr>
+                <th>نوع المستند</th>
+                <td>${escapeHtml(documentType || '-')}</td>
+                <th>تاريخ المستند</th>
+                <td>${escapeHtml(date || '-')}</td>
+              </tr>
+              <tr>
+                <th>الجهة المصدرة</th>
+                <td>${escapeHtml(issuer || '-')}</td>
+                <th>المبلغ بالريال</th>
+                <td>${amount > 0 ? `${formatNumber(amount)} ريال` : '-'}</td>
+              </tr>
+            </tbody>
+          </table>
           ${preview}
         </section>
       `
@@ -696,7 +751,8 @@ function createLoanRequestTemplateData(loan: LoanDocumentRecord) {
   }
 }
 
-function createSettlementTemplateData(loan: LoanDocumentRecord) {
+function createSettlementTemplateData(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
+  const settings = resolveSettings(options)
   const settlement = loan.settlement
   const meta = normalizeSettlementMeta(settlement?.invoices)
 
@@ -716,7 +772,13 @@ function createSettlementTemplateData(loan: LoanDocumentRecord) {
     receiptNumber: meta.receiptNumber ?? '',
     receiptDate: formatDateOrBlank(meta.receiptDate ?? ''),
     employee: loan.employee,
+    trainingVicePresidentName: settings.trainingVicePresidentName,
+    financialControllerName: settings.financialControllerName,
   }
+}
+
+function resolveSettings(options?: DocumentRenderOptions) {
+  return options?.settings ?? DEFAULT_SYSTEM_SETTINGS
 }
 
 function escapeXml(value: string | number | null | undefined) {
@@ -828,7 +890,8 @@ function buildDocxBuffer(documentBody: string, options?: { top?: number; bottom?
   return Buffer.from(zip.generate({ type: 'nodebuffer', compression: 'DEFLATE' }))
 }
 
-function buildLoanRequestFormalDocx(loan: LoanDocumentRecord) {
+function buildLoanRequestFormalDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
+  const settings = resolveSettings(options)
   const rows = padLoanRows(normalizeLoanTemplateRows(loan), 2)
   const budgetApproved = loan.budgetApproved === true ? '☑' : '☐'
   const budgetRejected = loan.budgetApproved === false ? '☑' : '☐'
@@ -874,8 +937,8 @@ function buildLoanRequestFormalDocx(loan: LoanDocumentRecord) {
     wordParagraph('آمل الموافقة على صرف سلفة نقدية مؤقتة وفق ما يلي:', { size: 19, after: 160 }),
     wordBorderlessTable(metaRows, 9200),
     expenseTable,
-    wordParagraph('مسؤول الجهة:      وكيل الجامعة للتدريب      الاسم: د. عبدالرزاق بن عبدالعزيز المرجان      التوقيع: ................', { bold: true, size: 18, after: 180 }),
-    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', 'الاسم: شريف محمد مصطفى الغزولي        التوقيع: ........................        التاريخ: .... / .... / ....']),
+    wordParagraph(`مسؤول الجهة:      وكيل الجامعة للتدريب      الاسم: ${settings.trainingVicePresidentName}      التوقيع: ................`, { bold: true, size: 18, after: 180 }),
+    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', `الاسم: ${settings.financialControllerName}        التوقيع: ........................        التاريخ: .... / .... / ....`]),
     wordParagraph('', { after: 80 }),
     wordPanel('اعتماد رئيس الجامعة', ['☐ نوافق        ☐ لا نوافق', 'وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة', 'رئيس الجامعة: ................................        التوقيع: ........................        التاريخ: .... / .... / ....']),
   ].join('')
@@ -883,7 +946,8 @@ function buildLoanRequestFormalDocx(loan: LoanDocumentRecord) {
   return buildDocxBuffer(body, { top: 720, right: 900, left: 900, bottom: 720 })
 }
 
-function buildSettlementFormalDocx(loan: LoanDocumentRecord) {
+function buildSettlementFormalDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
+  const settings = resolveSettings(options)
   const settlement = loan.settlement
   const meta = normalizeSettlementMeta(settlement?.invoices)
   const rows = padSettlementRows(normalizeSettlementDocxRows(loan), 9)
@@ -933,8 +997,8 @@ function buildSettlementFormalDocx(loan: LoanDocumentRecord) {
     ], 9650),
     wordBorderlessTable(totals, 6000),
     wordParagraph(`اسم مستلم السلفة: ${loan.employee}        رقم سند القبض: ${meta.receiptNumber ?? ''}        تاريخه: ${formatDateOrBlank(meta.receiptDate ?? '')}`, { size: 18, after: 120 }),
-    wordParagraph('وكيل الجامعة للتدريب        د. عبدالرزاق بن عبدالعزيز المرجان        التوقيع: ........................', { bold: true, size: 18, after: 140 }),
-    wordPanel('رأي المراقب المالي:', ['☐ المعاملة مستوفية للمتطلبات النظامية للتسوية', '☐ المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.', 'الاسم: شريف محمد مصطفى الغزولي        التوقيع: ........................        التاريخ: .... / .... / ....']),
+    wordParagraph(`وكيل الجامعة للتدريب        ${settings.trainingVicePresidentName}        التوقيع: ........................`, { bold: true, size: 18, after: 140 }),
+    wordPanel('رأي المراقب المالي:', ['☐ المعاملة مستوفية للمتطلبات النظامية للتسوية', '☐ المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.', `الاسم: ${settings.financialControllerName}        التوقيع: ........................        التاريخ: .... / .... / ....`]),
     wordParagraph('', { after: 80 }),
     wordPanel('اعتماد رئيس الجامعة', ['☐ أوافق على تسوية السلفة وفق ما هو محدد أعلاه.        ☐ لا أوافق', 'وعلى كل فيما يخصه إكمال اللازم', 'رئيس الجامعة: ................................        التوقيع: ........................        التاريخ: .... / .... / ....']),
   ].join('')
@@ -942,19 +1006,20 @@ function buildSettlementFormalDocx(loan: LoanDocumentRecord) {
   return buildDocxBuffer(body, { top: 720, right: 900, left: 900, bottom: 720 })
 }
 
-export async function buildLoanRequestDocx(loan: LoanDocumentRecord) {
-  return buildLoanRequestFormalDocx(loan)
+export async function buildLoanRequestDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
+  return buildLoanRequestFormalDocx(loan, options)
 }
 
-export async function buildSettlementDocx(loan: LoanDocumentRecord) {
+export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   const templateZip = await loadPatchedTemplate(
     SETTLEMENT_TEMPLATE_PATH,
     SETTLEMENT_TEMPLATE_REPLACEMENTS,
   )
-  return renderDocxTemplate(templateZip, createSettlementTemplateData(loan))
+  return renderDocxTemplate(templateZip, createSettlementTemplateData(loan, options))
 }
 
-export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
+export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
+  const settings = resolveSettings(options)
   const tableFontSize =
     loan.items.length >= 5 ? '11px' : loan.items.length >= 3 ? '12px' : '13px'
   const rows = normalizeLoanTemplateRows(loan)
@@ -1025,7 +1090,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
     <div class="official-inline" style="grid-template-columns: 0.9fr 1fr 1.55fr 1fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
-      <span>الاسم: د. عبدالرزاق بن عبدالعزيز المرجان</span>
+      <span>الاسم: ${escapeHtml(settings.trainingVicePresidentName)}</span>
       <span>التوقيع: <span class="signature-line"></span></span>
     </div>
 
@@ -1036,7 +1101,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
       </p>
       <div class="row nowrap" style="margin-top: 30px;">
-        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>الاسم: ${escapeHtml(settings.financialControllerName)}</span>
         <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
       </div>
@@ -1075,7 +1140,8 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord) {
   })
 }
 
-export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
+export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
+  const settings = resolveSettings(options)
   const settlement = loan.settlement
   const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
   const rows = normalizeSettlementTemplateRows(loan)
@@ -1165,7 +1231,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
-      <span>وكيل الجامعة للتدريب : د. عبدالرزاق عبدالعزيز المرجان</span>
+      <span>وكيل الجامعة للتدريب : ${escapeHtml(settings.trainingVicePresidentName)}</span>
       <span>التوقيع: <span class="signature-line"></span></span>
       <span>التاريخ: <span class="signature-line"></span></span>
     </div>
@@ -1179,7 +1245,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
         <span class="approval-choice"><span class="box"></span>المعاملة غير مستوفية للمتطلبات النظامية للتسوية ويرفق مذكرة بالتفاصيل.</span>
       </p>
       <div class="row nowrap" style="margin-top: 22px;">
-        <span>الاسم: شريف محمد مصطفى الغزولي</span>
+        <span>الاسم: ${escapeHtml(settings.financialControllerName)}</span>
         <span>التوقيع: <span class="signature-line"></span></span>
         <span>التاريخ: <span class="signature-line"></span></span>
       </div>
