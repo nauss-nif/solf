@@ -333,6 +333,53 @@ function printShell(body: string, options: PrintShellOptions) {
     .official-panel .row.nowrap {
       flex-wrap: nowrap;
     }
+    .loan-financial-panel,
+    .loan-approval-panel {
+      min-height: 124px;
+      padding: 12px 18px;
+    }
+    .loan-financial-panel .financial-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 10px 24px;
+      align-items: start;
+    }
+    .loan-financial-panel .financial-choices {
+      display: grid;
+      gap: 9px;
+      justify-items: start;
+    }
+    .loan-financial-panel .financial-name {
+      align-self: end;
+      text-align: right;
+    }
+    .loan-panel-footer {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-top: 26px;
+      align-items: center;
+    }
+    .loan-date-space {
+      word-spacing: 10px;
+      white-space: nowrap;
+    }
+    .loan-approval-panel .approval-title {
+      text-align: right;
+      margin-bottom: 14px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .loan-approval-panel .approval-choices {
+      display: flex;
+      justify-content: flex-end;
+      gap: 70px;
+      margin-bottom: 12px;
+    }
+    .loan-approval-panel .approval-president {
+      margin-top: 18px;
+      text-align: center;
+    }
     .approval-choice {
       display: inline-flex;
       align-items: center;
@@ -938,9 +985,9 @@ function buildLoanRequestFormalDocx(loan: LoanDocumentRecord, options?: Document
     wordBorderlessTable(metaRows, 9200),
     expenseTable,
     wordParagraph(`مسؤول الجهة:      وكيل الجامعة للتدريب      الاسم: ${settings.trainingVicePresidentName}      التوقيع: ................`, { bold: true, size: 18, after: 180 }),
-    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', `الاسم: ${settings.financialControllerName}        التوقيع: ........................        التاريخ: .... / .... / ....`]),
+    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', `الاسم: ${settings.financialControllerName}`, 'التوقيع:                         التاريخ:       /          /       ']),
     wordParagraph('', { after: 80 }),
-    wordPanel('اعتماد رئيس الجامعة', ['☐ نوافق        ☐ لا نوافق', 'وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة', 'رئيس الجامعة: ................................        التوقيع: ........................        التاريخ: .... / .... / ....']),
+    wordPanel('اعتماد رئيس الجامعة', ['☐ نوافق                         ☐ لا نوافق', 'وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.', 'رئيس الجامعة:', 'التوقيع:                         التاريخ:       /          /       ']),
   ].join('')
 
   return buildDocxBuffer(body, { top: 720, right: 900, left: 900, bottom: 720 })
@@ -1094,30 +1141,35 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <span>التوقيع: <span class="signature-line"></span></span>
     </div>
 
-    <div class="official-panel">
-      <h3>رأي المراقب المالي:</h3>
-      <p class="row">
-        <span class="approval-choice"><span class="box"></span>مستوفي</span>
-        <span class="approval-choice"><span class="box"></span>غير مستوفي للآتي:</span>
-      </p>
-      <div class="row nowrap" style="margin-top: 30px;">
-        <span>الاسم: ${escapeHtml(settings.financialControllerName)}</span>
-        <span>التوقيع: <span class="signature-line"></span></span>
-        <span>التاريخ: <span class="signature-line"></span></span>
+    <div class="official-panel" style="min-height: 122px; padding: 12px 18px;">
+      <h3 style="text-align: right; margin-bottom: 10px;">رأي المراقب المالي:</h3>
+      <div style="direction: ltr; display: grid; grid-template-columns: 1fr 175px; align-items: start;">
+        <div></div>
+        <div style="direction: rtl; display: grid; gap: 10px; justify-items: start;">
+          <span class="approval-choice" style="margin: 0;"><span class="box"></span>مستوفي</span>
+          <span class="approval-choice" style="margin: 0;"><span class="box"></span>غير مستوفي للآتي:</span>
+        </div>
+      </div>
+      <div style="direction: ltr; display: grid; grid-template-columns: 1.1fr 1fr 1.55fr; gap: 22px; margin-top: 22px; align-items: center;">
+        <span style="direction: rtl; text-align: right;">التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+        <span style="direction: rtl; text-align: right;">التوقيع:</span>
+        <span style="direction: rtl; text-align: right;">الاسم: ${escapeHtml(settings.financialControllerName)}</span>
       </div>
     </div>
 
-    <div class="official-panel">
-      <h3>اعتماد رئيس الجامعة</h3>
-      <p class="row">
-        <span class="approval-choice"><span class="box"></span>نوافق</span>
-        <span class="approval-choice"><span class="box"></span>لا نوافق</span>
-      </p>
-      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
-      <div class="row" style="margin-top: 30px; flex-wrap: nowrap;">
-        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
-        <span>التاريخ: <span class="signature-line" style="min-width: 120px;"></span></span>
-        <span>التوقيع: <span class="signature-line"></span></span>
+    <div class="official-panel" style="min-height: 128px; padding: 12px 18px;">
+      <h3 style="text-align: right; margin-bottom: 12px;">اعتماد رئيس الجامعة</h3>
+      <div style="direction: ltr; display: grid; grid-template-columns: 1fr 180px 180px; align-items: center; margin-bottom: 12px;">
+        <span></span>
+        <span class="approval-choice" style="direction: rtl; margin: 0;"><span class="box"></span>لا توافق</span>
+        <span class="approval-choice" style="direction: rtl; margin: 0;"><span class="box"></span>توافق</span>
+      </div>
+      <p style="text-align: center; margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
+      <div style="text-align: center; margin-top: 18px;">رئيس الجامعة:</div>
+      <div style="direction: ltr; display: grid; grid-template-columns: 1.1fr 1fr 1.4fr; gap: 22px; margin-top: 16px; align-items: center;">
+        <span style="direction: rtl; text-align: right;">التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+        <span style="direction: rtl; text-align: right;">التوقيع:</span>
+        <span></span>
       </div>
     </div>
   `
