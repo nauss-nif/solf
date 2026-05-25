@@ -1197,7 +1197,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       <div style="display: grid; grid-template-columns: 1.6fr 1fr 1fr; align-items: center; gap: 18px; text-align: right;">
         <span>رئيس الجامعة:</span>
         <span>التوقيع:</span>
-        <span>التاريخ: / &nbsp;&nbsp; /</span>
+        <span>التاريخ: &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</span>
       </div>
     </div>
     ${attachmentPages}
