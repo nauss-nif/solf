@@ -192,6 +192,46 @@ export async function notifyNewLoan(loan: {
   }
 }
 
+export async function notifyLoanFollowUpRequest(loan: {
+  id: string
+  refNumber: string
+  employee: string
+  amount: number
+  activity: string
+}): Promise<void> {
+  const reviewers = await prisma.$queryRaw<Array<{ id: string; email: string; fullName: string }>>`
+    SELECT id, email, "fullName"
+    FROM "users"
+    WHERE "status" = 'ACTIVE'
+      AND (
+        roles::jsonb ? 'ADMIN'
+        OR roles::jsonb ? 'REVIEWER'
+      )
+  `
+
+  const title = `تذكير متابعة طلب سلفة — ${loan.refNumber}`
+  const message = `يرجو الموظف ${loan.employee} متابعة طلب السلفة ${loan.refNumber} بمبلغ ${loan.amount.toLocaleString('ar-SA')} ر.س — ${loan.activity}. الطلب جاهز للمراجعة.`
+
+  for (const reviewer of reviewers) {
+    await createInternalNotification({
+      userId: reviewer.id,
+      type: 'SYSTEM',
+      title,
+      message,
+      metadata: { loanId: loan.id, refNumber: loan.refNumber },
+    })
+
+    await sendEmail({
+      to: reviewer.email,
+      subject: title,
+      html: emailTemplate({
+        title,
+        body: `<p>${message}</p>`,
+      }),
+    })
+  }
+}
+
 export async function sendWelcomeEmail(options: {
   to: string
   fullName: string
@@ -435,11 +475,22 @@ export async function sendManualAlert(options: {
   refNumber: string
   employeeName: string
   employeeEmail: string
+  employeeUserId?: string | null
   sentById: string
   customMessage?: string
 }): Promise<{ success: boolean }> {
   const defaultMessage = `نذكركم بضرورة تسوية السلفة ${options.refNumber} في أقرب وقت ممكن. التأخر في التسوية مخالف للوائح المالية.`
   const message = options.customMessage ?? defaultMessage
+
+  if (options.employeeUserId) {
+    await createInternalNotification({
+      userId: options.employeeUserId,
+      type: 'SETTLEMENT_REMINDER',
+      title: `تنبيه: تسوية السلفة ${options.refNumber}`,
+      message,
+      metadata: { loanId: options.loanId, refNumber: options.refNumber },
+    })
+  }
 
   const emailSent = await sendEmail({
     to: options.employeeEmail,

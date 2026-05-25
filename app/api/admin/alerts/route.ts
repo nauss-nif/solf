@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       refNumber: loan.refNumber,
       employeeName: loan.employee,
       employeeEmail: loan.user.email,
+      employeeUserId: loan.userId,
       sentById: currentUser.userId,
       customMessage,
     })

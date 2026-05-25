@@ -47,7 +47,8 @@ type SettlementDraft = { id: string; category: string; budget: number; invoices:
 type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string }
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info' }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
-type ActiveTab = 'requests' | 'archive' | 'reports' | 'guide'
+type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
+type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: unknown }
 
 const AGENCY_CODE = '26'
 
@@ -182,6 +183,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [loanError, setLoanError] = useState('')
   const [settlementError, setSettlementError] = useState('')
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [loanForm, setLoanForm] = useState<LoanFormState>(() => createEmptyLoanForm(currentUser, initialLoans.map(normalizeLoanRecord)))
   const [expenses, setExpenses] = useState<ExpenseDraft[]>([{ category: '', amount: '' }])
   const [loanAttachments, setLoanAttachments] = useState<Record<string, StoredFile | null>>(createEmptyAttachments)
@@ -199,11 +203,32 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }
 
   useEffect(() => { if (initialLoans.length > 0) return; void refreshLoans() }, [initialLoans.length])
+  useEffect(() => { void loadNotifications(true) }, [])
 
   const showToast = (message: string, tone: ToastItem['tone'] = 'success') => {
     const id = Date.now() + Math.floor(Math.random() * 1000)
     setToasts((curr) => [...curr, { id, message, tone }])
     window.setTimeout(() => setToasts((curr) => curr.filter((t) => t.id !== id)), 3200)
+  }
+
+  async function loadNotifications(announce = false) {
+    const res = await fetch('/api/notifications', { cache: 'no-store' })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return
+    setNotifications(Array.isArray(data.notifications) ? data.notifications : [])
+    setUnreadNotifications(Number(data.unreadCount ?? 0))
+    if (announce && Number(data.unreadCount ?? 0) > 0) {
+      showToast(`لديك ${formatEnglishNumber(Number(data.unreadCount))} إشعار غير مقروء.`, 'info')
+    }
+  }
+
+  async function toggleNotifications() {
+    const nextOpen = !notificationsOpen
+    setNotificationsOpen(nextOpen)
+    if (!nextOpen || unreadNotifications === 0) return
+    await fetch('/api/notifications', { method: 'PATCH' })
+    setUnreadNotifications(0)
+    setNotifications((curr) => curr.map((notification) => ({ ...notification, isRead: true })))
   }
 
   const filteredLoans = useMemo(() => {
@@ -459,6 +484,31 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
   }
 
+  async function sendManualLoanAlert(loanId: string) {
+    const customMessage = window.prompt('رسالة التنبيه للموظف (اختياري):', '')
+    if (customMessage === null) return
+    startTransition(async () => {
+      const res = await fetch('/api/admin/alerts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loanId, customMessage }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر إرسال التنبيه.', 'error'); return }
+      showToast('تم إرسال التنبيه للموظف.')
+    })
+  }
+
+  async function sendReviewerReminder(loanId: string) {
+    startTransition(async () => {
+      const res = await fetch(`/api/loans/${loanId}/reminder`, { method: 'POST' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر إرسال تذكير المراجعين.', 'error'); return }
+      showToast('تم إرسال تذكير للمراجعين والمدير.')
+      await loadNotifications()
+    })
+  }
+
   const requestLoans = filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
 
@@ -479,6 +529,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             { tab: 'requests', label: 'طلبات السلفة', icon: '📋' },
             { tab: 'archive',  label: 'الأرشيف',       icon: '🗂️' },
             { tab: 'reports',  label: 'التقارير',       icon: '📊' },
+            ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية', icon: '📣' }] : []),
             { tab: 'guide',    label: 'التعليمات',      icon: '📖' },
           ] as Array<{ tab: ActiveTab; label: string; icon: string }>).map(({ tab, label, icon }) => (
             <button key={tab} type="button" onClick={() => setActiveTab(tab)}
@@ -539,11 +590,39 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <header className="app-topbar">
           <div>
             <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>
-              {activeTab === 'requests' ? 'طلبات السلفة' : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : 'التعليمات والدليل'}
+              {activeTab === 'requests' ? 'طلبات السلفة' : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
             </h1>
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <button type="button" onClick={toggleNotifications} className="btn btn-ghost btn-sm relative" title="الإشعارات">
+                🔔
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -left-1 rounded-full px-1.5 text-[10px] font-bold" style={{ background: '#73384B', color: '#fff' }}>
+                    {formatEnglishNumber(unreadNotifications)}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute left-0 top-11 z-50 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl bg-white shadow-modal" style={{ border: '1px solid #DADBD9' }}>
+                  <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #DADBD9' }}>
+                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>الإشعارات</h3>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => void loadNotifications()}>تحديث</button>
+                  </div>
+                  <div className="max-h-[420px] overflow-y-auto p-2">
+                    {notifications.map((notification) => (
+                      <div key={notification.id} className="rounded-xl px-3 py-2 text-sm" style={{ background: notification.isRead ? '#fff' : '#F3EDE3', border: '1px solid #DADBD9', marginBottom: 8 }}>
+                        <p className="font-semibold" style={{ color: '#1F3F40' }}>{notification.title}</p>
+                        <p className="mt-1 leading-6" style={{ color: '#5A5A5A' }}>{notification.message}</p>
+                        <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>{new Date(notification.createdAt).toLocaleString('ar-SA')}</p>
+                      </div>
+                    ))}
+                    {notifications.length === 0 && <p className="py-8 text-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد إشعارات حالياً</p>}
+                  </div>
+                </div>
+              )}
+            </div>
             <button type="button" onClick={refreshLoans} disabled={isLoadingLoans}
               className="btn btn-ghost btn-sm flex items-center gap-1">
               <svg className={`w-3.5 h-3.5 ${isLoadingLoans ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -612,6 +691,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 { tab: 'requests', label: `طلبات السلفة (${loans.filter((l) => !l.isSettled).length})` },
                 { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
                 { tab: 'reports',  label: 'التقارير' },
+                ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية' }] : []),
                 { tab: 'guide',    label: 'التعليمات' },
               ] as Array<{ tab: ActiveTab; label: string }>).map(({ tab, label }) => (
                 <button key={tab} type="button" onClick={() => setActiveTab(tab)}
@@ -655,7 +735,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onPrintLoan={() => openPrintDocument('loan', loan.id)}
                         onWordLoan={() => exportWordDocument('loan', loan.id)}
                         onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
-                        onWordSettlement={() => exportWordDocument('settlement', loan.id)} />
+                        onWordSettlement={() => exportWordDocument('settlement', loan.id)}
+                        onSendManualAlert={() => sendManualLoanAlert(loan.id)}
+                        onSendReviewerReminder={() => sendReviewerReminder(loan.id)} />
                     ))}
                   </div>
                 )}
@@ -679,7 +761,37 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     onPrintLoan={() => openPrintDocument('loan', loan.id)}
                     onWordLoan={() => exportWordDocument('loan', loan.id)}
                     onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
-                    onWordSettlement={() => exportWordDocument('settlement', loan.id)} />
+                    onWordSettlement={() => exportWordDocument('settlement', loan.id)}
+                    onSendManualAlert={() => sendManualLoanAlert(loan.id)}
+                    onSendReviewerReminder={() => sendReviewerReminder(loan.id)} />
+                ))}
+              </div>
+            )}
+
+            {/* MANUAL ALERTS TAB */}
+            {activeTab === 'alerts' && isAdminOrReviewer && (
+              <div className="space-y-4">
+                <div className="section-card p-4" style={{ background: '#F9F9F9' }}>
+                  <h3 className="font-bold" style={{ color: '#1F3F40' }}>إرسال تنبيه يدوي للموظف</h3>
+                  <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
+                    استخدم هذا القسم لتذكير الموظف بتسوية السلفة أو متابعة إجراء مطلوب. يتم توثيق الإرسال في سجل التنبيهات.
+                  </p>
+                </div>
+                {loans.filter((loan) => !loan.isSettled).length === 0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon text-4xl">📣</div>
+                    <p className="empty-state-title">لا توجد طلبات مفتوحة للتنبيه</p>
+                  </div>
+                ) : loans.filter((loan) => !loan.isSettled).map((loan) => (
+                  <div key={loan.id} className="card p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h3 className="font-bold" style={{ color: '#1F3F40' }}>{loan.refNumber}</h3>
+                      <p className="text-sm" style={{ color: '#5A5A5A' }}>{loan.activity} • {loan.employee}</p>
+                    </div>
+                    <button type="button" disabled={isPending} className="btn btn-warning btn-sm" onClick={() => sendManualLoanAlert(loan.id)}>
+                      إرسال تنبيه للموظف
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -1237,11 +1349,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onWordLoan, onPrintSettlement, onWordSettlement }: {
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onWordLoan, onPrintSettlement, onWordSettlement, onSendManualAlert, onSendReviewerReminder }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onWordLoan: () => void; onPrintSettlement: () => void; onWordSettlement: () => void
+  onSendManualAlert: () => void; onSendReviewerReminder: () => void
 }) {
   const attachCount = Object.values(loan.files ?? {}).filter(Boolean).length
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
@@ -1303,7 +1416,12 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             <>
               <button type="button" onClick={onMarkReviewed} className="btn btn-success btn-sm">✓ اعتماد المراجعة</button>
               <button type="button" onClick={onReturnForReview} className="btn btn-warning btn-sm">↩ إعادة للموظف</button>
+              {!loan.isSettled && <button type="button" onClick={onSendManualAlert} className="btn btn-warning btn-sm sm:col-span-2">📣 تنبيه الموظف</button>}
             </>
+          )}
+
+          {!canReview && !loan.isSettled && loan.reviewStatus !== 'REVIEWED' && (
+            <button type="button" onClick={onSendReviewerReminder} className="btn btn-outline btn-sm sm:col-span-2">🔔 تذكير المراجعين</button>
           )}
         </div>
       </div>
