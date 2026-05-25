@@ -6,9 +6,9 @@ type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
 type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; createdAt: string }
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string }> = [
-  { value: 'EMPLOYEE', label: 'موظف',    color: '#1B4332' },
-  { value: 'REVIEWER', label: 'مراجع',   color: '#2563EB' },
-  { value: 'ADMIN',    label: 'مدير',    color: '#C9943A' },
+  { value: 'EMPLOYEE', label: 'موظف',    color: '#2A6364' },
+  { value: 'REVIEWER', label: 'مراجع',   color: '#2E6F8E' },
+  { value: 'ADMIN',    label: 'مدير',    color: '#C7B08C' },
 ]
 
 export default function AdminUsersClient() {
@@ -36,9 +36,9 @@ export default function AdminUsersClient() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'إجمالي الحسابات', value: users.length, color: '#1B4332', bg: '#D1FAE5' },
-          { label: 'حسابات نشطة',     value: users.filter((u) => u.status === 'ACTIVE').length, color: '#059669', bg: '#D1FAE5' },
-          { label: 'حسابات معطلة',    value: users.filter((u) => u.status === 'DISABLED').length, color: '#DC2626', bg: '#FEE2E2' },
+          { label: 'إجمالي الحسابات', value: users.length, color: '#2A6364', bg: '#E7F3EE' },
+          { label: 'حسابات نشطة',     value: users.filter((u) => u.status === 'ACTIVE').length, color: '#4F8F7A', bg: '#E7F3EE' },
+          { label: 'حسابات معطلة',    value: users.filter((u) => u.status === 'DISABLED').length, color: '#73384B', bg: '#F3E7EB' },
         ].map((s) => (
           <div key={s.label} className="stat-card">
             <p className="stat-label">{s.label}</p>
@@ -49,8 +49,8 @@ export default function AdminUsersClient() {
 
       {/* Table */}
       <div className="section-card p-0 overflow-hidden">
-        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #E4EDE8' }}>
-          <h2 className="font-bold" style={{ color: '#0D1F18' }}>قائمة المستخدمين</h2>
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: '1px solid #DADBD9' }}>
+          <h2 className="font-bold" style={{ color: '#1F3F40' }}>قائمة المستخدمين</h2>
           <span className="badge badge-neutral">{users.length} حساب</span>
         </div>
 
@@ -75,13 +75,13 @@ export default function AdminUsersClient() {
                     <td>
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                          style={{ background: '#D1FAE5', color: '#1B4332' }}>
+                          style={{ background: '#E7F3EE', color: '#2A6364' }}>
                           {user.fullName.charAt(0)}
                         </div>
-                        <span className="font-medium text-sm" style={{ color: '#0D1F18' }}>{user.fullName}</span>
+                        <span className="font-medium text-sm" style={{ color: '#1F3F40' }}>{user.fullName}</span>
                       </div>
                     </td>
-                    <td className="text-sm" style={{ color: '#4A7A65' }}>{user.email}</td>
+                    <td className="text-sm" style={{ color: '#5A5A5A' }}>{user.email}</td>
                     <td className="text-sm">{user.mobile}</td>
                     <td className="text-sm">{user.extension}</td>
                     <td>
@@ -105,7 +105,7 @@ export default function AdminUsersClient() {
                                   })
                                 }}
                               />
-                              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: checked ? (opt.color === '#1B4332' ? '#D1FAE5' : opt.color === '#2563EB' ? '#DBEAFE' : '#FEF3C7') : '#F0F5F2', color: checked ? opt.color : '#6B9A88' }}>
+                              <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: checked ? (opt.color === '#2A6364' ? '#E7F3EE' : opt.color === '#2E6F8E' ? '#E4EEF3' : '#F3EDE3') : '#F9F9F9', color: checked ? opt.color : '#5A5A5A' }}>
                                 {opt.label}
                               </span>
                             </label>

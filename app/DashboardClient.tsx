@@ -163,7 +163,7 @@ function buildSettlementPayload(items: SettlementDraft[], rates: SettlementCurre
 }
 
 // ── CHART COLORS ──────────────────────────────────────────────────────────────
-const CHART_COLORS = ['#1B4332', '#C9943A', '#2D6A4F', '#D4A853', '#4A7A65', '#E0C07A', '#9BBDAF', '#6B9A88']
+const CHART_COLORS = ['#2A6364', '#C7B08C', '#2E6F8E', '#C7B08C', '#5A5A5A', '#C7B08C', '#B5BDBE', '#5A5A5A']
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
@@ -240,9 +240,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }, [loans])
 
   const statusChartData = useMemo(() => [
-    { name: 'قيد التسوية', value: stats.pending, color: '#C9943A' },
-    { name: 'مسوّاة', value: stats.settled, color: '#1B4332' },
-    { name: 'متأخرة', value: stats.overdue, color: '#DC2626' },
+    { name: 'قيد التسوية', value: stats.pending, color: '#C7B08C' },
+    { name: 'مسوّاة', value: stats.settled, color: '#2A6364' },
+    { name: 'متأخرة', value: stats.overdue, color: '#73384B' },
   ].filter((d) => d.value > 0), [stats])
 
   const settlementLoan = useMemo(() => loans.find((l) => l.id === selectedLoanId) ?? null, [loans, selectedLoanId])
@@ -422,7 +422,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       <aside className="app-sidebar">
         <div className="sidebar-logo">
           <Image src="/nauss-login-brand.png" alt="جامعة نايف العربية للعلوم الأمنية" width={330} height={95} className="h-auto w-full max-w-[205px]" priority />
-          <p className="text-xs mt-3" style={{ color: '#D4A853' }}>منصة السلف المؤقتة</p>
+          <p className="text-xs mt-3" style={{ color: '#C7B08C' }}>منصة السلف المؤقتة</p>
         </div>
 
         <nav className="flex-1 py-3 overflow-y-auto">
@@ -438,7 +438,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               <span style={{ fontSize: '1rem' }}>{icon}</span>
               {label}
               {tab === 'requests' && stats.pending > 0 && (
-                <span className="mr-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#C9943A', color: '#fff' }}>{stats.pending}</span>
+                <span className="mr-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#C7B08C', color: '#2F2F2F' }}>{stats.pending}</span>
               )}
             </button>
           ))}
@@ -459,20 +459,20 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         </nav>
 
         {/* User section */}
-        <div style={{ borderTop: '1px solid #1A3527', padding: '1rem' }}>
+        <div style={{ borderTop: '1px solid rgba(218,219,217,0.18)', padding: '1rem' }}>
           <div className="flex items-center gap-3 mb-3">
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#1B4332', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', color: '#A8C5B8', fontWeight: 700, flexShrink: 0 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#2A6364', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', color: '#E8ECEB', fontWeight: 700, flexShrink: 0 }}>
               {currentUser.fullName.charAt(0)}
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <p className="text-sm font-semibold truncate" style={{ color: '#E4EDE8' }}>{currentUser.fullName}</p>
-              <p className="text-xs truncate" style={{ color: '#4A7A65' }}>{currentUser.email}</p>
+              <p className="text-sm font-semibold truncate" style={{ color: '#DADBD9' }}>{currentUser.fullName}</p>
+              <p className="text-xs truncate" style={{ color: '#5A5A5A' }}>{currentUser.email}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-1 mb-3">
             {currentUser.roles.map((r) => (
               <span key={r} className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ background: r === 'ADMIN' ? 'rgba(201,148,58,0.2)' : r === 'REVIEWER' ? 'rgba(27,67,50,0.4)' : 'rgba(11,31,23,0.5)', color: r === 'ADMIN' ? '#D4A853' : '#A8C5B8' }}>
+                style={{ background: r === 'ADMIN' ? 'rgba(199,176,140,0.24)' : r === 'REVIEWER' ? 'rgba(42,99,100,0.35)' : 'rgba(32,63,64,0.45)', color: r === 'ADMIN' ? '#C7B08C' : '#E8ECEB' }}>
                 {r === 'ADMIN' ? 'مدير' : r === 'REVIEWER' ? 'مراجع' : 'موظف'}
               </span>
             ))}
@@ -490,10 +490,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         {/* TOP BAR */}
         <header className="app-topbar">
           <div>
-            <h1 className="text-base font-bold" style={{ color: '#0D1F18' }}>
+            <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>
               {activeTab === 'requests' ? 'طلبات السلفة' : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : 'التعليمات والدليل'}
             </h1>
-            <p className="text-xs" style={{ color: '#6B9A88' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
+            <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
             <button type="button" onClick={refreshLoans} disabled={isLoadingLoans}
@@ -542,14 +542,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               <div className="flex flex-wrap items-center gap-3 justify-end">
                 <button type="button" onClick={openLoanModal}
                   className="btn btn-lg font-semibold"
-                  style={{ background: '#fff', color: '#1B4332' }}>
+                  style={{ background: '#fff', color: '#2A6364' }}>
                   نموذج ١٨ — طلب سلفة
                 </button>
                 {loans.some((l) => !l.isSettled) && (
                   <button type="button"
                     onClick={() => { const first = loans.find((l) => !l.isSettled); if (first) openSettlementModal(first.id) }}
                     className="btn btn-lg font-semibold"
-                    style={{ background: 'rgba(201,148,58,0.9)', color: '#fff' }}>
+                    style={{ background: 'rgba(199,176,140,0.92)', color: '#2F2F2F' }}>
                     نموذج ١٩ — تسوية
                   </button>
                 )}
@@ -578,7 +578,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               <div className="space-y-4">
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
-                    <svg className="absolute top-1/2 -translate-y-1/2 right-3 w-4 h-4" style={{ color: '#6B9A88' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="absolute top-1/2 -translate-y-1/2 right-3 w-4 h-4" style={{ color: '#5A5A5A' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                     </svg>
                     <input value={search} onChange={(e) => setSearch(e.target.value)}
@@ -642,10 +642,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 {/* Summary tiles */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { label: 'إجمالي المبالغ المطلوبة', value: formatCurrencySar(reportSummary.totalRequested), color: '#1B4332' },
-                    { label: 'إجمالي المصروفات المسوّاة', value: formatCurrencySar(reportSummary.totalExpenses), color: '#2D6A4F' },
-                    { label: 'إجمالي الوفورات', value: formatCurrencySar(reportSummary.totalSavings), color: '#059669' },
-                    { label: 'إجمالي الزيادات', value: formatCurrencySar(reportSummary.totalOverage), color: '#DC2626' },
+                    { label: 'إجمالي المبالغ المطلوبة', value: formatCurrencySar(reportSummary.totalRequested), color: '#2A6364' },
+                    { label: 'إجمالي المصروفات المسوّاة', value: formatCurrencySar(reportSummary.totalExpenses), color: '#2E6F8E' },
+                    { label: 'إجمالي الوفورات', value: formatCurrencySar(reportSummary.totalSavings), color: '#4F8F7A' },
+                    { label: 'إجمالي الزيادات', value: formatCurrencySar(reportSummary.totalOverage), color: '#73384B' },
                   ].map((tile) => (
                     <div key={tile.label} className="summary-pill">
                       <p className="summary-pill-label">{tile.label}</p>
@@ -662,17 +662,17 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     {monthlyData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={220}>
                         <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E4EDE8" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#4A7A65' }} />
-                          <YAxis tick={{ fontSize: 10, fill: '#4A7A65' }} width={60} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5A5A5A' }} />
+                          <YAxis tick={{ fontSize: 10, fill: '#5A5A5A' }} width={60} />
                           <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), '']} labelStyle={{ fontFamily: 'inherit', fontSize: 12 }} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                          <Bar dataKey="requested" name="مطلوب" fill="#1B4332" radius={[4,4,0,0]} />
-                          <Bar dataKey="settled"   name="مسوّى" fill="#C9943A" radius={[4,4,0,0]} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#4A7A65' }}>{v}</span>} />
+                          <Bar dataKey="requested" name="مطلوب" fill="#2A6364" radius={[4,4,0,0]} />
+                          <Bar dataKey="settled"   name="مسوّى" fill="#C7B08C" radius={[4,4,0,0]} />
+                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
                         </BarChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#6B9A88' }}>لا توجد بيانات كافية</div>
+                      <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>
                     )}
                   </div>
 
@@ -686,11 +686,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                             {statusChartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
                           </Pie>
                           <Tooltip formatter={(v) => [Number(v), 'طلب']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#4A7A65' }}>{v}</span>} />
+                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#6B9A88' }}>لا توجد بيانات</div>
+                      <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات</div>
                     )}
                   </div>
                 </div>
@@ -701,8 +701,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   {categoryReport.length > 0 ? (
                     <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={categoryReport.map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E4EDE8" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 10, fill: '#4A7A65' }} width={80} tickFormatter={(v) => formatEnglishNumber(v)} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: '#5A5A5A' }} width={80} tickFormatter={(v) => formatEnglishNumber(v)} />
                         <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#2D4D40' }} width={120} />
                         <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), 'الإجمالي']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
                         <Bar dataKey="value" radius={[0,4,4,0]}>
@@ -711,7 +711,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-[200px] flex items-center justify-center text-sm" style={{ color: '#6B9A88' }}>لا توجد بيانات كافية لعرض التقرير</div>
+                    <div className="h-[200px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية لعرض التقرير</div>
                   )}
                 </div>
               </div>
@@ -721,12 +721,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {activeTab === 'guide' && (
               <div className="space-y-4">
                 {GUIDE_SECTIONS.map((section) => (
-                  <div key={section.title} className="rounded-xl p-5" style={{ background: '#F0F5F2', border: '1px solid #C8D9D0' }}>
-                    <h3 className="font-bold mb-3" style={{ color: '#0D1F18' }}>{section.title}</h3>
+                  <div key={section.title} className="rounded-xl p-5" style={{ background: '#F9F9F9', border: '1px solid #C8D9D0' }}>
+                    <h3 className="font-bold mb-3" style={{ color: '#1F3F40' }}>{section.title}</h3>
                     <ul className="space-y-2">
                       {section.items.map((item) => (
                         <li key={item} className="flex gap-2 text-sm" style={{ color: '#2D4D40' }}>
-                          <span style={{ color: '#1B4332', flexShrink: 0, marginTop: 2 }}>◆</span>
+                          <span style={{ color: '#2A6364', flexShrink: 0, marginTop: 2 }}>◆</span>
                           {item}
                         </li>
                       ))}
@@ -745,10 +745,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           <div className="modal-box" style={{ maxWidth: 860 }}>
             <div className="modal-header">
               <div>
-                <h3 className="text-base font-bold" style={{ color: '#1B4332' }}>
+                <h3 className="text-base font-bold" style={{ color: '#2A6364' }}>
                   {editingLoanId ? 'تعديل طلب السلفة' : 'نموذج ١٨ — طلب صرف سلفة مؤقتة'}
                 </h3>
-                <p className="text-xs mt-0.5" style={{ color: '#6B9A88' }}>إدخال بيانات الطلب ومرفقاته الرسمية</p>
+                <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>إدخال بيانات الطلب ومرفقاته الرسمية</p>
               </div>
               <button type="button" onClick={() => setLoanModalOpen(false)} className="modal-close">×</button>
             </div>
@@ -809,10 +809,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               {/* Expenses */}
               <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-sm" style={{ color: '#0D1F18' }}>أوجه الصرف</h4>
+                  <h4 className="font-semibold text-sm" style={{ color: '#1F3F40' }}>أوجه الصرف</h4>
                   <button type="button" onClick={() => setExpenses((c) => [...c, { category: '', amount: '' }])} className="btn btn-primary btn-sm">+ إضافة بند</button>
                 </div>
-                <div className="grid grid-cols-[1fr_160px_40px] gap-2 pb-2 mb-2 text-xs font-semibold" style={{ borderBottom: '1px solid #E4EDE8', color: '#4A7A65' }}>
+                <div className="grid grid-cols-[1fr_160px_40px] gap-2 pb-2 mb-2 text-xs font-semibold" style={{ borderBottom: '1px solid #DADBD9', color: '#5A5A5A' }}>
                   <span>البند</span><span>المبلغ (ر.س)</span><span></span>
                 </div>
                 <div className="space-y-2">
@@ -825,23 +825,23 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <input type="number" min="0" step="0.01" value={expense.amount} onChange={(e) => updateExpense(index, 'amount', e.target.value)} className="input-shell" placeholder="0.00" />
                       <button type="button" onClick={() => setExpenses((c) => c.filter((_, i) => i !== index))}
                         className="h-[42px] w-10 flex items-center justify-center rounded-lg text-lg font-bold transition"
-                        style={{ color: '#DC2626', border: '1.5px solid #FECACA', background: 'transparent' }}>×</button>
+                        style={{ color: '#73384B', border: '1.5px solid #D9B8C4', background: 'transparent' }}>×</button>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 flex items-center justify-between rounded-lg px-4 py-2 text-sm" style={{ background: '#F0F5F2' }}>
-                  <span style={{ color: '#4A7A65' }}>الإجمالي</span>
-                  <span className="font-bold" style={{ color: '#1B4332', fontFamily: 'IBM Plex Mono, monospace' }}>
+                <div className="mt-3 flex items-center justify-between rounded-lg px-4 py-2 text-sm" style={{ background: '#F9F9F9' }}>
+                  <span style={{ color: '#5A5A5A' }}>الإجمالي</span>
+                  <span className="font-bold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>
                     {formatCurrencySar(expenses.reduce((s, i) => s + (Number.parseFloat(i.amount || '0') || 0), 0))}
                   </span>
                 </div>
               </div>
 
               {/* Attachments */}
-              <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0', background: '#F8FBF9' }}>
+              <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0', background: '#F9F9F9' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-sm" style={{ color: '#0D1F18' }}>المرفقات الرسمية</h4>
-                  <span className="text-xs" style={{ color: '#6B9A88' }}>الحد الأقصى للملف 12 MB — تُضغط الصور تلقائيًا</span>
+                  <h4 className="font-semibold text-sm" style={{ color: '#1F3F40' }}>المرفقات الرسمية</h4>
+                  <span className="text-xs" style={{ color: '#5A5A5A' }}>الحد الأقصى للملف 12 MB — تُضغط الصور تلقائيًا</span>
                 </div>
                 <div className="space-y-3">
                   {LOAN_ATTACHMENT_DEFINITIONS.map((att) => {
@@ -849,15 +849,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     return (
                       <div key={att.key} className={`attachment-card ${currentFile ? 'has-file' : att.required ? 'required-missing' : ''}`}>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate" style={{ color: att.required ? '#991B1B' : '#0D1F18' }}>
+                          <p className="text-sm font-semibold truncate" style={{ color: att.required ? '#73384B' : '#1F3F40' }}>
                             {att.label} {att.required ? '(إلزامي)' : '(اختياري)'}
                           </p>
                           {currentFile ? (
-                            <p className="text-xs mt-0.5 truncate" style={{ color: '#059669' }}>
+                            <p className="text-xs mt-0.5 truncate" style={{ color: '#4F8F7A' }}>
                               ✓ {currentFile.name} — {Math.round(currentFile.size / 1024)} KB
                             </p>
                           ) : (
-                            <p className="text-xs mt-0.5" style={{ color: '#6B9A88' }}>لم يتم اختيار ملف</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>لم يتم اختيار ملف</p>
                           )}
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
@@ -877,7 +877,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
               {loanError && <div className="alert alert-error">{loanError}</div>}
 
-              <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid #E4EDE8' }}>
+              <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid #DADBD9' }}>
                 <button type="button" onClick={() => setLoanModalOpen(false)} className="btn btn-outline">إلغاء</button>
                 <button type="button" onClick={submitLoan} disabled={isPending} className="btn btn-primary">
                   {isPending ? 'جاري الحفظ...' : editingLoanId ? 'تحديث الطلب' : 'حفظ وإرسال الطلب'}
@@ -894,8 +894,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           <div className="modal-box" style={{ maxWidth: 900 }}>
             <div className="modal-header">
               <div>
-                <h3 className="text-base font-bold" style={{ color: '#C9943A' }}>نموذج ١٩ — تسوية سلفة مؤقتة</h3>
-                <p className="text-xs mt-0.5" style={{ color: '#6B9A88' }}>{settlementLoan.refNumber} • {settlementLoan.employee}</p>
+                <h3 className="text-base font-bold" style={{ color: '#C7B08C' }}>نموذج ١٩ — تسوية سلفة مؤقتة</h3>
+                <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>{settlementLoan.refNumber} • {settlementLoan.employee}</p>
               </div>
               <button type="button" onClick={() => setSettlementModalOpen(false)} className="modal-close">×</button>
             </div>
@@ -904,10 +904,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               {/* Summary */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
-                  { label: 'مبلغ السلفة', value: formatCurrencySar(settlementLoan.amount), color: '#1B4332' },
-                  { label: 'إجمالي المصروفات', value: formatCurrencySar(settlementSummary.total), color: '#0D1F18' },
-                  { label: 'المبلغ بالزيادة', value: formatCurrencySar(settlementSummary.overage), color: settlementSummary.overage > 0 ? '#DC2626' : '#6B9A88' },
-                  { label: 'وفر السلفة', value: formatCurrencySar(Math.max(0, settlementSummary.savings)), color: settlementSummary.savings > 0 ? '#059669' : '#6B9A88' },
+                  { label: 'مبلغ السلفة', value: formatCurrencySar(settlementLoan.amount), color: '#2A6364' },
+                  { label: 'إجمالي المصروفات', value: formatCurrencySar(settlementSummary.total), color: '#1F3F40' },
+                  { label: 'المبلغ بالزيادة', value: formatCurrencySar(settlementSummary.overage), color: settlementSummary.overage > 0 ? '#73384B' : '#5A5A5A' },
+                  { label: 'وفر السلفة', value: formatCurrencySar(Math.max(0, settlementSummary.savings)), color: settlementSummary.savings > 0 ? '#4F8F7A' : '#5A5A5A' },
                 ].map((pill) => (
                   <div key={pill.label} className="summary-pill">
                     <p className="summary-pill-label">{pill.label}</p>
@@ -919,11 +919,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               {/* Currency rates */}
               <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-sm" style={{ color: '#0D1F18' }}>العملات وأسعار الصرف</h4>
+                  <h4 className="font-semibold text-sm" style={{ color: '#1F3F40' }}>العملات وأسعار الصرف</h4>
                   <button type="button" onClick={() => setCurrencyRates((c) => [...c, { currencyCode: 'USD', rate: 0 }])} className="btn btn-gold btn-sm">+ إضافة عملة</button>
                 </div>
                 {currencyRates.length === 0 ? (
-                  <p className="text-sm text-center py-3" style={{ color: '#6B9A88' }}>أضف العملات الأجنبية المستخدمة في الفواتير أولًا (الريال السعودي مضاف تلقائيًا)</p>
+                  <p className="text-sm text-center py-3" style={{ color: '#5A5A5A' }}>أضف العملات الأجنبية المستخدمة في الفواتير أولًا (الريال السعودي مضاف تلقائيًا)</p>
                 ) : (
                   <div className="space-y-2">
                     {currencyRates.map((rate, index) => (
@@ -936,7 +936,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         <input type="number" step="0.0001" value={rate.rate || ''} onChange={(e) => updateRateRow(index, 'rate', e.target.value)} className="input-shell" placeholder="سعر الصرف مقابل الريال السعودي" />
                         <button type="button" onClick={() => setCurrencyRates((c) => c.filter((_, i) => i !== index))}
                           className="h-[42px] w-10 flex items-center justify-center rounded-lg text-lg font-bold"
-                          style={{ color: '#DC2626', border: '1.5px solid #FECACA', background: 'transparent' }}>×</button>
+                          style={{ color: '#73384B', border: '1.5px solid #D9B8C4', background: 'transparent' }}>×</button>
                       </div>
                     ))}
                   </div>
@@ -961,17 +961,17 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                               <Field label="اسم البند الإضافي *">
                                 <input value={item.category} onChange={(e) => updateSettlementItem(itemIndex, 'category', e.target.value)} className="input-shell" placeholder="مثال: رسوم إضافية غير مدرجة في الطلب" />
                               </Field>
-                              <p className="text-xs mt-1" style={{ color: '#6B9A88' }}>بند غير مدرج في طلب السلفة الأصلي — يظهر في نموذج التسوية فقط</p>
+                              <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>بند غير مدرج في طلب السلفة الأصلي — يظهر في نموذج التسوية فقط</p>
                             </div>
                           ) : (
                             <div>
-                              <p className="font-semibold" style={{ color: '#0D1F18' }}>{item.category}</p>
-                              <p className="text-xs mt-0.5" style={{ color: '#6B9A88' }}>المعتمد في الطلب: {formatCurrencySar(item.budget)}</p>
+                              <p className="font-semibold" style={{ color: '#1F3F40' }}>{item.category}</p>
+                              <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>المعتمد في الطلب: {formatCurrencySar(item.budget)}</p>
                             </div>
                           )}
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-sm font-bold" style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#1B4332' }}>{formatCurrencySar(itemTotal)}</span>
+                          <span className="text-sm font-bold" style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#2A6364' }}>{formatCurrencySar(itemTotal)}</span>
                           {item.isAdditional && (
                             <button type="button" onClick={() => setSettlementItems((c) => c.filter((_, i) => i !== itemIndex))} className="btn btn-danger btn-sm">حذف البند</button>
                           )}
@@ -981,7 +981,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
                       <div className="space-y-3">
                         {item.invoices.map((invoice, invoiceIndex) => (
-                          <div key={invoiceIndex} className="rounded-lg p-3 space-y-3" style={{ background: '#F8FBF9', border: '1px solid #E4EDE8' }}>
+                          <div key={invoiceIndex} className="rounded-lg p-3 space-y-3" style={{ background: '#F9F9F9', border: '1px solid #DADBD9' }}>
                             <div className="grid gap-3 md:grid-cols-3">
                               <Field label="المبلغ حسب الفاتورة">
                                 <input type="number" step="0.01" value={invoice.amount} onChange={(e) => updateInvoice(itemIndex, invoiceIndex, 'amount', e.target.value)} className="input-shell" placeholder="0.00" />
@@ -993,7 +993,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                                 </select>
                               </Field>
                               <Field label="المبلغ بالريال السعودي">
-                                <input readOnly value={formatCurrencySar(invoice.sarAmount)} className="input-shell font-bold" style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#1B4332' }} />
+                                <input readOnly value={formatCurrencySar(invoice.sarAmount)} className="input-shell font-bold" style={{ fontFamily: 'IBM Plex Mono, monospace', color: '#2A6364' }} />
                               </Field>
                             </div>
 
@@ -1014,7 +1014,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                             )}
 
                             {isPettyCash && (
-                              <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}>
+                              <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#F3EDE3', color: '#6B5A4A', border: '1px solid #C7B08C' }}>
                                 في بند النثريات يجب إرفاق موافقة المعالي كصورة فقط — لا تقبل ملفات PDF
                               </div>
                             )}
@@ -1022,13 +1022,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                             {/* Attachment */}
                             <div className={`attachment-card ${invoice.attachment ? 'has-file' : ''}`}>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold" style={{ color: '#0D1F18' }}>
+                                <p className="text-xs font-semibold" style={{ color: '#1F3F40' }}>
                                   {isPettyCash ? 'موافقة المعالي (صورة)' : 'صورة الفاتورة / المستند'}
                                 </p>
                                 {invoice.attachment ? (
-                                  <p className="text-xs mt-0.5 truncate" style={{ color: '#059669' }}>✓ {invoice.attachment.name} — {Math.round(invoice.attachment.size / 1024)} KB</p>
+                                  <p className="text-xs mt-0.5 truncate" style={{ color: '#4F8F7A' }}>✓ {invoice.attachment.name} — {Math.round(invoice.attachment.size / 1024)} KB</p>
                                 ) : (
-                                  <p className="text-xs mt-0.5" style={{ color: '#6B9A88' }}>لم يتم إرفاق مستند</p>
+                                  <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>لم يتم إرفاق مستند</p>
                                 )}
                               </div>
                               <div className="flex gap-2 flex-shrink-0">
@@ -1051,7 +1051,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               {/* Receipt / overage meta */}
               {(settlementSummary.savings > 0 || settlementSummary.overage > 0) && (
                 <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
-                  <h4 className="font-semibold text-sm mb-3" style={{ color: '#0D1F18' }}>بيانات التسوية التكميلية</h4>
+                  <h4 className="font-semibold text-sm mb-3" style={{ color: '#1F3F40' }}>بيانات التسوية التكميلية</h4>
                   {settlementSummary.savings > 0 && (
                     <div className="grid gap-4 md:grid-cols-2 mb-4">
                       <Field label="رقم سند القبض *">
@@ -1072,7 +1072,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
               {settlementError && <div className="alert alert-error">{settlementError}</div>}
 
-              <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid #E4EDE8' }}>
+              <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid #DADBD9' }}>
                 <button type="button" onClick={() => setSettlementModalOpen(false)} className="btn btn-outline">إلغاء</button>
                 <button type="button" onClick={submitSettlement} disabled={isPending} className="btn btn-gold">
                   {isPending ? 'جاري الحفظ...' : 'حفظ التسوية'}
@@ -1107,7 +1107,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
 
   return (
-    <div className="card p-5 animate-fade-up" style={{ borderRight: `3px solid ${loan.isSettled ? '#059669' : loan.reviewStatus === 'RETURNED' ? '#D97706' : '#1B4332'}` }}>
+    <div className="card p-5 animate-fade-up" style={{ borderRight: `3px solid ${loan.isSettled ? '#4F8F7A' : loan.reviewStatus === 'RETURNED' ? '#6B5A4A' : '#2A6364'}` }}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2 flex-1">
           <div className="flex flex-wrap gap-2 items-center">
@@ -1120,15 +1120,15 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
           </div>
 
           <div>
-            <h3 className="font-bold text-base" style={{ color: '#0D1F18' }}>{loan.refNumber}</h3>
-            <p className="text-sm mt-0.5" style={{ color: '#4A7A65' }}>{loan.activity} • {loan.employee}</p>
+            <h3 className="font-bold text-base" style={{ color: '#1F3F40' }}>{loan.refNumber}</h3>
+            <p className="text-sm mt-0.5" style={{ color: '#5A5A5A' }}>{loan.activity} • {loan.employee}</p>
           </div>
 
           <div className="grid gap-1 text-sm md:grid-cols-2" style={{ color: '#2D4D40' }}>
             <span>📍 {loan.location || '—'}</span>
             <span>📅 {formatDate(loan.startDate)} – {formatDate(loan.endDate)}</span>
             <span>الموازنة: {loan.budgetApproved === true ? '✓ معتمدة' : loan.budgetApproved === false ? '✗ غير معتمدة' : '—'}</span>
-            <span className="font-semibold" style={{ color: '#1B4332', fontFamily: 'IBM Plex Mono, monospace' }}>💰 {formatCurrencySar(loan.amount)}</span>
+            <span className="font-semibold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>💰 {formatCurrencySar(loan.amount)}</span>
           </div>
 
           {loan.reviewNote && (
@@ -1172,8 +1172,8 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
 }
 
 function StatCard({ label, value, accent, icon }: { label: string; value: number; accent: 'primary' | 'warning' | 'success' | 'danger'; icon: string }) {
-  const colors = { primary: '#1B4332', warning: '#D97706', success: '#059669', danger: '#DC2626' }
-  const bgs    = { primary: '#D1FAE5', warning: '#FEF3C7', success: '#D1FAE5', danger: '#FEE2E2' }
+  const colors = { primary: '#2A6364', warning: '#6B5A4A', success: '#4F8F7A', danger: '#73384B' }
+  const bgs    = { primary: '#E7F3EE', warning: '#F3EDE3', success: '#E7F3EE', danger: '#F3E7EB' }
   return (
     <div className="stat-card">
       <div className="flex items-center justify-between mb-2">

@@ -8,12 +8,12 @@ export default function LoginPage() {
   if (getSessionUser()) redirect('/')
 
   return (
-    <main className="min-h-screen flex" style={{ background: '#F0F5F2' }}>
+    <main className="min-h-screen flex" style={{ background: '#F9F9F9' }}>
       {/* Panel — left side */}
       <div className="hidden lg:flex lg:w-[46%] xl:w-[52%] relative overflow-hidden"
-           style={{ background: 'linear-gradient(160deg, #0B1F17 0%, #1B4332 55%, #2D6A4F 100%)' }}>
+           style={{ background: 'linear-gradient(160deg, #203F40 0%, #2A6364 55%, #2E6F8E 100%)' }}>
         <div className="absolute inset-0" style={{
-          background: 'radial-gradient(circle at 20% 80%, rgba(201,148,58,0.15) 0%, transparent 60%)',
+          background: 'radial-gradient(circle at 20% 80%, rgba(199,176,140,0.18) 0%, transparent 60%)',
         }} />
         <div className="relative z-10 flex w-full flex-col items-center justify-center p-10 text-center">
           <Image
@@ -35,7 +35,7 @@ export default function LoginPage() {
               {['نموذج ١٨ — طلب صرف سلفة مؤقتة', 'نموذج ١٩ — تسوية السلفة المؤقتة', 'تصدير Word وطباعة النماذج الرسمية'].map((feat) => (
                 <div key={feat} className="flex items-center justify-center gap-3 text-sm text-white/80">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(201,148,58,0.3)' }}>
+                        style={{ background: 'rgba(199,176,140,0.28)' }}>
                     <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-yellow-400">
                       <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd"/>
                     </svg>
@@ -58,17 +58,17 @@ export default function LoginPage() {
 
         <div className="w-full max-w-md">
           <div className="mb-8">
-            <h2 className="text-2xl font-bold" style={{ color: '#0D1F18' }}>تسجيل الدخول</h2>
-            <p className="text-sm mt-1" style={{ color: '#6B9A88' }}>أدخل بريدك الرسمي وكلمة المرور للمتابعة</p>
+            <h2 className="text-2xl font-bold" style={{ color: '#1F3F40' }}>تسجيل الدخول</h2>
+            <p className="text-sm mt-1" style={{ color: '#5A5A5A' }}>أدخل بريدك الرسمي وكلمة المرور للمتابعة</p>
           </div>
 
           <div className="card p-8">
             <LoginForm />
           </div>
 
-          <p className="mt-5 text-center text-sm" style={{ color: '#6B9A88' }}>
+          <p className="mt-5 text-center text-sm" style={{ color: '#5A5A5A' }}>
             ليس لديك حساب؟{' '}
-            <Link href="/register" className="font-semibold" style={{ color: '#1B4332' }}>
+            <Link href="/register" className="font-semibold" style={{ color: '#2A6364' }}>
               إنشاء حساب جديد
             </Link>
           </p>

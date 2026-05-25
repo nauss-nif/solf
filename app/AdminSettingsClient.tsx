@@ -42,8 +42,8 @@ export default function AdminSettingsClient() {
       <div className="section-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="font-bold" style={{ color: '#0D1F18' }}>إعدادات النظام</h2>
-            <p className="mt-1 text-sm" style={{ color: '#4A7A65' }}>
+            <h2 className="font-bold" style={{ color: '#1F3F40' }}>إعدادات النظام</h2>
+            <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
               تتحكم هذه الإعدادات في الطباعة والأسماء الرسمية الظاهرة في النماذج.
             </p>
             {settings && (
@@ -107,8 +107,8 @@ export default function AdminSettingsClient() {
       <div className="section-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="font-bold" style={{ color: '#0D1F18' }}>تسلسل أرقام المعاملات</h2>
-            <p className="mt-1 text-sm" style={{ color: '#4A7A65' }}>
+            <h2 className="font-bold" style={{ color: '#1F3F40' }}>تسلسل أرقام المعاملات</h2>
+            <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
               استخدم هذا الحقل لضبط آخر رقم مستخدم. إذا كان آخر رقم يدوي هو 27 فسيكون الطلب القادم {sequence?.nextRefNumber ?? 'وت/26/0028'}.
             </p>
             {sequence && (

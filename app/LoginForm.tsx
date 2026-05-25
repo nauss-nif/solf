@@ -69,7 +69,7 @@ export default function LoginForm() {
             style={{
               position: 'absolute', left: '0.75rem', top: '50%',
               transform: 'translateY(-50%)', background: 'none',
-              border: 'none', cursor: 'pointer', color: '#6B9A88', padding: '0.25rem',
+              border: 'none', cursor: 'pointer', color: '#5A5A5A', padding: '0.25rem',
             }}
           >
             {showPassword ? (
