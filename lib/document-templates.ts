@@ -1141,35 +1141,32 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <span>التوقيع: <span class="signature-line"></span></span>
     </div>
 
-    <div class="official-panel" style="min-height: 122px; padding: 12px 18px;">
-      <h3 style="text-align: right; margin-bottom: 10px;">رأي المراقب المالي:</h3>
-      <div style="direction: ltr; display: grid; grid-template-columns: 1fr 175px; align-items: start;">
-        <div></div>
-        <div style="direction: rtl; display: grid; gap: 10px; justify-items: start;">
-          <span class="approval-choice" style="margin: 0;"><span class="box"></span>مستوفي</span>
-          <span class="approval-choice" style="margin: 0;"><span class="box"></span>غير مستوفي للآتي:</span>
-        </div>
+    <div class="official-panel" style="min-height: 104px; padding: 10px 18px;">
+      <h3 style="text-align: right; margin: 0 0 8px;">رأي المراقب المالي:</h3>
+      <div style="text-align: right; margin-bottom: 7px;">
+        <span class="approval-choice" style="margin: 0;"><span class="box"></span>مستوفي</span>
       </div>
-      <div style="direction: ltr; display: grid; grid-template-columns: 1.1fr 1fr 1.55fr; gap: 22px; margin-top: 22px; align-items: center;">
-        <span style="direction: rtl; text-align: right;">التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</span></span>
-        <span style="direction: rtl; text-align: right;">التوقيع:</span>
-        <span style="direction: rtl; text-align: right;">الاسم: ${escapeHtml(settings.financialControllerName)}</span>
+      <div style="text-align: right; margin-bottom: 12px;">
+        <span class="approval-choice" style="margin: 0;"><span class="box"></span>غير مستوفي للآتي:</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.7fr 0.8fr 1.1fr; gap: 18px; align-items: center; text-align: right;">
+        <span>الاسم: ${escapeHtml(settings.financialControllerName)}</span>
+        <span>التوقيع:</span>
+        <span>التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
       </div>
     </div>
 
-    <div class="official-panel" style="min-height: 128px; padding: 12px 18px;">
-      <h3 style="text-align: right; margin-bottom: 12px;">اعتماد رئيس الجامعة</h3>
-      <div style="direction: ltr; display: grid; grid-template-columns: 1fr 180px 180px; align-items: center; margin-bottom: 12px;">
-        <span></span>
-        <span class="approval-choice" style="direction: rtl; margin: 0;"><span class="box"></span>لا توافق</span>
-        <span class="approval-choice" style="direction: rtl; margin: 0;"><span class="box"></span>توافق</span>
+    <div class="official-panel" style="min-height: 112px; padding: 10px 18px;">
+      <h3 style="text-align: right; margin: 0 0 10px;">اعتماد رئيس الجامعة</h3>
+      <div style="display: flex; justify-content: flex-end; gap: 64px; margin-bottom: 10px;">
+        <span class="approval-choice" style="margin: 0;"><span class="box"></span>نوافق</span>
+        <span class="approval-choice" style="margin: 0;"><span class="box"></span>لا نوافق</span>
       </div>
-      <p style="text-align: center; margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
-      <div style="text-align: center; margin-top: 18px;">رئيس الجامعة:</div>
-      <div style="direction: ltr; display: grid; grid-template-columns: 1.1fr 1fr 1.4fr; gap: 22px; margin-top: 16px; align-items: center;">
-        <span style="direction: rtl; text-align: right;">التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;</span></span>
-        <span style="direction: rtl; text-align: right;">التوقيع:</span>
-        <span></span>
+      <p style="text-align: right; margin: 0 0 14px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
+      <div style="display: grid; grid-template-columns: 1.2fr 0.8fr 1.1fr; gap: 18px; align-items: center; text-align: right;">
+        <span>رئيس الجامعة:</span>
+        <span>التوقيع:</span>
+        <span>التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
       </div>
     </div>
   `
