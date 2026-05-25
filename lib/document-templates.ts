@@ -1185,17 +1185,17 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </div>
     </div>
 
-    <div class="official-panel" style="min-height: 78px; padding: 10px 18px;">
-      <h3 style="text-align: right; margin-bottom: 8px;">اعتماد رئيس الجامعة</h3>
-      <div style="display: grid; grid-template-columns: 1fr auto 2.2fr auto; align-items: center; gap: 10px;">
-        <span class="approval-choice"><span class="box"></span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
-        <span></span>
-        <span>لا أوافق</span>
+    <div class="official-panel" style="min-height: 112px; padding: 10px 18px;">
+      <h3 style="text-align: right; margin-bottom: 12px;">اعتماد رئيس الجامعة</h3>
+      <div style="display: grid; grid-template-columns: auto 1fr auto 1fr; align-items: center; gap: 10px; margin-bottom: 10px;">
         <span class="box"></span>
+        <span>نوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
+        <span class="box"></span>
+        <span>لا نوافق</span>
       </div>
-      <p style="margin: 6px 0 0; text-align: right;">وعلى كل فيما يخصه إكمال اللازم</p>
-      <p style="margin: 6px 0 0; text-align: right;">رئيس الجامعة: ........................................</p>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 90px; margin-top: 6px; text-align: center;">
+      <p style="margin: 0 0 12px; text-align: right;">وعلى كل فيما يخصه إكمال اللازم</p>
+      <div style="display: grid; grid-template-columns: 1.6fr 1fr 1fr; align-items: center; gap: 18px; text-align: right;">
+        <span>رئيس الجامعة:</span>
         <span>التوقيع:</span>
         <span>التاريخ: / &nbsp;&nbsp; /</span>
       </div>
