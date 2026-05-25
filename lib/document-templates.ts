@@ -1137,28 +1137,22 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </tbody>
     </table>
 
-    <table class="form-grid totals-table">
-      <tr>
-        <td>المصروفات المؤيدة بمستندات</td>
-        <td>${formatNumber(Number(settlement?.supported ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>المصروفات غير المؤيدة بمستندات</td>
-        <td>${formatNumber(Number(settlement?.unsupported ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>إجمالي المصروفات من السلفة</td>
-        <td>${formatNumber(Number(settlement?.total ?? 0))}</td>
-      </tr>
-      <tr>
-        <td>مبلغ السلفة</td>
-        <td>${formatNumber(loan.amount)}</td>
-      </tr>
-      <tr>
-        <td>المبلغ المصروف بالزيادة المطلوبة صرفه</td>
-        <td>${formatNumber(Number(settlement?.overage ?? 0))}</td>
-      </tr>
-    </table>
+    <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
+      <div style="display: grid; gap: 4px;">
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.supported ?? 0))}</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.unsupported ?? 0))}</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.total ?? 0))}</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(loan.amount)}</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.overage ?? 0))}</div>
+      </div>
+      <div style="display: grid; gap: 4px; direction: rtl; text-align: right; align-content: start;">
+        <div style="height: 22px; padding-top: 2px;">المصروفات المؤيدة بمستندات</div>
+        <div style="height: 22px; padding-top: 2px;">المصروفات غير المؤيدة بمستندات</div>
+        <div style="height: 22px; padding-top: 2px;">إجمالي المصروفات من السلفة</div>
+        <div style="height: 22px; padding-top: 2px;">مبلغ السلفة</div>
+        <div style="height: 22px; padding-top: 2px;">المبلغ المصروف بالزيادة المطلوبة صرفه</div>
+      </div>
+    </div>
 
     <div class="official-inline" style="grid-template-columns: 1fr 1fr 1fr; direction: rtl; text-align: right;">
       <span>وفر السلفة النقدي: ${formatNumber(Number(settlement?.savings ?? 0))}</span>
@@ -1172,10 +1166,10 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 
-    <div class="official-inline" style="grid-template-columns: 1.05fr 1.1fr 1fr;">
-      <span>وكيل الجامعة للتدريب</span>
-      <span>د. عبدالرزاق بن عبدالعزيز المرجان</span>
+    <div class="official-inline" style="grid-template-columns: 1.5fr 1fr 1fr; direction: rtl; text-align: right;">
+      <span>وكيل الجامعة للتدريب : د. عبدالرزاق عبدالعزيز المرجان</span>
       <span>التوقيع: <span class="signature-line"></span></span>
+      <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 
     <div class="official-panel">
