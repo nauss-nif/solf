@@ -56,7 +56,7 @@ function emailTemplate(options: {
   isUrgent?: boolean
 }): string {
   const urgentBanner = options.isUrgent
-    ? `<div style="background:#dc2626;color:#fff;padding:10px 20px;text-align:center;font-weight:bold;font-size:14px;">
+    ? `<div style="background:#73384B;color:#fff;padding:10px 20px;text-align:center;font-weight:bold;font-size:14px;">
         ⚠️ إشعار عاجل — يتطلب إجراءً فورياً
        </div>`
     : ''
@@ -64,7 +64,7 @@ function emailTemplate(options: {
   const actionButton = options.actionUrl
     ? `<div style="text-align:center;margin:24px 0;">
         <a href="${options.actionUrl}"
-           style="background:#016564;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">
+           style="background:#2A6364;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">
           ${options.actionLabel ?? 'عرض التفاصيل'}
         </a>
        </div>`
@@ -74,24 +74,58 @@ function emailTemplate(options: {
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head><meta charset="utf-8"/></head>
-<body style="font-family:Tahoma,Arial,sans-serif;background:#f3f4f6;margin:0;padding:20px;">
+<body style="font-family:Tahoma,Arial,sans-serif;background:#F9F9F9;margin:0;padding:20px;">
   <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
     ${urgentBanner}
-    <div style="background:#016564;padding:20px 28px;">
+    <div style="background:#2A6364;padding:20px 28px;">
       <h1 style="color:#fff;margin:0;font-size:18px;">نظام السلف المؤقتة</h1>
       <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px;">وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
     </div>
     <div style="padding:28px;">
-      <h2 style="color:#0f172a;margin:0 0 16px;font-size:16px;">${options.title}</h2>
-      <div style="color:#374151;font-size:14px;line-height:1.8;">${options.body}</div>
+      <h2 style="color:#1F3F40;margin:0 0 16px;font-size:16px;">${options.title}</h2>
+      <div style="color:#5A5A5A;font-size:14px;line-height:1.8;">${options.body}</div>
       ${actionButton}
     </div>
-    <div style="background:#f8fafc;padding:14px 28px;border-top:1px solid #e2e8f0;text-align:center;font-size:12px;color:#94a3b8;">
+    <div style="background:#F9F9F9;padding:14px 28px;border-top:1px solid #DADBD9;text-align:center;font-size:12px;color:#5A5A5A;">
       هذا بريد إلكتروني تلقائي من نظام السلف المؤقتة — يرجى عدم الرد عليه
     </div>
   </div>
 </body>
 </html>`
+}
+
+export function getEmailConfigurationStatus() {
+  return {
+    resendConfigured: Boolean(RESEND_API_KEY),
+    fromEmail: FROM_EMAIL,
+    adminEmail: ADMIN_EMAIL,
+    provider: 'Resend',
+    scopes: [
+      'ترحيب إنشاء الحساب',
+      'كود إكمال التسجيل',
+      'كود استعادة كلمة المرور',
+      'إشعار طلب سلفة جديد للمراجعين والمدير',
+      'إشعار مراجعة أو إعادة طلب السلفة للموظف',
+      'تذكير قرب انتهاء مهلة التسوية',
+      'تنبيه تأخر التسوية للموظف والإدارة',
+      'تنبيه يدوي من الإدارة',
+    ],
+  }
+}
+
+export async function sendTestEmail(options: { to: string; fullName: string }) {
+  return sendEmail({
+    to: options.to,
+    subject: 'اختبار بريد منصة طلبات السلف',
+    html: emailTemplate({
+      title: 'اختبار إعدادات البريد',
+      body: `
+        <p>مرحباً ${options.fullName}،</p>
+        <p>هذه رسالة اختبار للتأكد من عمل ربط Resend مع منصة طلبات السلف.</p>
+        <p>إذا وصلتك هذه الرسالة فهذا يعني أن إعدادات الإرسال تعمل بنجاح.</p>
+      `,
+    }),
+  })
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 
 type SequenceState = { lastNumber: number; nextNumber: number; nextRefNumber: string }
 type SystemSettings = { allowPrintBeforeReview: boolean; trainingVicePresidentName: string; financialControllerName: string }
+type EmailStatus = { resendConfigured: boolean; fromEmail: string; adminEmail: string; provider: string; scopes: string[] }
 
 export default function AdminSettingsClient() {
   const [loadError, setLoadError] = useState('')
@@ -13,6 +14,7 @@ export default function AdminSettingsClient() {
   const [sequenceDraft, setSequenceDraft] = useState('')
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [settingsDraft, setSettingsDraft] = useState<SystemSettings | null>(null)
+  const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
 
   async function loadSequence() {
     const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
@@ -30,7 +32,14 @@ export default function AdminSettingsClient() {
     setSettingsDraft(data)
   }
 
-  useEffect(() => { void loadSequence(); void loadSettings() }, [])
+  async function loadEmailStatus() {
+    const res = await fetch('/api/admin/email-test', { cache: 'no-store' })
+    const data = await res.json()
+    if (!res.ok) return
+    setEmailStatus(data)
+  }
+
+  useEffect(() => { void loadSequence(); void loadSettings(); void loadEmailStatus() }, [])
 
   function showSuccess(msg: string) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 2500) }
 
@@ -150,6 +159,50 @@ export default function AdminSettingsClient() {
               حفظ التسلسل
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="section-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-bold" style={{ color: '#1F3F40' }}>إعدادات البريد والإشعارات</h2>
+            <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
+              فحص ربط Resend ونطاق رسائل البريد التي ترسلها المنصة.
+            </p>
+            {emailStatus && (
+              <div className="mt-3 flex flex-wrap gap-2 text-sm">
+                <span className={emailStatus.resendConfigured ? 'badge badge-success' : 'badge badge-danger'}>
+                  Resend: {emailStatus.resendConfigured ? 'مفعّل' : 'غير مفعّل'}
+                </span>
+                <span className="badge badge-neutral">المرسل: {emailStatus.fromEmail}</span>
+                <span className="badge badge-neutral">بريد الإدارة: {emailStatus.adminEmail}</span>
+              </div>
+            )}
+            {emailStatus && (
+              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                {emailStatus.scopes.map((scope) => (
+                  <div key={scope} className="rounded-lg px-3 py-2 text-sm" style={{ background: '#F9F9F9', border: '1px solid #DADBD9', color: '#5A5A5A' }}>
+                    {scope}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            disabled={isPending || !emailStatus?.resendConfigured}
+            className="btn btn-primary"
+            onClick={() => {
+              startTransition(async () => {
+                const res = await fetch('/api/admin/email-test', { method: 'POST' })
+                const data = await res.json().catch(() => ({}))
+                if (!res.ok || !data.sent) { setLoadError('تعذر إرسال بريد الاختبار. تحقق من RESEND_API_KEY والنطاق المرسل.'); return }
+                showSuccess(`تم إرسال بريد اختبار إلى ${data.to}.`)
+              })
+            }}
+          >
+            إرسال بريد اختبار
+          </button>
         </div>
       </div>
     </div>

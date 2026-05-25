@@ -245,6 +245,54 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     { name: 'متأخرة', value: stats.overdue, color: '#73384B' },
   ].filter((d) => d.value > 0), [stats])
 
+  const executiveReport = useMemo(() => {
+    const settledLoans = loans.filter((loan) => loan.isSettled && loan.settlement)
+    const activeLoans = loans.filter((loan) => !loan.isSettled)
+    const reviewedLoans = loans.filter((loan) => loan.reviewStatus === 'REVIEWED')
+    const returnedLoans = loans.filter((loan) => loan.reviewStatus === 'RETURNED')
+    const overdueLoans = activeLoans
+      .map((loan) => ({ ...loan, days: workDaysSince(loan.endDate) }))
+      .filter((loan) => loan.days > 15)
+      .sort((a, b) => b.days - a.days)
+
+    const averageRequest = loans.length ? reportSummary.totalRequested / loans.length : 0
+    const averageSettlement = settledLoans.length ? reportSummary.totalExpenses / settledLoans.length : 0
+    const settlementRate = loans.length ? Math.round((settledLoans.length / loans.length) * 100) : 0
+    const reviewRate = loans.length ? Math.round((reviewedLoans.length / loans.length) * 100) : 0
+    const savingsRate = reportSummary.totalRequested > 0 ? (reportSummary.totalSavings / reportSummary.totalRequested) * 100 : 0
+    const overageRate = reportSummary.totalRequested > 0 ? (reportSummary.totalOverage / reportSummary.totalRequested) * 100 : 0
+    const netPosition = reportSummary.totalSavings - reportSummary.totalOverage
+    const topLoans = [...loans].sort((a, b) => b.amount - a.amount).slice(0, 5)
+    const topSettlements = settledLoans
+      .sort((a, b) => (b.settlement?.total ?? 0) - (a.settlement?.total ?? 0))
+      .slice(0, 5)
+    const mainFinding = loans.length === 0
+      ? 'لا توجد بيانات كافية لإصدار قراءة تنفيذية.'
+      : overdueLoans.length > 0
+        ? `يوجد ${formatEnglishNumber(overdueLoans.length)} طلب متأخر يحتاج متابعة مباشرة.`
+        : settlementRate >= 70
+          ? 'مستوى التسوية جيد ولا توجد مؤشرات تأخر جوهرية حالياً.'
+          : 'نسبة التسوية تحتاج متابعة لرفع وتيرة إقفال الطلبات المفتوحة.'
+
+    return {
+      activeCount: activeLoans.length,
+      settledCount: settledLoans.length,
+      reviewedCount: reviewedLoans.length,
+      returnedCount: returnedLoans.length,
+      overdueLoans,
+      averageRequest,
+      averageSettlement,
+      settlementRate,
+      reviewRate,
+      savingsRate,
+      overageRate,
+      netPosition,
+      topLoans,
+      topSettlements,
+      mainFinding,
+    }
+  }, [loans, reportSummary])
+
   const settlementLoan = useMemo(() => loans.find((l) => l.id === selectedLoanId) ?? null, [loans, selectedLoanId])
   const rateMap = useMemo(() => buildRateMap(currencyRates), [currencyRates])
   const settlementSummary = useMemo(() => {
@@ -639,6 +687,19 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {/* REPORTS TAB */}
             {activeTab === 'reports' && (
               <div className="space-y-6">
+                <div className="section-card p-5" style={{ borderRight: '4px solid #2A6364' }}>
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: '#C7B08C' }}>تقرير تنفيذي</p>
+                      <h2 className="mt-1 text-xl font-bold" style={{ color: '#1F3F40' }}>ملخص أداء طلبات السلف والتسويات</h2>
+                      <p className="mt-2 max-w-3xl text-sm leading-7" style={{ color: '#5A5A5A' }}>{executiveReport.mainFinding}</p>
+                    </div>
+                    <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#F3EDE3', color: '#6B5A4A', border: '1px solid #C7B08C' }}>
+                      صافي الوفورات: <strong>{formatCurrencySar(executiveReport.netPosition)}</strong>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Summary tiles */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
@@ -652,6 +713,59 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <p className="summary-pill-value" style={{ color: tile.color }}>{tile.value}</p>
                     </div>
                   ))}
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {[
+                    { label: 'نسبة التسوية', value: `${formatEnglishNumber(executiveReport.settlementRate)}%`, hint: `${formatEnglishNumber(executiveReport.settledCount)} من ${formatEnglishNumber(stats.total)} طلب`, color: '#2A6364' },
+                    { label: 'نسبة المراجعة', value: `${formatEnglishNumber(executiveReport.reviewRate)}%`, hint: `${formatEnglishNumber(executiveReport.reviewedCount)} طلب تمت مراجعته`, color: '#2E6F8E' },
+                    { label: 'متوسط الطلب', value: formatCurrencySar(executiveReport.averageRequest), hint: 'متوسط قيمة السلفة المطلوبة', color: '#6B5A4A' },
+                    { label: 'متوسط التسوية', value: formatCurrencySar(executiveReport.averageSettlement), hint: 'متوسط المصروفات للطلبات المسوّاة', color: '#4F8F7A' },
+                  ].map((item) => (
+                    <div key={item.label} className="section-card p-4">
+                      <p className="text-xs font-semibold" style={{ color: '#5A5A5A' }}>{item.label}</p>
+                      <p className="mt-2 text-2xl font-bold" style={{ color: item.color }}>{item.value}</p>
+                      <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>{item.hint}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <div className="section-card p-4">
+                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>قراءة المخاطر</h3>
+                    <div className="mt-3 space-y-2 text-sm" style={{ color: '#5A5A5A' }}>
+                      <p>الطلبات المفتوحة: <strong>{formatEnglishNumber(executiveReport.activeCount)}</strong></p>
+                      <p>الطلبات المتأخرة: <strong style={{ color: '#73384B' }}>{formatEnglishNumber(executiveReport.overdueLoans.length)}</strong></p>
+                      <p>المعاملات المعادة: <strong>{formatEnglishNumber(executiveReport.returnedCount)}</strong></p>
+                      <p>نسبة الوفورات: <strong style={{ color: '#4F8F7A' }}>{formatEnglishNumber(Number(executiveReport.savingsRate.toFixed(1)))}%</strong></p>
+                      <p>نسبة الزيادات: <strong style={{ color: '#73384B' }}>{formatEnglishNumber(Number(executiveReport.overageRate.toFixed(1)))}%</strong></p>
+                    </div>
+                  </div>
+
+                  <div className="section-card p-4 lg:col-span-2">
+                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>أبرز الطلبات التي تتطلب متابعة</h3>
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="data-table">
+                        <thead>
+                          <tr><th>الرقم</th><th>النشاط</th><th>الموظف</th><th>أيام العمل بعد النهاية</th><th>المبلغ</th></tr>
+                        </thead>
+                        <tbody>
+                          {executiveReport.overdueLoans.slice(0, 5).map((loan) => (
+                            <tr key={loan.id}>
+                              <td>{loan.refNumber}</td>
+                              <td>{loan.activity}</td>
+                              <td>{loan.employee}</td>
+                              <td style={{ color: '#73384B', fontWeight: 700 }}>{formatEnglishNumber(loan.days)}</td>
+                              <td>{formatCurrencySar(loan.amount)}</td>
+                            </tr>
+                          ))}
+                          {executiveReport.overdueLoans.length === 0 && (
+                            <tr><td colSpan={5} className="text-center py-6" style={{ color: '#5A5A5A' }}>لا توجد طلبات متأخرة حالياً</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Charts row */}
@@ -713,6 +827,32 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   ) : (
                     <div className="h-[200px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية لعرض التقرير</div>
                   )}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="section-card p-4">
+                    <h3 className="font-bold mb-3" style={{ color: '#1F3F40' }}>أعلى طلبات السلف قيمة</h3>
+                    <div className="space-y-2">
+                      {executiveReport.topLoans.map((loan, index) => (
+                        <div key={loan.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: '#F9F9F9', border: '1px solid #DADBD9' }}>
+                          <span className="text-sm"><strong>{formatEnglishNumber(index + 1)}.</strong> {loan.activity}</span>
+                          <span className="text-sm font-bold" style={{ color: '#2A6364' }}>{formatCurrencySar(loan.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="section-card p-4">
+                    <h3 className="font-bold mb-3" style={{ color: '#1F3F40' }}>أعلى التسويات مصروفاً</h3>
+                    <div className="space-y-2">
+                      {executiveReport.topSettlements.map((loan, index) => (
+                        <div key={loan.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: '#F9F9F9', border: '1px solid #DADBD9' }}>
+                          <span className="text-sm"><strong>{formatEnglishNumber(index + 1)}.</strong> {loan.activity}</span>
+                          <span className="text-sm font-bold" style={{ color: '#2E6F8E' }}>{formatCurrencySar(loan.settlement?.total ?? 0)}</span>
+                        </div>
+                      ))}
+                      {executiveReport.topSettlements.length === 0 && <p className="text-sm" style={{ color: '#5A5A5A' }}>لا توجد تسويات مكتملة بعد</p>}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

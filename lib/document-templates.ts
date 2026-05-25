@@ -463,7 +463,7 @@ function printShell(body: string, options: PrintShellOptions) {
 
 function createWordCompatibleDocument(html: string) {
   return Buffer.from(
-    `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8" /></head><body>${html}</body></html>`,
+    `<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="utf-8" /><meta http-equiv="Content-Type" content="text/html; charset=utf-8" /></head><body>${html}</body></html>`,
     'utf8',
   )
 }
@@ -1054,15 +1054,11 @@ function buildSettlementFormalDocx(loan: LoanDocumentRecord, options?: DocumentR
 }
 
 export async function buildLoanRequestDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
-  return buildLoanRequestFormalDocx(loan, options)
+  return createWordCompatibleDocument(buildLoanRequestWordHtml(loan, options))
 }
 
 export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
-  const templateZip = await loadPatchedTemplate(
-    SETTLEMENT_TEMPLATE_PATH,
-    SETTLEMENT_TEMPLATE_REPLACEMENTS,
-  )
-  return renderDocxTemplate(templateZip, createSettlementTemplateData(loan, options))
+  return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
