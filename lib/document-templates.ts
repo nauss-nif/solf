@@ -1137,11 +1137,11 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
 
     <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
       <div style="display: grid; gap: 4px;">
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.supported ?? 0))} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.unsupported ?? 0))} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.total ?? 0))} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(loan.amount)} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px;">${formatNumber(Number(settlement?.overage ?? 0))} ريال</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.supported ?? 0))} ريال</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.unsupported ?? 0))} ريال</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.total ?? 0))} ريال</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(loan.amount)} ريال</div>
+        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.overage ?? 0))} ريال</div>
       </div>
       <div style="display: grid; gap: 4px; direction: rtl; text-align: right; align-content: start;">
         <div style="height: 22px; padding-top: 2px;">المصروفات المؤيدة بمستندات</div>
@@ -1152,7 +1152,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </div>
     </div>
 
-    <div class="official-inline" style="grid-template-columns: 1fr 1fr 1fr; direction: rtl; text-align: right;">
+    <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>وفر السلفة النقدي: ${formatNumber(Number(settlement?.savings ?? 0))}</span>
       <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
       <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
@@ -1164,7 +1164,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 
-    <div class="official-inline" style="grid-template-columns: 1.5fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
+    <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>وكيل الجامعة للتدريب : د. عبدالرزاق عبدالعزيز المرجان</span>
       <span>التوقيع: <span class="signature-line"></span></span>
       <span>التاريخ: <span class="signature-line"></span></span>
@@ -1185,17 +1185,19 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord) {
       </div>
     </div>
 
-    <div class="official-panel">
-      <h3>اعتماد رئيس الجامعة</h3>
-      <p class="row">
+    <div class="official-panel" style="min-height: 78px; padding: 10px 18px;">
+      <h3 style="text-align: right; margin-bottom: 8px;">اعتماد رئيس الجامعة</h3>
+      <div style="display: grid; grid-template-columns: 1fr auto 2.2fr auto; align-items: center; gap: 10px;">
         <span class="approval-choice"><span class="box"></span>أوافق على تسوية السلفة وفق ما هو محدد أعلاه.</span>
-        <span class="approval-choice"><span class="box"></span>لا أوافق</span>
-      </p>
-      <p style="margin-top: 10px;">وعلى كل فيما يخصه إكمال اللازم</p>
-      <div class="row nowrap" style="margin-top: 22px;">
-        <span>رئيس الجامعة: <span class="signature-line" style="min-width: 180px;"></span></span>
-        <span>التاريخ: <span class="signature-line"></span></span>
-        <span>التوقيع: <span class="signature-line"></span></span>
+        <span></span>
+        <span>لا أوافق</span>
+        <span class="box"></span>
+      </div>
+      <p style="margin: 6px 0 0; text-align: right;">وعلى كل فيما يخصه إكمال اللازم</p>
+      <p style="margin: 6px 0 0; text-align: right;">رئيس الجامعة: ........................................</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 90px; margin-top: 6px; text-align: center;">
+        <span>التوقيع:</span>
+        <span>التاريخ: / &nbsp;&nbsp; /</span>
       </div>
     </div>
     ${attachmentPages}
