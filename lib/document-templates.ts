@@ -985,9 +985,9 @@ function buildLoanRequestFormalDocx(loan: LoanDocumentRecord, options?: Document
     wordBorderlessTable(metaRows, 9200),
     expenseTable,
     wordParagraph(`مسؤول الجهة:      وكيل الجامعة للتدريب      الاسم: ${settings.trainingVicePresidentName}      التوقيع: ................`, { bold: true, size: 18, after: 180 }),
-    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', `الاسم: ${settings.financialControllerName}`, 'التوقيع:                         التاريخ:       /          /       ']),
+    wordPanel('رأي المراقب المالي:', ['☐ مستوفي', '☐ غير مستوفي للآتي:', `الاسم: ${settings.financialControllerName}        التوقيع:        التاريخ:`]),
     wordParagraph('', { after: 80 }),
-    wordPanel('اعتماد رئيس الجامعة', ['☐ نوافق                         ☐ لا نوافق', 'وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.', 'رئيس الجامعة:', 'التوقيع:                         التاريخ:       /          /       ']),
+    wordPanel('اعتماد رئيس الجامعة', ['☐ نوافق        ☐ لا نوافق', 'وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.', 'رئيس الجامعة:        التوقيع:        التاريخ:']),
   ].join('')
 
   return buildDocxBuffer(body, { top: 720, right: 900, left: 900, bottom: 720 })
@@ -1141,32 +1141,32 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <span>التوقيع: <span class="signature-line"></span></span>
     </div>
 
-    <div class="official-panel" style="min-height: 104px; padding: 10px 18px;">
-      <h3 style="text-align: right; margin: 0 0 8px;">رأي المراقب المالي:</h3>
-      <div style="text-align: right; margin-bottom: 7px;">
+    <div class="official-panel" style="min-height: 0; padding: 8px 18px 9px; line-height: 1.18;">
+      <h3 style="text-align: right; margin: 0 0 6px;">رأي المراقب المالي:</h3>
+      <div style="text-align: right; margin-bottom: 5px;">
         <span class="approval-choice" style="margin: 0;"><span class="box"></span>مستوفي</span>
       </div>
-      <div style="text-align: right; margin-bottom: 12px;">
+      <div style="text-align: right; margin-bottom: 9px;">
         <span class="approval-choice" style="margin: 0;"><span class="box"></span>غير مستوفي للآتي:</span>
       </div>
       <div style="display: grid; grid-template-columns: 1.7fr 0.8fr 1.1fr; gap: 18px; align-items: center; text-align: right;">
         <span>الاسم: ${escapeHtml(settings.financialControllerName)}</span>
         <span>التوقيع:</span>
-        <span>التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+        <span>التاريخ:</span>
       </div>
     </div>
 
-    <div class="official-panel" style="min-height: 112px; padding: 10px 18px;">
-      <h3 style="text-align: right; margin: 0 0 10px;">اعتماد رئيس الجامعة</h3>
-      <div style="display: flex; justify-content: flex-end; gap: 64px; margin-bottom: 10px;">
+    <div class="official-panel" style="min-height: 0; padding: 8px 18px 9px; line-height: 1.18;">
+      <h3 style="text-align: right; margin: 0 0 8px;">اعتماد رئيس الجامعة</h3>
+      <div style="display: flex; justify-content: flex-start; gap: 64px; margin-bottom: 8px; direction: rtl;">
         <span class="approval-choice" style="margin: 0;"><span class="box"></span>نوافق</span>
         <span class="approval-choice" style="margin: 0;"><span class="box"></span>لا نوافق</span>
       </div>
-      <p style="text-align: right; margin: 0 0 14px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
+      <p style="text-align: right; margin: 0 0 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
       <div style="display: grid; grid-template-columns: 1.2fr 0.8fr 1.1fr; gap: 18px; align-items: center; text-align: right;">
         <span>رئيس الجامعة:</span>
         <span>التوقيع:</span>
-        <span>التاريخ: <span class="loan-date-space">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></span>
+        <span>التاريخ:</span>
       </div>
     </div>
   `
