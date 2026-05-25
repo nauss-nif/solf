@@ -38,7 +38,18 @@ async function sendEmail(options: {
       }),
     })
 
-    return response.ok
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      console.error('[Notifications] Resend rejected email:', {
+        status: response.status,
+        to: options.to,
+        from: FROM_EMAIL,
+        error: errorText,
+      })
+      return false
+    }
+
+    return true
   } catch (error) {
     console.error('[Notifications] Email send failed:', error)
     return false
@@ -140,7 +151,7 @@ export async function createInternalNotification(options: {
 }): Promise<void> {
   await prisma.$executeRawUnsafe(
     `INSERT INTO "loan_notifications" ("id","userId","type","title","message","metadata","createdAt")
-     VALUES (gen_random_uuid()::text, $1, $2::\"NotificationType\", $3, $4, $5, NOW())`,
+     VALUES (gen_random_uuid()::text, $1, $2::\"NotificationType\", $3, $4, $5::jsonb, NOW())`,
     options.userId,
     options.type,
     options.title,

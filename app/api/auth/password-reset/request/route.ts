@@ -22,7 +22,10 @@ export async function POST(request: Request) {
     if (user && user.status === 'ACTIVE') {
       const code = createResetCode()
       await savePasswordResetCode(user.id, code)
-      await sendPasswordResetCodeEmail({ to: user.email, fullName: user.fullName, code })
+      const sent = await sendPasswordResetCodeEmail({ to: user.email, fullName: user.fullName, code })
+      if (!sent) {
+        console.error('[PasswordReset] Reset code email was not sent', { email: user.email })
+      }
     }
 
     return NextResponse.json({ success: true })
