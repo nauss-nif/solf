@@ -262,7 +262,7 @@ export async function sendRegistrationCodeEmail(options: {
       body: `
         <p>مرحباً ${options.fullName}،</p>
         <p>كود إكمال التسجيل الخاص بك هو:</p>
-        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;color:#016564;">${options.code}</p>
+        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;color:#2A6364;">${options.code}</p>
         <p>ينتهي هذا الكود خلال مدة محدودة. إذا لم تطلب التسجيل فتجاهل هذه الرسالة.</p>
       `,
     }),
@@ -282,7 +282,7 @@ export async function sendPasswordResetCodeEmail(options: {
       body: `
         <p>مرحباً ${options.fullName}،</p>
         <p>كود استعادة كلمة المرور الخاص بك هو:</p>
-        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;color:#016564;">${options.code}</p>
+        <p style="font-size:24px;font-weight:bold;letter-spacing:4px;text-align:center;color:#2A6364;">${options.code}</p>
         <p>إذا لم تطلب استعادة كلمة المرور فتجاهل هذه الرسالة.</p>
       `,
       isUrgent: true,

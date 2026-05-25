@@ -59,7 +59,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           <div className="mb-8">
             <h2 className="text-2xl font-bold" style={{ color: '#1F3F40' }}>تسجيل الدخول</h2>
-            <p className="text-sm mt-1" style={{ color: '#5A5A5A' }}>أدخل بريدك الرسمي وكلمة المرور للمتابعة</p>
+            <p className="text-sm mt-1" style={{ color: '#5A5A5A' }}>أنشئ حساباً جديداً إذا لم يكن لديك حساب سابق في المنصة.</p>
           </div>
 
           <div className="card p-8">

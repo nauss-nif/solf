@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 const SYSTEM_ADMIN_EMAIL = 'od@nauss.edu.sa'
 
@@ -84,6 +85,11 @@ export default function LoginForm() {
               </svg>
             )}
           </button>
+        </div>
+        <div className="mt-2 text-left">
+          <Link href="/forgot-password" className="text-sm font-semibold" style={{ color: '#2A6364' }}>
+            نسيت كلمة المرور؟
+          </Link>
         </div>
       </div>
 
