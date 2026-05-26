@@ -6,7 +6,7 @@ import Link from 'next/link'
 
 const SYSTEM_ADMIN_EMAIL = 'od@nauss.edu.sa'
 
-export default function LoginForm() {
+export default function LoginForm({ nextPath = '/' }: { nextPath?: string }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
@@ -35,7 +35,7 @@ export default function LoginForm() {
             setError(data.error ?? 'تعذر تسجيل الدخول')
             return
           }
-          router.push('/')
+          router.push(nextPath)
         })
       }}
     >

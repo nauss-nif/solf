@@ -4,8 +4,9 @@ import { redirect } from 'next/navigation'
 import LoginForm from '@/app/LoginForm'
 import { getSessionUser } from '@/lib/auth'
 
-export default function LoginPage() {
-  if (getSessionUser()) redirect('/')
+export default function LoginPage({ searchParams }: { searchParams?: { next?: string } }) {
+  const next = searchParams?.next && searchParams.next.startsWith('/') ? searchParams.next : '/'
+  if (getSessionUser()) redirect(next)
 
   return (
     <main className="min-h-screen flex" style={{ background: '#F9F9F9' }}>
@@ -63,7 +64,7 @@ export default function LoginPage() {
           </div>
 
           <div className="card p-8">
-            <LoginForm />
+            <LoginForm nextPath={next} />
           </div>
 
           <p className="mt-5 text-center text-sm" style={{ color: '#5A5A5A' }}>
