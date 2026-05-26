@@ -12,6 +12,10 @@ const FROM_EMAIL = process.env.FROM_EMAIL
     ? `منصة إدارة السلف <${process.env.RESEND_FROM_EMAIL}>`
     : 'منصة إدارة السلف <noreply@od-nauss.win>')
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@nauss.edu.sa'
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL ?? '').replace(/\/$/, '')
+const LOGO_URL = SITE_URL
+  ? `${SITE_URL.startsWith('http') ? SITE_URL : `https://${SITE_URL}`}/nauss-login-brand.png`
+  : ''
 
 // ─────────────────────────────────────────────────────────────
 // إرسال بريد إلكتروني عبر Resend
@@ -78,7 +82,7 @@ function emailTemplate(options: {
   isUrgent?: boolean
 }): string {
   const urgentBanner = options.isUrgent
-    ? `<div style="background:#73384B;color:#fff;padding:10px 20px;text-align:center;font-weight:bold;font-size:14px;">
+    ? `<div style="background:#73384B;color:#fff;padding:10px 20px;text-align:center;font-weight:700;font-size:14px;font-family:Cairo,Tahoma,Arial,sans-serif;">
         ⚠️ إشعار عاجل — يتطلب إجراءً فورياً
        </div>`
     : ''
@@ -86,7 +90,7 @@ function emailTemplate(options: {
   const actionButton = options.actionUrl
     ? `<div style="text-align:center;margin:24px 0;">
         <a href="${options.actionUrl}"
-           style="background:#2A6364;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">
+           style="background:#2A6364;color:#fff;padding:12px 28px;border-radius:10px;text-decoration:none;font-weight:700;font-size:14px;font-family:Cairo,Tahoma,Arial,sans-serif;display:inline-block;">
           ${options.actionLabel ?? 'عرض التفاصيل'}
         </a>
        </div>`
@@ -95,21 +99,33 @@ function emailTemplate(options: {
   return `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="utf-8"/></head>
-<body style="font-family:Tahoma,Arial,sans-serif;background:#F9F9F9;margin:0;padding:20px;">
-  <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body style="font-family:Cairo,Tahoma,Arial,sans-serif;background:#F9F9F9;margin:0;padding:24px;direction:rtl;text-align:right;">
+  <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(42,99,100,0.12);border:1px solid #DADBD9;">
     ${urgentBanner}
-    <div style="background:#2A6364;padding:20px 28px;">
-      <h1 style="color:#fff;margin:0;font-size:18px;">نظام السلف المؤقتة</h1>
-      <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px;">وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
+    <div style="background:linear-gradient(135deg,#2A6364 0%,#2E6F8E 100%);padding:24px 30px;border-bottom:4px solid #C7B08C;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <tr>
+          <td style="vertical-align:middle;text-align:right;">
+            <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;line-height:1.5;font-family:Cairo,Tahoma,Arial,sans-serif;">منصة إدارة السلف</h1>
+            <p style="color:rgba(255,255,255,0.84);margin:4px 0 0;font-size:13px;line-height:1.8;font-family:Cairo,Tahoma,Arial,sans-serif;">وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
+          </td>
+          ${LOGO_URL ? `<td style="vertical-align:middle;text-align:left;width:150px;"><img src="${LOGO_URL}" alt="جامعة نايف العربية للعلوم الأمنية" width="138" style="display:block;width:138px;height:auto;margin-right:auto;"/></td>` : ''}
+        </tr>
+      </table>
     </div>
-    <div style="padding:28px;">
-      <h2 style="color:#1F3F40;margin:0 0 16px;font-size:16px;">${options.title}</h2>
-      <div style="color:#5A5A5A;font-size:14px;line-height:1.8;">${options.body}</div>
+    <div style="padding:32px 30px;">
+      <div style="width:48px;height:4px;background:#C7B08C;border-radius:99px;margin:0 0 18px auto;"></div>
+      <h2 style="color:#1F3F40;margin:0 0 18px;font-size:20px;font-weight:700;line-height:1.6;font-family:Cairo,Tahoma,Arial,sans-serif;">${options.title}</h2>
+      <div style="color:#5A5A5A;font-size:15px;line-height:2;font-family:Cairo,Tahoma,Arial,sans-serif;">${options.body}</div>
       ${actionButton}
     </div>
-    <div style="background:#F9F9F9;padding:14px 28px;border-top:1px solid #DADBD9;text-align:center;font-size:12px;color:#5A5A5A;">
-      هذا بريد إلكتروني تلقائي من نظام السلف المؤقتة — يرجى عدم الرد عليه
+    <div style="background:#F9F9F9;padding:16px 28px;border-top:1px solid #DADBD9;text-align:center;font-size:12px;color:#5A5A5A;font-family:Cairo,Tahoma,Arial,sans-serif;line-height:1.8;">
+      هذا بريد إلكتروني تلقائي من منصة إدارة السلف — يرجى عدم الرد عليه
     </div>
   </div>
 </body>
