@@ -45,7 +45,7 @@ type ExpenseDraft = { category: string; amount: string }
 type InvoiceDraft = { amount: string; currencyCode: CurrencyCode; exchangeRate: string; sarAmount: number; documentType: SettlementDocumentType; invoiceDate: string; issuer: string; attachment: StoredFile | null }
 type SettlementDraft = { id: string; category: string; budget: number; invoices: InvoiceDraft[]; isAdditional?: boolean }
 type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string }
-type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info' }
+type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
@@ -212,7 +212,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   useEffect(() => { if (initialLoans.length > 0) return; void refreshLoans() }, [initialLoans.length])
   useEffect(() => { void refreshLoans(workMode) }, [workMode])
-  useEffect(() => { void loadNotifications(true) }, [])
+  useEffect(() => { void loadNotifications() }, [])
   useEffect(() => {
     if (handledCourseLink) return
     const courseId = searchParams.get('courseId')
@@ -244,21 +244,18 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     setLoanModalOpen(true)
   }, [handledCourseLink, searchParams])
 
-  const showToast = (message: string, tone: ToastItem['tone'] = 'success') => {
+  const showToast = (message: string, tone: ToastItem['tone'] = 'success', important = tone === 'error') => {
     const id = Date.now() + Math.floor(Math.random() * 1000)
-    setToasts((curr) => [...curr, { id, message, tone }])
-    window.setTimeout(() => setToasts((curr) => curr.filter((t) => t.id !== id)), 3200)
+    setToasts((curr) => [...curr.slice(-2), { id, message, tone, important }])
+    window.setTimeout(() => setToasts((curr) => curr.filter((t) => t.id !== id)), important ? 5200 : 2600)
   }
 
-  async function loadNotifications(announce = false) {
+  async function loadNotifications() {
     const res = await fetch('/api/notifications', { cache: 'no-store' })
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return
     setNotifications(Array.isArray(data.notifications) ? data.notifications : [])
     setUnreadNotifications(Number(data.unreadCount ?? 0))
-    if (announce && Number(data.unreadCount ?? 0) > 0) {
-      showToast(`لديك ${formatEnglishNumber(Number(data.unreadCount))} إشعار غير مقروء.`, 'info')
-    }
   }
 
   async function toggleNotifications() {
@@ -1427,8 +1424,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       )}
 
       {/* TOASTS */}
-      <div className="toast-container">
-        {toasts.map((toast) => (
+      <div className="toast-container toast-container-passive">
+        {toasts.filter((toast) => !toast.important).map((toast) => (
+          <div key={toast.id} className={`toast ${toast.tone === 'success' ? 'toast-success' : toast.tone === 'error' ? 'toast-error' : 'toast-info'}`}>
+            {toast.message}
+          </div>
+        ))}
+      </div>
+      <div className="toast-container toast-container-important">
+        {toasts.filter((toast) => toast.important).map((toast) => (
           <div key={toast.id} className={`toast ${toast.tone === 'success' ? 'toast-success' : toast.tone === 'error' ? 'toast-error' : 'toast-info'}`}>
             {toast.message}
           </div>
