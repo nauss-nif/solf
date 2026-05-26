@@ -16,6 +16,10 @@ export default function AdminSettingsClient() {
   const [settingsDraft, setSettingsDraft] = useState<SystemSettings | null>(null)
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
   const [testEmail, setTestEmail] = useState('')
+  const [broadcastAudience, setBroadcastAudience] = useState('reviewers')
+  const [broadcastSubject, setBroadcastSubject] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
+  const [broadcastTitle, setBroadcastTitle] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
+  const [broadcastMessage, setBroadcastMessage] = useState('السلام عليكم،\n\nتم تعيينكم كمراجعين في منصة إدارة السلف، ونأمل الدخول إلى المنصة وإنشاء حساب رسمي، ثم مباشرة مراجعة معاملات طلبات السلف وتسويتها حسب الإجراءات المعتمدة.\n\nشاكرين تعاونكم.')
 
   async function loadSequence() {
     const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
@@ -215,6 +219,60 @@ export default function AdminSettingsClient() {
               }}
             >
               إرسال بريد اختبار
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="section-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-bold" style={{ color: '#1F3F40' }}>إرسال بريد مخصص</h2>
+            <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
+              يرسل المدير رسالة بريدية حسب الفئة المختارة باستخدام قالب المنصة الرسمي. يمكن استخدام {'{{name}}'} داخل الرسالة لإظهار اسم المستلم.
+            </p>
+          </div>
+          <div className="grid w-full gap-3 lg:max-w-2xl">
+            <label className="block">
+              <span className="field-label">المستلمون</span>
+              <select value={broadcastAudience} onChange={(event) => setBroadcastAudience(event.target.value)} className="input-shell">
+                <option value="reviewers">المراجعون</option>
+                <option value="admins">المديرون</option>
+                <option value="employees">الموظفون</option>
+                <option value="all">جميع المستخدمين النشطين</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="field-label">موضوع البريد</span>
+              <input value={broadcastSubject} onChange={(event) => setBroadcastSubject(event.target.value)} className="input-shell" />
+            </label>
+            <label className="block">
+              <span className="field-label">عنوان الرسالة داخل البريد</span>
+              <input value={broadcastTitle} onChange={(event) => setBroadcastTitle(event.target.value)} className="input-shell" />
+            </label>
+            <label className="block">
+              <span className="field-label">نص الرسالة</span>
+              <textarea value={broadcastMessage} onChange={(event) => setBroadcastMessage(event.target.value)} className="input-shell min-h-[170px]" />
+            </label>
+            <button
+              type="button"
+              disabled={isPending || !emailStatus?.resendConfigured}
+              className="btn btn-primary"
+              onClick={() => {
+                if (!window.confirm('سيتم إرسال البريد للفئة المختارة. هل تريد المتابعة؟')) return
+                startTransition(async () => {
+                  const res = await fetch('/api/admin/email-broadcast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audience: broadcastAudience, subject: broadcastSubject, title: broadcastTitle, message: broadcastMessage }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok || !data.success) { setLoadError(data.error ?? 'تعذر إرسال البريد المخصص.'); return }
+                  showSuccess(`تم إرسال البريد إلى ${data.sent} من ${data.total} مستلم.`)
+                })
+              }}
+            >
+              إرسال البريد المخصص
             </button>
           </div>
         </div>

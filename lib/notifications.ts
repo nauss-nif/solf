@@ -166,6 +166,35 @@ export async function sendTestEmail(options: { to: string; fullName: string }) {
   })
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+export async function sendCustomAdminEmail(options: {
+  to: string
+  subject: string
+  title: string
+  message: string
+}) {
+  return sendEmail({
+    to: options.to,
+    subject: options.subject,
+    html: emailTemplate({
+      title: escapeHtml(options.title),
+      body: escapeHtml(options.message)
+        .split('\n')
+        .filter((line) => line.trim().length > 0)
+        .map((line) => `<p>${line}</p>`)
+        .join(''),
+    }),
+  })
+}
+
 // ─────────────────────────────────────────────────────────────
 // إنشاء إشعار داخلي
 // ─────────────────────────────────────────────────────────────

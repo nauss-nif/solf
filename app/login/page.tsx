@@ -32,7 +32,7 @@ export default function LoginPage() {
               إدارة طلبات السلف والتسويات المالية بشكل رقمي متكامل مع إنتاج النماذج الرسمية المعتمدة جاهزة للتوقيع.
             </p>
             <div className="mt-8 flex flex-col items-center gap-3">
-              {['نموذج ١٨ — طلب صرف سلفة مؤقتة', 'نموذج ١٩ — تسوية السلفة المؤقتة', 'تصدير Word وطباعة النماذج الرسمية'].map((feat) => (
+              {['نموذج ١٨ — طلب صرف سلفة مؤقتة', 'نموذج ١٩ — تسوية السلفة المؤقتة', 'طباعة النماذج الرسمية المعتمدة'].map((feat) => (
                 <div key={feat} className="flex items-center justify-center gap-3 text-sm text-white/80">
                   <span className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
                         style={{ background: 'rgba(199,176,140,0.28)' }}>

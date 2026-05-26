@@ -48,7 +48,7 @@ type SettlementMetaState = { receiptNumber: string; receiptDate: string; overage
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info' }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
-type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: unknown }
+type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 
 const AGENCY_CODE = '26'
 
@@ -229,6 +229,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     await fetch('/api/notifications', { method: 'PATCH' })
     setUnreadNotifications(0)
     setNotifications((curr) => curr.map((notification) => ({ ...notification, isRead: true })))
+  }
+
+  function openNotification(notification: NotificationItem) {
+    setNotificationsOpen(false)
+    if (notification.metadata?.loanId) {
+      router.push(`/loans/${notification.metadata.loanId}`)
+    }
   }
 
   const filteredLoans = useMemo(() => {
@@ -457,11 +464,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     window.open(kind === 'loan' ? `/print/loans/${loanId}` : `/print/settlements/${loanId}`, '_blank', 'noopener,noreferrer')
   }
 
-  function exportWordDocument(kind: 'loan' | 'settlement', loanId: string) {
-    if (kind === 'loan') setLoans((curr) => curr.map((l) => l.id === loanId && !l.printedAt ? { ...l, printedAt: new Date().toISOString() } : l))
-    window.open(kind === 'loan' ? `/api/loans/${loanId}/word` : `/api/settlements/${loanId}/word`, '_blank', 'noopener,noreferrer')
-  }
-
   async function deleteLoan(loanId: string) {
     if (!window.confirm('سيتم حذف طلب السلفة نهائيًا. هل تريد المتابعة؟')) return
     startTransition(async () => {
@@ -596,7 +598,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
-              <button type="button" onClick={toggleNotifications} className="btn btn-ghost btn-sm relative" title="الإشعارات">
+              <button
+                type="button"
+                onClick={toggleNotifications}
+                className="btn btn-ghost btn-sm relative"
+                title="الإشعارات"
+                style={{ border: '1.5px solid #DADBD9', background: '#fff', minWidth: 38, height: 36 }}
+              >
                 🔔
                 {unreadNotifications > 0 && (
                   <span className="absolute -top-1 -left-1 rounded-full px-1.5 text-[10px] font-bold" style={{ background: '#73384B', color: '#fff' }}>
@@ -612,11 +620,17 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                   <div className="max-h-[420px] overflow-y-auto p-2">
                     {notifications.map((notification) => (
-                      <div key={notification.id} className="rounded-xl px-3 py-2 text-sm" style={{ background: notification.isRead ? '#fff' : '#F3EDE3', border: '1px solid #DADBD9', marginBottom: 8 }}>
+                      <button
+                        key={notification.id}
+                        type="button"
+                        onClick={() => openNotification(notification)}
+                        className="w-full rounded-xl px-3 py-2 text-right text-sm transition hover:opacity-90"
+                        style={{ background: notification.isRead ? '#fff' : '#F3EDE3', border: '1px solid #DADBD9', marginBottom: 8, cursor: notification.metadata?.loanId ? 'pointer' : 'default' }}
+                      >
                         <p className="font-semibold" style={{ color: '#1F3F40' }}>{notification.title}</p>
                         <p className="mt-1 leading-6" style={{ color: '#5A5A5A' }}>{notification.message}</p>
                         <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>{new Date(notification.createdAt).toLocaleString('ar-SA')}</p>
-                      </div>
+                      </button>
                     ))}
                     {notifications.length === 0 && <p className="py-8 text-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد إشعارات حالياً</p>}
                   </div>
@@ -733,9 +747,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
                         onPrintLoan={() => openPrintDocument('loan', loan.id)}
-                        onWordLoan={() => exportWordDocument('loan', loan.id)}
                         onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
-                        onWordSettlement={() => exportWordDocument('settlement', loan.id)}
                         onSendManualAlert={() => sendManualLoanAlert(loan.id)}
                         onSendReviewerReminder={() => sendReviewerReminder(loan.id)} />
                     ))}
@@ -759,9 +771,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
                     onPrintLoan={() => openPrintDocument('loan', loan.id)}
-                    onWordLoan={() => exportWordDocument('loan', loan.id)}
                     onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
-                    onWordSettlement={() => exportWordDocument('settlement', loan.id)}
                     onSendManualAlert={() => sendManualLoanAlert(loan.id)}
                     onSendReviewerReminder={() => sendReviewerReminder(loan.id)} />
                 ))}
@@ -1349,11 +1359,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onWordLoan, onPrintSettlement, onWordSettlement, onSendManualAlert, onSendReviewerReminder }: {
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
-  onPrintLoan: () => void; onWordLoan: () => void; onPrintSettlement: () => void; onWordSettlement: () => void
+  onPrintLoan: () => void; onPrintSettlement: () => void
   onSendManualAlert: () => void; onSendReviewerReminder: () => void
 }) {
   const attachCount = Object.values(loan.files ?? {}).filter(Boolean).length
@@ -1394,12 +1404,10 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
         {/* Actions */}
         <div className="grid gap-2 sm:grid-cols-2 lg:w-[340px] flex-shrink-0">
           <button type="button" onClick={onPrintLoan} className="btn btn-outline btn-sm">🖨️ طباعة نموذج ١٨</button>
-          <button type="button" onClick={onWordLoan}  className="btn btn-outline btn-sm">📄 Word نموذج ١٨</button>
 
           {loan.isSettled ? (
             <>
               <button type="button" onClick={onPrintSettlement} className="btn btn-outline btn-sm">🖨️ طباعة نموذج ١٩</button>
-              <button type="button" onClick={onWordSettlement}  className="btn btn-outline btn-sm">📄 Word نموذج ١٩</button>
             </>
           ) : (
             <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-gold btn-sm sm:col-span-2">📝 بدء تسوية السلفة</button>
