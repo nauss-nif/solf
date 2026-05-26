@@ -17,6 +17,7 @@ export default function AdminSettingsClient() {
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
   const [testEmail, setTestEmail] = useState('')
   const [broadcastAudience, setBroadcastAudience] = useState('reviewers')
+  const [broadcastCustomEmails, setBroadcastCustomEmails] = useState('')
   const [broadcastSubject, setBroadcastSubject] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
   const [broadcastTitle, setBroadcastTitle] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
   const [broadcastMessage, setBroadcastMessage] = useState('السلام عليكم،\n\nتم تعيينكم كمراجعين في منصة إدارة السلف، ونأمل الدخول إلى المنصة وإنشاء حساب رسمي، ثم مباشرة مراجعة معاملات طلبات السلف وتسويتها حسب الإجراءات المعتمدة.\n\nشاكرين تعاونكم.')
@@ -241,8 +242,20 @@ export default function AdminSettingsClient() {
                 <option value="admins">المديرون</option>
                 <option value="employees">الموظفون</option>
                 <option value="all">جميع المستخدمين النشطين</option>
+                <option value="custom">بريد محدد</option>
               </select>
             </label>
+            {broadcastAudience === 'custom' && (
+              <label className="block">
+                <span className="field-label">البريد المحدد</span>
+                <textarea
+                  value={broadcastCustomEmails}
+                  onChange={(event) => setBroadcastCustomEmails(event.target.value)}
+                  className="input-shell min-h-[90px]"
+                  placeholder="أدخل بريداً واحداً أو أكثر، وافصل بينها بفاصلة أو سطر جديد"
+                />
+              </label>
+            )}
             <label className="block">
               <span className="field-label">موضوع البريد</span>
               <input value={broadcastSubject} onChange={(event) => setBroadcastSubject(event.target.value)} className="input-shell" />
@@ -265,7 +278,7 @@ export default function AdminSettingsClient() {
                   const res = await fetch('/api/admin/email-broadcast', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ audience: broadcastAudience, subject: broadcastSubject, title: broadcastTitle, message: broadcastMessage }),
+                    body: JSON.stringify({ audience: broadcastAudience, customEmails: broadcastCustomEmails, subject: broadcastSubject, title: broadcastTitle, message: broadcastMessage }),
                   })
                   const data = await res.json().catch(() => ({}))
                   setBroadcastResults(Array.isArray(data.results) ? data.results : [])
