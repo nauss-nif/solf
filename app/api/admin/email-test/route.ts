@@ -18,16 +18,20 @@ export async function GET() {
   return NextResponse.json(getEmailConfigurationStatus())
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const auth = requireSuperAdminResponse()
   if ('error' in auth) return auth.error
   const currentUser = auth.currentUser
   if (!currentUser) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const body = await request.json().catch(() => ({}))
+  const targetEmail = typeof body.to === 'string' && body.to.trim()
+    ? body.to.trim().toLowerCase()
+    : currentUser.email
 
   const sent = await sendTestEmail({
-    to: currentUser.email,
+    to: targetEmail,
     fullName: currentUser.fullName,
   })
 
-  return NextResponse.json({ sent, to: currentUser.email })
+  return NextResponse.json({ sent, to: targetEmail })
 }

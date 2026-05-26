@@ -15,6 +15,7 @@ export default function AdminSettingsClient() {
   const [settings, setSettings] = useState<SystemSettings | null>(null)
   const [settingsDraft, setSettingsDraft] = useState<SystemSettings | null>(null)
   const [emailStatus, setEmailStatus] = useState<EmailStatus | null>(null)
+  const [testEmail, setTestEmail] = useState('')
 
   async function loadSequence() {
     const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
@@ -188,21 +189,34 @@ export default function AdminSettingsClient() {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            disabled={isPending || !emailStatus?.resendConfigured}
-            className="btn btn-primary"
-            onClick={() => {
-              startTransition(async () => {
-                const res = await fetch('/api/admin/email-test', { method: 'POST' })
-                const data = await res.json().catch(() => ({}))
-                if (!res.ok || !data.sent) { setLoadError('تعذر إرسال بريد الاختبار. تحقق من RESEND_API_KEY والنطاق المرسل.'); return }
-                showSuccess(`تم إرسال بريد اختبار إلى ${data.to}.`)
-              })
-            }}
-          >
-            إرسال بريد اختبار
-          </button>
+          <div className="flex w-full flex-col gap-2 lg:max-w-xs">
+            <input
+              type="email"
+              value={testEmail}
+              onChange={(event) => setTestEmail(event.target.value)}
+              className="input-shell"
+              placeholder="بريد الاختبار"
+            />
+            <button
+              type="button"
+              disabled={isPending || !emailStatus?.resendConfigured}
+              className="btn btn-primary"
+              onClick={() => {
+                startTransition(async () => {
+                  const res = await fetch('/api/admin/email-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ to: testEmail.trim() || undefined }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok || !data.sent) { setLoadError('تعذر إرسال بريد الاختبار. تحقق من RESEND_API_KEY والنطاق المرسل.'); return }
+                  showSuccess(`تم إرسال بريد اختبار إلى ${data.to}.`)
+                })
+              }}
+            >
+              إرسال بريد اختبار
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -49,6 +49,14 @@ async function sendEmail(options: {
       return false
     }
 
+    const result = await response.json().catch(() => null) as { id?: string } | null
+    console.info('[Notifications] Resend accepted email:', {
+      id: result?.id,
+      to: options.to,
+      from: FROM_EMAIL,
+      subject: options.subject,
+    })
+
     return true
   } catch (error) {
     console.error('[Notifications] Email send failed:', error)
