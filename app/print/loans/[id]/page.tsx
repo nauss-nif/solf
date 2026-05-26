@@ -1,4 +1,5 @@
 import PrintActions from '@/app/print/PrintActions'
+import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildLoanRequestWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
@@ -20,6 +21,10 @@ export default async function LoanPrintPage({
 
   if (!settings.allowPrintBeforeReview) {
     loan = await getAuthorizedLoan(params.id, { markPrinted: true })
+  }
+
+  if (loan.reviewStatus === 'REVIEWED') {
+    await syncClosureElementFromPrint('advance_req', loan)
   }
 
   const html = buildLoanRequestWordHtml(loan, { settings })

@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import PrintActions from '@/app/print/PrintActions'
+import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildSettlementWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
@@ -20,6 +21,10 @@ export default async function SettlementPrintPage({
 
   if (!loan.settlement) {
     notFound()
+  }
+
+  if (loan.reviewStatus === 'REVIEWED') {
+    await syncClosureElementFromPrint('settlement', loan)
   }
 
   const html = buildSettlementWordHtml(loan, { settings })

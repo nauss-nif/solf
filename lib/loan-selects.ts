@@ -16,4 +16,5 @@ export const dashboardLoanInclude = {
 export const fullLoanInclude = {
   items: true,
   settlement: true,
+  user: { select: { email: true } },
 } as const
