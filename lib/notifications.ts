@@ -20,14 +20,16 @@ const LOGO_URL = SITE_URL
 // ─────────────────────────────────────────────────────────────
 // إرسال بريد إلكتروني عبر Resend
 // ─────────────────────────────────────────────────────────────
-async function sendEmail(options: {
+type EmailSendResult = { ok: boolean; id?: string; status?: number; error?: string }
+
+async function sendEmailDetailed(options: {
   to: string
   subject: string
   html: string
-}): Promise<boolean> {
+}): Promise<EmailSendResult> {
   if (!RESEND_API_KEY) {
     console.warn('[Notifications] RESEND_API_KEY not set — skipping email')
-    return false
+    return { ok: false, error: 'RESEND_API_KEY not set' }
   }
 
   try {
@@ -53,7 +55,7 @@ async function sendEmail(options: {
         from: FROM_EMAIL,
         error: errorText,
       })
-      return false
+      return { ok: false, status: response.status, error: errorText }
     }
 
     const result = await response.json().catch(() => null) as { id?: string } | null
@@ -64,11 +66,20 @@ async function sendEmail(options: {
       subject: options.subject,
     })
 
-    return true
+    return { ok: true, id: result?.id }
   } catch (error) {
     console.error('[Notifications] Email send failed:', error)
-    return false
+    return { ok: false, error: error instanceof Error ? error.message : 'Email send failed' }
   }
+}
+
+async function sendEmail(options: {
+  to: string
+  subject: string
+  html: string
+}): Promise<boolean> {
+  const result = await sendEmailDetailed(options)
+  return result.ok
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -181,7 +192,7 @@ export async function sendCustomAdminEmail(options: {
   title: string
   message: string
 }) {
-  return sendEmail({
+  return sendEmailDetailed({
     to: options.to,
     subject: options.subject,
     html: emailTemplate({

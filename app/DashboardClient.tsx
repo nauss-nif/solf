@@ -31,7 +31,7 @@ type LoanItemRecord   = { id: string; category: string; amount: number }
 type SettlementRecord = { id: string; supported: number; unsupported: number; total: number; savings: number; overage: number; createdAt: string }
 
 export type LoanDashboardRecord = {
-  id: string; refNumber: string; employee: string; activity: string; location: string
+  id: string; userId?: string; refNumber: string; employee: string; activity: string; location: string
   amount: number; budgetApproved: boolean | null
   reviewStatus: 'PENDING' | 'RETURNED' | 'REVIEWED'
   reviewNote?: string; startDate: string; endDate: string
@@ -49,6 +49,7 @@ type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'inf
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
+type WorkMode = 'employee' | 'reviewer'
 
 const AGENCY_CODE = '26'
 
@@ -194,15 +195,19 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [settlementMeta, setSettlementMeta] = useState<SettlementMetaState>({ receiptNumber: '', receiptDate: '', overageReason: '' })
 
   const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
+  const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
+  const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
   const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
 
-  async function refreshLoans() {
-    try { setIsLoadingLoans(true); setLoadError(''); const res = await fetch('/api/loans', { cache: 'no-store' }); if (!res.ok) throw new Error(); const data = await res.json() as LoanDashboardRecord[]; setLoans(data.map(normalizeLoanRecord)) }
+  async function refreshLoans(mode: WorkMode = workMode) {
+    const url = isAdminOrReviewer && mode === 'employee' ? '/api/loans?scope=own' : '/api/loans'
+    try { setIsLoadingLoans(true); setLoadError(''); const res = await fetch(url, { cache: 'no-store' }); if (!res.ok) throw new Error(); const data = await res.json() as LoanDashboardRecord[]; setLoans(data.map(normalizeLoanRecord)) }
     catch { setLoadError('تعذر تحميل بيانات السلف من الخادم.') }
     finally { setIsLoadingLoans(false) }
   }
 
   useEffect(() => { if (initialLoans.length > 0) return; void refreshLoans() }, [initialLoans.length])
+  useEffect(() => { void refreshLoans(workMode) }, [workMode])
   useEffect(() => { void loadNotifications(true) }, [])
 
   const showToast = (message: string, tone: ToastItem['tone'] = 'success') => {
@@ -342,7 +347,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   function openLoanModal() { resetLoanForm(); setLoanModalOpen(true) }
 
   function openEditLoanModal(loanId: string) {
-    const loan = loans.find((l) => l.id === loanId); if (!loan || loan.isSettled || (!isAdminOrReviewer && loan.reviewStatus === 'REVIEWED')) return
+    const loan = loans.find((l) => l.id === loanId); if (!loan || loan.isSettled || (!isReviewerMode && loan.reviewStatus === 'REVIEWED')) return
     setLoanError(''); setEditingLoanId(loan.id)
     setLoanForm({ requestDate: loan.createdAt.slice(0, 10), refNumber: loan.refNumber, agencyCode: AGENCY_CODE, employee: loan.employee, activity: loan.activity, location: loan.location, startDate: loan.startDate.slice(0, 10), endDate: loan.endDate.slice(0, 10), budgetApproved: loan.budgetApproved })
     setExpenses(loan.items.length > 0 ? loan.items.map((i) => ({ category: i.category, amount: String(i.amount) })) : [{ category: '', amount: '' }])
@@ -513,6 +518,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   const requestLoans = filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
+  const reviewerQueue = filteredLoans
+    .filter((loan) => !loan.isSettled)
+    .sort((a, b) => {
+      const rank = { PENDING: 0, RETURNED: 1, REVIEWED: 2 } as Record<LoanDashboardRecord['reviewStatus'], number>
+      return rank[a.reviewStatus] - rank[b.reviewStatus] || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
 
   // ── RENDER ────────────────────────────────────────────────────────────────────
 
@@ -528,7 +539,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <nav className="flex-1 py-3 overflow-y-auto">
           <p className="sidebar-section-label">القائمة الرئيسية</p>
           {([
-            { tab: 'requests', label: 'طلبات السلفة', icon: '📋' },
+            { tab: 'requests', label: isReviewerMode ? 'مكتب المراجع' : 'طلبات السلفة', icon: '📋' },
             { tab: 'archive',  label: 'الأرشيف',       icon: '🗂️' },
             { tab: 'reports',  label: 'التقارير',       icon: '📊' },
             ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية', icon: '📣' }] : []),
@@ -592,11 +603,17 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <header className="app-topbar">
           <div>
             <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>
-              {activeTab === 'requests' ? 'طلبات السلفة' : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
+              {activeTab === 'requests' ? (isReviewerMode ? 'مكتب المراجع' : 'طلبات السلفة') : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
             </h1>
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
+            {isAdminOrReviewer && (
+              <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
+                <button type="button" onClick={() => setWorkMode('reviewer')} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>مراجع</button>
+                <button type="button" onClick={() => setWorkMode('employee')} className="rounded-lg px-3 py-2" style={{ background: !isReviewerMode ? '#2A6364' : 'transparent', color: !isReviewerMode ? '#fff' : '#5A5A5A' }}>موظف</button>
+              </div>
+            )}
             <div className="relative">
               <button
                 type="button"
@@ -637,14 +654,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 </div>
               )}
             </div>
-            <button type="button" onClick={refreshLoans} disabled={isLoadingLoans}
+            <button type="button" onClick={() => void refreshLoans()} disabled={isLoadingLoans}
               className="btn btn-ghost btn-sm flex items-center gap-1">
               <svg className={`w-3.5 h-3.5 ${isLoadingLoans ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M1 4v6h6M23 20v-6h-6M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/>
               </svg>
               تحديث
             </button>
-            {activeTab === 'requests' && (
+            {activeTab === 'requests' && !isReviewerMode && (
               <button type="button" onClick={openLoanModal} className="btn btn-primary btn-sm">
                 + طلب سلفة جديد
               </button>
@@ -681,12 +698,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3 justify-end">
-                <button type="button" onClick={openLoanModal}
+                {!isReviewerMode && <button type="button" onClick={openLoanModal}
                   className="btn btn-lg font-semibold"
                   style={{ background: '#fff', color: '#2A6364' }}>
                   نموذج ١٨ — طلب سلفة
-                </button>
-                {loans.some((l) => !l.isSettled) && (
+                </button>}
+                {!isReviewerMode && loans.some((l) => !l.isSettled) && (
                   <button type="button"
                     onClick={() => { const first = loans.find((l) => !l.isSettled); if (first) openSettlementModal(first.id) }}
                     className="btn btn-lg font-semibold"
@@ -702,7 +719,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           <div className="section-card animate-fade-up">
             <div className="tab-list">
               {([
-                { tab: 'requests', label: `طلبات السلفة (${loans.filter((l) => !l.isSettled).length})` },
+                { tab: 'requests', label: `${isReviewerMode ? 'مكتب المراجع' : 'طلبات السلفة'} (${loans.filter((l) => !l.isSettled).length})` },
                 { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
                 { tab: 'reports',  label: 'التقارير' },
                 ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية' }] : []),
@@ -733,6 +750,30 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-3">
                     {[1,2,3].map((i) => <div key={i} className="h-24 rounded-xl shimmer" />)}
                   </div>
+                ) : isReviewerMode ? (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="summary-pill"><p className="summary-pill-label">بانتظار المراجعة</p><p className="summary-pill-value" style={{ color: '#73384B' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'PENDING').length)}</p></div>
+                      <div className="summary-pill"><p className="summary-pill-label">معادة للموظف</p><p className="summary-pill-value" style={{ color: '#C7B08C' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'RETURNED').length)}</p></div>
+                      <div className="summary-pill"><p className="summary-pill-label">جاهزة للطباعة</p><p className="summary-pill-value" style={{ color: '#2A6364' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'REVIEWED').length)}</p></div>
+                    </div>
+                    {reviewerQueue.length === 0 ? (
+                      <div className="empty-state">
+                        <div className="empty-state-icon text-4xl">✅</div>
+                        <p className="empty-state-title">لا توجد معاملات مفتوحة للمراجعة</p>
+                      </div>
+                    ) : reviewerQueue.map((loan) => (
+                      <ReviewerLoanCard
+                        key={loan.id}
+                        loan={loan}
+                        onPreview={() => router.push(`/loans/${loan.id}`)}
+                        onEdit={() => openEditLoanModal(loan.id)}
+                        onReturn={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
+                        onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
+                        onPrint={() => openPrintDocument('loan', loan.id)}
+                      />
+                    ))}
+                  </div>
                 ) : requestLoans.length === 0 ? (
                   <div className="empty-state">
                     <div className="empty-state-icon text-4xl">📭</div>
@@ -742,7 +783,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 ) : (
                   <div className="space-y-3">
                     {requestLoans.map((loan) => (
-                      <LoanCard key={loan.id} loan={loan} canReview={isAdminOrReviewer} canModify={isAdminOrReviewer || loan.reviewStatus !== 'REVIEWED'}
+                      <LoanCard key={loan.id} loan={loan} canReview={isReviewerMode} canModify={isReviewerMode || loan.reviewStatus !== 'REVIEWED'}
                         onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -766,7 +807,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     <p className="empty-state-desc">ستظهر هنا الطلبات بعد إتمام تسويتها</p>
                   </div>
                 ) : settledLoans.map((loan) => (
-                  <LoanCard key={loan.id} loan={loan} archived canReview={isAdminOrReviewer} canModify={isAdminOrReviewer}
+                  <LoanCard key={loan.id} loan={loan} archived canReview={isReviewerMode} canModify={isReviewerMode}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1358,6 +1399,48 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 }
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
+
+function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, onPrint }: {
+  loan: LoanDashboardRecord
+  onPreview: () => void
+  onEdit: () => void
+  onReturn: () => void
+  onMarkReviewed: () => void
+  onPrint: () => void
+}) {
+  const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للموظف', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-danger' }
+
+  return (
+    <div className="card p-5" style={{ borderRight: `4px solid ${loan.reviewStatus === 'PENDING' ? '#73384B' : loan.reviewStatus === 'RETURNED' ? '#C7B08C' : '#2A6364'}` }}>
+      <div className="grid gap-4 xl:grid-cols-[1fr_420px] xl:items-center">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>
+            <span className="badge badge-primary">{loan.refNumber}</span>
+            {loan.isSettled && <span className="badge badge-success">تمت التسوية</span>}
+          </div>
+          <div>
+            <h3 className="text-lg font-bold" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
+            <p className="text-sm" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.location || 'بدون موقع'}</p>
+          </div>
+          <div className="grid gap-2 text-sm md:grid-cols-3" style={{ color: '#2D4D40' }}>
+            <span>المبلغ: <strong>{formatCurrencySar(loan.amount)}</strong></span>
+            <span>الفترة: {formatDate(loan.startDate)} - {formatDate(loan.endDate)}</span>
+            <span>الموازنة: {loan.budgetApproved === true ? 'معتمدة' : loan.budgetApproved === false ? 'غير معتمدة' : 'غير محددة'}</span>
+          </div>
+          {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={onPreview} className="btn btn-primary btn-sm">معاينة المعاملة</button>
+          <button type="button" onClick={onEdit} disabled={loan.isSettled} className="btn btn-success btn-sm">تعديل المعاملة</button>
+          <button type="button" onClick={onReturn} disabled={loan.isSettled} className="btn btn-warning btn-sm">إعادة للموظف</button>
+          <button type="button" onClick={onMarkReviewed} disabled={loan.isSettled} className="btn btn-success btn-sm">اعتماد المراجعة</button>
+          <button type="button" onClick={onPrint} className="btn btn-outline btn-sm sm:col-span-2">طباعة نموذج ١٨</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean

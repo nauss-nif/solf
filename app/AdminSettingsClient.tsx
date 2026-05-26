@@ -20,6 +20,7 @@ export default function AdminSettingsClient() {
   const [broadcastSubject, setBroadcastSubject] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
   const [broadcastTitle, setBroadcastTitle] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
   const [broadcastMessage, setBroadcastMessage] = useState('السلام عليكم،\n\nتم تعيينكم كمراجعين في منصة إدارة السلف، ونأمل الدخول إلى المنصة وإنشاء حساب رسمي، ثم مباشرة مراجعة معاملات طلبات السلف وتسويتها حسب الإجراءات المعتمدة.\n\nشاكرين تعاونكم.')
+  const [broadcastResults, setBroadcastResults] = useState<Array<{ email: string; fullName: string; ok: boolean; id?: string; status?: number; error?: string }>>([])
 
   async function loadSequence() {
     const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
@@ -267,6 +268,7 @@ export default function AdminSettingsClient() {
                     body: JSON.stringify({ audience: broadcastAudience, subject: broadcastSubject, title: broadcastTitle, message: broadcastMessage }),
                   })
                   const data = await res.json().catch(() => ({}))
+                  setBroadcastResults(Array.isArray(data.results) ? data.results : [])
                   if (!res.ok || !data.success) { setLoadError(data.error ?? 'تعذر إرسال البريد المخصص.'); return }
                   showSuccess(`تم إرسال البريد إلى ${data.sent} من ${data.total} مستلم.`)
                 })
@@ -274,6 +276,18 @@ export default function AdminSettingsClient() {
             >
               إرسال البريد المخصص
             </button>
+            {broadcastResults.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                <p className="mb-2 font-semibold" style={{ color: '#1F3F40' }}>نتيجة الإرسال لكل مستلم</p>
+                <div className="max-h-56 space-y-2 overflow-y-auto">
+                  {broadcastResults.map((result) => (
+                    <div key={result.email} className="rounded-lg px-3 py-2" style={{ background: result.ok ? '#ECFDF5' : '#FEF2F2', color: result.ok ? '#166534' : '#991B1B' }}>
+                      <strong>{result.fullName}</strong> — {result.email}: {result.ok ? `قُبل من Resend${result.id ? ` (${result.id})` : ''}` : `فشل${result.status ? ` (${result.status})` : ''}${result.error ? `: ${result.error}` : ''}`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

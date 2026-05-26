@@ -21,7 +21,7 @@ async function getNextRefNumber(): Promise<string> {
 // ─────────────────────────────────────────────────────────────
 // GET /api/loans
 // ─────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await ensureDatabaseSetup()
     const currentUser = getSessionUser()
@@ -29,8 +29,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const scope = new URL(request.url).searchParams.get('scope')
     const loans = await prisma.loan.findMany({
-      where: canManageAllLoans(currentUser)
+      where: canManageAllLoans(currentUser) && scope !== 'own'
         ? undefined
         : { userId: currentUser.userId },
       orderBy: { createdAt: 'desc' },

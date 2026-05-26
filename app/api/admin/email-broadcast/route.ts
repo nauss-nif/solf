@@ -65,17 +65,19 @@ export async function POST(request: Request) {
     )
 
     let sent = 0
+    const results: Array<{ email: string; fullName: string; ok: boolean; id?: string; status?: number; error?: string }> = []
     for (const recipient of uniqueRecipients) {
-      const ok = await sendCustomAdminEmail({
+      const result = await sendCustomAdminEmail({
         to: recipient.email,
         subject,
         title,
         message: message.replaceAll('{{name}}', recipient.fullName),
       })
-      if (ok) sent += 1
+      results.push({ email: recipient.email, fullName: recipient.fullName, ...result })
+      if (result.ok) sent += 1
     }
 
-    return NextResponse.json({ success: sent > 0, sent, total: uniqueRecipients.length })
+    return NextResponse.json({ success: sent > 0, sent, total: uniqueRecipients.length, results })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to send email broadcast' },
