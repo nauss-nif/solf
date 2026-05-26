@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -50,6 +50,7 @@ type LoanFormState = { requestDate: string; refNumber: string; agencyCode: strin
 type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
+type LinkedCourse = { id: string; code: string; name: string }
 
 const AGENCY_CODE = '26'
 
@@ -171,6 +172,7 @@ const CHART_COLORS = ['#2A6364', '#C7B08C', '#2E6F8E', '#C7B08C', '#5A5A5A', '#C
 
 export default function DashboardClient({ currentUser, initialLoans }: { currentUser: CurrentUser; initialLoans: LoanDashboardRecord[] }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans.map(normalizeLoanRecord))
   const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
@@ -193,6 +195,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [currencyRates, setCurrencyRates] = useState<SettlementCurrencyRate[]>([])
   const [settlementItems, setSettlementItems] = useState<SettlementDraft[]>([])
   const [settlementMeta, setSettlementMeta] = useState<SettlementMetaState>({ receiptNumber: '', receiptDate: '', overageReason: '' })
+  const [linkedCourse, setLinkedCourse] = useState<LinkedCourse | null>(null)
+  const [handledCourseLink, setHandledCourseLink] = useState(false)
 
   const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
@@ -209,6 +213,22 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   useEffect(() => { if (initialLoans.length > 0) return; void refreshLoans() }, [initialLoans.length])
   useEffect(() => { void refreshLoans(workMode) }, [workMode])
   useEffect(() => { void loadNotifications(true) }, [])
+  useEffect(() => {
+    if (handledCourseLink) return
+    const courseId = searchParams.get('courseId')
+    if (!courseId) return
+    const course = {
+      id: courseId,
+      code: searchParams.get('courseCode') || '',
+      name: searchParams.get('courseName') || '',
+    }
+    setHandledCourseLink(true)
+    setLinkedCourse(course)
+    setWorkMode('employee')
+    setActiveTab('requests')
+    setLoanForm((prev) => ({ ...prev, activity: course.name || prev.activity }))
+    setLoanModalOpen(true)
+  }, [handledCourseLink, searchParams])
 
   const showToast = (message: string, tone: ToastItem['tone'] = 'success') => {
     const id = Date.now() + Math.floor(Math.random() * 1000)
@@ -344,7 +364,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   // ── LOAN FORM HANDLERS ───────────────────────────────────────────────────────
 
   function resetLoanForm() { setLoanError(''); setEditingLoanId(null); setLoanForm(createEmptyLoanForm(currentUser, loans)); setExpenses([{ category: '', amount: '' }]); setLoanAttachments(createEmptyAttachments()) }
-  function openLoanModal() { resetLoanForm(); setLoanModalOpen(true) }
+  function openLoanModal() { setLinkedCourse(null); resetLoanForm(); setLoanModalOpen(true) }
 
   function openEditLoanModal(loanId: string) {
     const loan = loans.find((l) => l.id === loanId); if (!loan || loan.isSettled || (!isReviewerMode && loan.reviewStatus === 'REVIEWED')) return
@@ -382,7 +402,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     if (cleanExpenses.length === 0) { setLoanError('أضف بند صرف واحد على الأقل.'); return }
     for (const att of LOAN_ATTACHMENT_DEFINITIONS) { if (att.required && !loanAttachments[att.key]) { setLoanError(`أرفق ${att.label} قبل إرسال الطلب.`); return } }
     const total = cleanExpenses.reduce((s, i) => s + i.amount, 0)
-    const payload = { refNumber: loanForm.refNumber, employee: loanForm.employee, activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses }
+    const payload = { refNumber: loanForm.refNumber, employee: loanForm.employee, activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses, courseId: linkedCourse?.id, courseCode: linkedCourse?.code }
     startTransition(async () => {
       const isEditing = Boolean(editingLoanId)
       const res = await fetch(isEditing ? `/api/loans/${editingLoanId}` : '/api/loans', { method: isEditing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -1057,6 +1077,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </div>
 
             <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+              {linkedCourse && (
+                <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#F3EDE3', border: '1px solid #C7B08C', color: '#6B5A4A' }}>
+                  هذه السلفة مرتبطة بدورة من نظام الإقفال: <strong>{linkedCourse.code || linkedCourse.name || linkedCourse.id}</strong>
+                </div>
+              )}
+
               {/* Row 1 */}
               <div className="grid gap-4 md:grid-cols-3">
                 <Field label="التاريخ *">
