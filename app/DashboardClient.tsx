@@ -50,7 +50,7 @@ type LoanFormState = { requestDate: string; refNumber: string; agencyCode: strin
 type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
-type LinkedCourse = { id: string; code: string; name: string }
+type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
 
 const AGENCY_CODE = '26'
 
@@ -221,12 +221,26 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       id: courseId,
       code: searchParams.get('courseCode') || '',
       name: searchParams.get('courseName') || '',
+      employeeEmail: searchParams.get('employeeEmail') || '',
+      location: searchParams.get('location') || '',
+      startDate: searchParams.get('startDate') || '',
+      endDate: searchParams.get('endDate') || '',
     }
     setHandledCourseLink(true)
+    if (course.employeeEmail && course.employeeEmail.toLowerCase() !== currentUser.email.toLowerCase()) {
+      setLoadError(`هذه الدورة مرتبطة بحساب ${course.employeeEmail}. سجّل الدخول بهذا الحساب في منصة السلف لإنشاء الطلب المرتبط.`)
+      return
+    }
     setLinkedCourse(course)
     setWorkMode('employee')
     setActiveTab('requests')
-    setLoanForm((prev) => ({ ...prev, activity: course.name || prev.activity }))
+    setLoanForm((prev) => ({
+      ...prev,
+      activity: course.name || prev.activity,
+      location: course.location || prev.location,
+      startDate: course.startDate || prev.startDate,
+      endDate: course.endDate || prev.endDate,
+    }))
     setLoanModalOpen(true)
   }, [handledCourseLink, searchParams])
 
