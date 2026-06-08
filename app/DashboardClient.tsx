@@ -53,6 +53,7 @@ type WorkMode = 'employee' | 'reviewer'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
 
 const AGENCY_CODE = '26'
+const SETTLEMENT_GRACE_WORKDAYS = 10
 
 // ── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,12 @@ function formatDate(value: string) { return new Date(value).toLocaleDateString('
 function workDaysSince(endDate: string) {
   const end = new Date(endDate); const today = new Date(); const current = new Date(end); let count = 0
   while (current < today) { current.setDate(current.getDate() + 1); const day = current.getDay(); if (day !== 5 && day !== 6) count++ }
+  return count
+}
+
+function workDaysBetween(startDate: string, endDate: string) {
+  const start = new Date(startDate); const end = new Date(endDate); const current = new Date(start); let count = 0
+  while (current < end) { current.setDate(current.getDate() + 1); const day = current.getDay(); if (day !== 5 && day !== 6) count++ }
   return count
 }
 
@@ -283,7 +290,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   const stats = useMemo(() => {
     const unsettled = loans.filter((l) => !l.isSettled); const settled = loans.filter((l) => l.isSettled)
-    return { pending: unsettled.length, settled: settled.length, total: loans.length, overdue: unsettled.filter((l) => workDaysSince(l.endDate) > 15).length, printed: loans.filter((l) => l.printedAt).length }
+    return { pending: unsettled.length, settled: settled.length, total: loans.length, overdue: unsettled.filter((l) => workDaysSince(l.endDate) > SETTLEMENT_GRACE_WORKDAYS).length, printed: loans.filter((l) => l.printedAt).length }
   }, [loans])
 
   const reportSummary = useMemo(() => ({
@@ -315,6 +322,45 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     { name: 'متأخرة', value: stats.overdue, color: '#73384B' },
   ].filter((d) => d.value > 0), [stats])
 
+  const dashboardInsights = useMemo(() => {
+    const requesters = new Map<string, { employee: string; count: number; active: number; settled: number; overdue: number; totalAmount: number }>()
+    const settlers = new Map<string, { employee: string; count: number; totalSettlement: number; totalSavings: number; totalDays: number }>()
+    const overdueLoans = loans
+      .filter((loan) => !loan.isSettled)
+      .map((loan) => ({ ...loan, workDaysAfterEnd: workDaysSince(loan.endDate), daysOverGrace: Math.max(0, workDaysSince(loan.endDate) - SETTLEMENT_GRACE_WORKDAYS) }))
+      .filter((loan) => loan.workDaysAfterEnd > SETTLEMENT_GRACE_WORKDAYS)
+      .sort((a, b) => b.daysOverGrace - a.daysOverGrace)
+
+    loans.forEach((loan) => {
+      const requester = requesters.get(loan.employee) ?? { employee: loan.employee, count: 0, active: 0, settled: 0, overdue: 0, totalAmount: 0 }
+      requester.count += 1
+      requester.totalAmount += loan.amount
+      if (loan.isSettled) requester.settled += 1
+      else requester.active += 1
+      if (!loan.isSettled && workDaysSince(loan.endDate) > SETTLEMENT_GRACE_WORKDAYS) requester.overdue += 1
+      requesters.set(loan.employee, requester)
+
+      if (loan.isSettled && loan.settlement) {
+        const settler = settlers.get(loan.employee) ?? { employee: loan.employee, count: 0, totalSettlement: 0, totalSavings: 0, totalDays: 0 }
+        settler.count += 1
+        settler.totalSettlement += loan.settlement.total
+        settler.totalSavings += loan.settlement.savings - loan.settlement.overage
+        settler.totalDays += workDaysBetween(loan.endDate, loan.settlement.createdAt)
+        settlers.set(loan.employee, settler)
+      }
+    })
+
+    return {
+      requesterCount: requesters.size,
+      settlerCount: settlers.size,
+      topRequesters: [...requesters.values()].sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 6),
+      topSettlers: [...settlers.values()].sort((a, b) => b.count - a.count || b.totalSettlement - a.totalSettlement).slice(0, 6),
+      overdueLoans,
+      overdueAmount: overdueLoans.reduce((sum, loan) => sum + loan.amount, 0),
+      averageSettleDays: [...settlers.values()].reduce((sum, item) => sum + item.totalDays, 0) / Math.max(1, [...settlers.values()].reduce((sum, item) => sum + item.count, 0)),
+    }
+  }, [loans])
+
   const executiveReport = useMemo(() => {
     const settledLoans = loans.filter((loan) => loan.isSettled && loan.settlement)
     const activeLoans = loans.filter((loan) => !loan.isSettled)
@@ -322,7 +368,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     const returnedLoans = loans.filter((loan) => loan.reviewStatus === 'RETURNED')
     const overdueLoans = activeLoans
       .map((loan) => ({ ...loan, days: workDaysSince(loan.endDate) }))
-      .filter((loan) => loan.days > 15)
+      .filter((loan) => loan.days > SETTLEMENT_GRACE_WORKDAYS)
       .sort((a, b) => b.days - a.days)
 
     const averageRequest = loans.length ? reportSummary.totalRequested / loans.length : 0
@@ -717,7 +763,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 <StatCard label="قيد التسوية"   value={stats.pending}  accent="warning" icon="⏳" />
                 <StatCard label="تمت تسويتها"  value={stats.settled}  accent="success" icon="✅" />
                 <StatCard label="إجمالي الطلبات" value={stats.total}   accent="primary" icon="📋" />
-                <StatCard label="متأخرة > ١٥ يوم" value={stats.overdue} accent="danger"  icon="⚠️" />
+                <StatCard label="متأخرة بعد ١٠ أيام عمل" value={stats.overdue} accent="danger"  icon="⚠️" />
               </div>
 
               {/* HERO AMOUNTS */}
@@ -784,7 +830,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <StatCard label="قيد التسوية" value={stats.pending} accent="warning" icon="⏳" />
                   <StatCard label="تمت تسويتها" value={stats.settled} accent="success" icon="✅" />
                   <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" icon="📋" />
-                  <StatCard label="متأخرة > ١٥ يوم" value={stats.overdue} accent="danger" icon="⚠️" />
+                  <StatCard label="متأخرة بعد ١٠ أيام عمل" value={stats.overdue} accent="danger" icon="⚠️" />
                 </div>
 
                 <div className="hero-banner animate-fade-up">
@@ -801,6 +847,24 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>صافي الوفورات</p>
                       <p className="font-semibold text-sm" style={{ color: '#A7F3D0' }}>{formatCurrencySar(reportSummary.totalSavings - reportSummary.totalOverage)}</p>
                     </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="summary-pill">
+                    <p className="summary-pill-label">طالبو السلف</p>
+                    <p className="summary-pill-value" style={{ color: '#2A6364' }}>{formatEnglishNumber(dashboardInsights.requesterCount)}</p>
+                    <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>أعلى الموظفين حسب إجمالي مبالغ الطلبات</p>
+                  </div>
+                  <div className="summary-pill">
+                    <p className="summary-pill-label">متوسط مدة التسوية</p>
+                    <p className="summary-pill-value" style={{ color: '#2E6F8E' }}>{formatEnglishNumber(Math.round(dashboardInsights.averageSettleDays))} يوم عمل</p>
+                    <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>من نهاية البرنامج حتى حفظ التسوية</p>
+                  </div>
+                  <div className="summary-pill">
+                    <p className="summary-pill-label">مبالغ متأخرة عن التسوية</p>
+                    <p className="summary-pill-value" style={{ color: '#73384B' }}>{formatCurrencySar(dashboardInsights.overdueAmount)}</p>
+                    <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>بعد {formatEnglishNumber(SETTLEMENT_GRACE_WORKDAYS)} أيام عمل من نهاية البرنامج</p>
                   </div>
                 </div>
 
@@ -853,6 +917,77 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       </BarChart>
                     </ResponsiveContainer>
                   ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>}
+                </div>
+
+                <div className="grid gap-6 xl:grid-cols-2">
+                  <div className="section-card p-4">
+                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>طالبو السلف</h3>
+                    <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>أكثر الموظفين طلباً للسلف مع حالة التسوية والتأخر.</p>
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="data-table">
+                        <thead><tr><th>الموظف</th><th>الطلبات</th><th>نشطة</th><th>مسوّاة</th><th>متأخرة</th><th>إجمالي المبلغ</th></tr></thead>
+                        <tbody>
+                          {dashboardInsights.topRequesters.map((item) => (
+                            <tr key={item.employee}>
+                              <td>{item.employee}</td>
+                              <td>{formatEnglishNumber(item.count)}</td>
+                              <td>{formatEnglishNumber(item.active)}</td>
+                              <td>{formatEnglishNumber(item.settled)}</td>
+                              <td style={{ color: item.overdue ? '#73384B' : '#5A5A5A', fontWeight: item.overdue ? 700 : 500 }}>{formatEnglishNumber(item.overdue)}</td>
+                              <td>{formatCurrencySar(item.totalAmount)}</td>
+                            </tr>
+                          ))}
+                          {dashboardInsights.topRequesters.length === 0 && <tr><td colSpan={6} className="py-6 text-center" style={{ color: '#5A5A5A' }}>لا توجد بيانات طلبات</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="section-card p-4">
+                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>مسوو السلف</h3>
+                    <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>الموظفون الذين أغلقوا تسوياتهم وقيمة المصروفات وصافي الوفورات.</p>
+                    <div className="mt-3 overflow-x-auto">
+                      <table className="data-table">
+                        <thead><tr><th>الموظف</th><th>عدد التسويات</th><th>إجمالي التسوية</th><th>صافي الوفورات</th><th>متوسط الإغلاق</th></tr></thead>
+                        <tbody>
+                          {dashboardInsights.topSettlers.map((item) => (
+                            <tr key={item.employee}>
+                              <td>{item.employee}</td>
+                              <td>{formatEnglishNumber(item.count)}</td>
+                              <td>{formatCurrencySar(item.totalSettlement)}</td>
+                              <td style={{ color: item.totalSavings >= 0 ? '#4F8F7A' : '#73384B', fontWeight: 700 }}>{formatCurrencySar(item.totalSavings)}</td>
+                              <td>{formatEnglishNumber(Math.round(item.totalDays / Math.max(1, item.count)))} يوم عمل</td>
+                            </tr>
+                          ))}
+                          {dashboardInsights.topSettlers.length === 0 && <tr><td colSpan={5} className="py-6 text-center" style={{ color: '#5A5A5A' }}>لا توجد تسويات محفوظة</td></tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="section-card p-4" style={{ borderRight: '4px solid #73384B' }}>
+                  <h3 className="font-bold" style={{ color: '#1F3F40' }}>المتأخرون عن تسوية السلف</h3>
+                  <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>يعتمد التأخر على مرور أكثر من {formatEnglishNumber(SETTLEMENT_GRACE_WORKDAYS)} أيام عمل بعد تاريخ نهاية البرنامج دون تسوية.</p>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="data-table">
+                      <thead><tr><th>الرقم</th><th>الموظف</th><th>النشاط</th><th>نهاية البرنامج</th><th>أيام بعد النهاية</th><th>التجاوز</th><th>المبلغ</th></tr></thead>
+                      <tbody>
+                        {dashboardInsights.overdueLoans.slice(0, 8).map((loan) => (
+                          <tr key={loan.id}>
+                            <td>{loan.refNumber}</td>
+                            <td>{loan.employee}</td>
+                            <td>{loan.activity}</td>
+                            <td>{formatDate(loan.endDate)}</td>
+                            <td>{formatEnglishNumber(loan.workDaysAfterEnd)}</td>
+                            <td style={{ color: '#73384B', fontWeight: 700 }}>{formatEnglishNumber(loan.daysOverGrace)} يوم عمل</td>
+                            <td>{formatCurrencySar(loan.amount)}</td>
+                          </tr>
+                        ))}
+                        {dashboardInsights.overdueLoans.length === 0 && <tr><td colSpan={7} className="py-6 text-center" style={{ color: '#5A5A5A' }}>لا توجد سلف متأخرة عن التسوية حالياً</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
