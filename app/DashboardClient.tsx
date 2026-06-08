@@ -47,7 +47,7 @@ type SettlementDraft = { id: string; category: string; budget: number; invoices:
 type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string }
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
-type ActiveTab = 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
+type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
@@ -173,11 +173,12 @@ const CHART_COLORS = ['#2A6364', '#C7B08C', '#2E6F8E', '#C7B08C', '#5A5A5A', '#C
 export default function DashboardClient({ currentUser, initialLoans }: { currentUser: CurrentUser; initialLoans: LoanDashboardRecord[] }) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
   const [isPending, startTransition] = useTransition()
   const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans.map(normalizeLoanRecord))
   const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
   const [loadError, setLoadError] = useState('')
-  const [activeTab, setActiveTab] = useState<ActiveTab>('requests')
+  const [activeTab, setActiveTab] = useState<ActiveTab>(isAdminOrReviewer ? 'dashboard' : 'requests')
   const [search, setSearch] = useState('')
   const [loanModalOpen, setLoanModalOpen] = useState(false)
   const [settlementModalOpen, setSettlementModalOpen] = useState(false)
@@ -198,12 +199,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [linkedCourse, setLinkedCourse] = useState<LinkedCourse | null>(null)
   const [handledCourseLink, setHandledCourseLink] = useState(false)
 
-  const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
   const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
   const managementModeLabel = isSuperAdmin ? 'مدير النظام' : 'مراجع'
-  const requestsSectionLabel = isReviewerMode ? (isSuperAdmin ? 'لوحة المعلومات' : 'لوحة معلومات المراجع') : 'طلبات السلفة'
+  const requestsSectionLabel = isReviewerMode ? 'إدارة السلف' : 'طلبات السلفة'
 
   async function refreshLoans(mode: WorkMode = workMode) {
     const url = isAdminOrReviewer && mode === 'employee' ? '/api/loans?scope=own' : '/api/loans'
@@ -574,7 +574,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <nav className="flex-1 py-3 overflow-y-auto">
           <p className="sidebar-section-label">القائمة الرئيسية</p>
           {([
-            { tab: 'requests', label: requestsSectionLabel, icon: '📊' },
+            ...(isAdminOrReviewer ? [{ tab: 'dashboard' as ActiveTab, label: 'لوحة المعلومات', icon: '📊' }] : []),
+            { tab: 'requests', label: requestsSectionLabel, icon: '📋' },
             { tab: 'archive',  label: 'الأرشيف',       icon: '🗂️' },
             { tab: 'reports',  label: 'التقارير',       icon: '📊' },
             ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية', icon: '📣' }] : []),
@@ -642,7 +643,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <header className="app-topbar">
           <div>
             <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>
-              {activeTab === 'requests' ? requestsSectionLabel : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
+              {activeTab === 'dashboard' ? 'لوحة المعلومات' : activeTab === 'requests' ? requestsSectionLabel : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
             </h1>
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
@@ -709,58 +710,63 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         </header>
 
         <main className="app-main">
-          {/* STAT CARDS */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-fade-up">
-            <StatCard label="قيد التسوية"   value={stats.pending}  accent="warning" icon="⏳" />
-            <StatCard label="تمت تسويتها"  value={stats.settled}  accent="success" icon="✅" />
-            <StatCard label="إجمالي الطلبات" value={stats.total}   accent="primary" icon="📋" />
-            <StatCard label="متأخرة > ١٥ يوم" value={stats.overdue} accent="danger"  icon="⚠️" />
-          </div>
+          {!isAdminOrReviewer && (
+            <>
+              {/* STAT CARDS */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-fade-up">
+                <StatCard label="قيد التسوية"   value={stats.pending}  accent="warning" icon="⏳" />
+                <StatCard label="تمت تسويتها"  value={stats.settled}  accent="success" icon="✅" />
+                <StatCard label="إجمالي الطلبات" value={stats.total}   accent="primary" icon="📋" />
+                <StatCard label="متأخرة > ١٥ يوم" value={stats.overdue} accent="danger"  icon="⚠️" />
+              </div>
 
-          {/* HERO AMOUNTS */}
-          <div className="hero-banner mb-6 animate-fade-up">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>إجمالي مبالغ السلف المطلوبة</p>
-                <p className="text-3xl font-bold mt-1" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
-                  {formatCurrencySar(reportSummary.totalRequested)}
-                </p>
-                <div className="flex gap-4 mt-4">
+              {/* HERO AMOUNTS */}
+              <div className="hero-banner mb-6 animate-fade-up">
+                <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>تمت تسويتها</p>
-                    <p className="font-semibold text-sm">{formatCurrencySar(reportSummary.totalExpenses)}</p>
+                    <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>إجمالي مبالغ السلف المطلوبة</p>
+                    <p className="text-3xl font-bold mt-1" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>
+                      {formatCurrencySar(reportSummary.totalRequested)}
+                    </p>
+                    <div className="flex gap-4 mt-4">
+                      <div>
+                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>تمت تسويتها</p>
+                        <p className="font-semibold text-sm">{formatCurrencySar(reportSummary.totalExpenses)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>إجمالي الوفورات</p>
+                        <p className="font-semibold text-sm" style={{ color: '#A7F3D0' }}>{formatCurrencySar(reportSummary.totalSavings)}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>إجمالي الوفورات</p>
-                    <p className="font-semibold text-sm" style={{ color: '#A7F3D0' }}>{formatCurrencySar(reportSummary.totalSavings)}</p>
+                  <div className="flex flex-wrap items-center gap-3 justify-end">
+                    <button type="button" onClick={openLoanModal}
+                      className="btn btn-lg font-semibold"
+                      style={{ background: '#fff', color: '#2A6364' }}>
+                      نموذج ١٨ — طلب سلفة
+                    </button>
+                    {loans.some((l) => !l.isSettled) && (
+                      <button type="button"
+                        onClick={() => { const first = loans.find((l) => !l.isSettled); if (first) openSettlementModal(first.id) }}
+                        className="btn btn-lg font-semibold"
+                        style={{ background: 'rgba(199,176,140,0.92)', color: '#2F2F2F' }}>
+                        نموذج ١٩ — تسوية
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3 justify-end">
-                {!isReviewerMode && <button type="button" onClick={openLoanModal}
-                  className="btn btn-lg font-semibold"
-                  style={{ background: '#fff', color: '#2A6364' }}>
-                  نموذج ١٨ — طلب سلفة
-                </button>}
-                {!isReviewerMode && loans.some((l) => !l.isSettled) && (
-                  <button type="button"
-                    onClick={() => { const first = loans.find((l) => !l.isSettled); if (first) openSettlementModal(first.id) }}
-                    className="btn btn-lg font-semibold"
-                    style={{ background: 'rgba(199,176,140,0.92)', color: '#2F2F2F' }}>
-                    نموذج ١٩ — تسوية
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
           {/* TABS CONTENT */}
           <div className="section-card animate-fade-up">
             <div className="tab-list">
               {([
-                { tab: 'requests', label: `${isReviewerMode ? 'إدارة السلف' : 'طلبات السلفة'} (${loans.filter((l) => !l.isSettled).length})` },
-                { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
+                ...(isAdminOrReviewer ? [{ tab: 'dashboard' as ActiveTab, label: 'لوحة المعلومات' }] : []),
+                { tab: 'requests', label: `${requestsSectionLabel} (${loans.filter((l) => !l.isSettled).length})` },
                 { tab: 'reports',  label: 'التقارير' },
+                { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
                 ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية' }] : []),
                 { tab: 'guide',    label: 'التعليمات' },
               ] as Array<{ tab: ActiveTab; label: string }>).map(({ tab, label }) => (
@@ -770,6 +776,86 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 </button>
               ))}
             </div>
+
+            {/* DASHBOARD TAB */}
+            {activeTab === 'dashboard' && isAdminOrReviewer && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <StatCard label="قيد التسوية" value={stats.pending} accent="warning" icon="⏳" />
+                  <StatCard label="تمت تسويتها" value={stats.settled} accent="success" icon="✅" />
+                  <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" icon="📋" />
+                  <StatCard label="متأخرة > ١٥ يوم" value={stats.overdue} accent="danger" icon="⚠️" />
+                </div>
+
+                <div className="hero-banner animate-fade-up">
+                  <div className="grid gap-6 md:grid-cols-4">
+                    <div className="md:col-span-2">
+                      <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.65)' }}>إجمالي مبالغ السلف المطلوبة</p>
+                      <p className="text-3xl font-bold mt-1" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{formatCurrencySar(reportSummary.totalRequested)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>مصروفات مسوّاة</p>
+                      <p className="font-semibold text-sm">{formatCurrencySar(reportSummary.totalExpenses)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>صافي الوفورات</p>
+                      <p className="font-semibold text-sm" style={{ color: '#A7F3D0' }}>{formatCurrencySar(reportSummary.totalSavings - reportSummary.totalOverage)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div className="section-card p-4">
+                    <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>المبالغ الشهرية</h3>
+                    {monthlyData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" />
+                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5A5A5A' }} />
+                          <YAxis tick={{ fontSize: 10, fill: '#5A5A5A' }} width={60} />
+                          <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), '']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
+                          <Bar dataKey="requested" name="مطلوب" fill="#2A6364" radius={[4,4,0,0]} />
+                          <Bar dataKey="settled" name="مسوّى" fill="#C7B08C" radius={[4,4,0,0]} />
+                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>}
+                  </div>
+
+                  <div className="section-card p-4">
+                    <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>توزيع الطلبات</h3>
+                    {statusChartData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie data={statusChartData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                            {statusChartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip formatter={(v) => [Number(v), 'طلب']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
+                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات</div>}
+                  </div>
+                </div>
+
+                <div className="section-card p-4">
+                  <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>أعلى أوجه الصرف استخداماً</h3>
+                  {categoryReport.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={categoryReport.map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: '#5A5A5A' }} width={80} tickFormatter={(v) => formatEnglishNumber(v)} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#2D4D40' }} width={120} />
+                        <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), 'الإجمالي']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
+                        <Bar dataKey="value" radius={[0,4,4,0]}>
+                          {categoryReport.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>}
+                </div>
+              </div>
+            )}
 
             {/* REQUESTS TAB */}
             {activeTab === 'requests' && (
