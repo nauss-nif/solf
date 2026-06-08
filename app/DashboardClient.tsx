@@ -807,22 +807,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
           {/* TABS CONTENT */}
           <div className="section-card animate-fade-up">
-            <div className="tab-list">
-              {([
-                ...(isAdminOrReviewer ? [{ tab: 'dashboard' as ActiveTab, label: 'لوحة المعلومات' }] : []),
-                { tab: 'requests', label: `${requestsSectionLabel} (${loans.filter((l) => !l.isSettled).length})` },
-                { tab: 'reports',  label: 'التقارير' },
-                { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
-                ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية' }] : []),
-                { tab: 'guide',    label: 'التعليمات' },
-              ] as Array<{ tab: ActiveTab; label: string }>).map(({ tab, label }) => (
-                <button key={tab} type="button" onClick={() => setActiveTab(tab)}
-                  className={`tab-btn ${activeTab === tab ? 'active' : ''}`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {/* DASHBOARD TAB */}
             {activeTab === 'dashboard' && isAdminOrReviewer && (
               <div className="space-y-6">
