@@ -187,13 +187,19 @@ CREATE OR REPLACE FUNCTION get_next_loan_ref()
 RETURNS TEXT AS $$
 DECLARE
   next_num INT;
+  next_ref TEXT;
 BEGIN
-  UPDATE "loan_sequence"
-  SET "lastNumber" = "lastNumber" + 1
-  WHERE "id" = 'singleton'
-  RETURNING "lastNumber" INTO next_num;
+  LOOP
+    UPDATE "loan_sequence"
+    SET "lastNumber" = "lastNumber" + 1
+    WHERE "id" = 'singleton'
+    RETURNING "lastNumber" INTO next_num;
 
-  RETURN 'وت/26/' || LPAD(next_num::TEXT, 4, '0');
+    next_ref := 'وت/26/' || LPAD(next_num::TEXT, 4, '0');
+    EXIT WHEN NOT EXISTS (SELECT 1 FROM "loans" WHERE "refNumber" = next_ref);
+  END LOOP;
+
+  RETURN next_ref;
 END;
 $$ LANGUAGE plpgsql;
 

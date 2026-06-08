@@ -9,6 +9,18 @@ function formatRef(nextNumber: number) {
   return `${REF_PREFIX}/${String(nextNumber).padStart(4, '0')}`
 }
 
+async function findNextAvailableNumber(lastNumber: number) {
+  for (let nextNumber = lastNumber + 1; nextNumber < lastNumber + 101; nextNumber += 1) {
+    const existing = await prisma.loan.findUnique({
+      where: { refNumber: formatRef(nextNumber) },
+      select: { id: true },
+    })
+    if (!existing) return nextNumber
+  }
+
+  throw new Error('تعذر تحديد الرقم المرجعي القادم.')
+}
+
 function requireSuperAdminResponse() {
   const currentUser = getSessionUser()
   if (!isSuperAdmin(currentUser)) {
@@ -29,10 +41,12 @@ export async function GET() {
       create: { id: SEQUENCE_ID, lastNumber: 0 },
     })
 
+    const nextNumber = await findNextAvailableNumber(sequence.lastNumber)
+
     return NextResponse.json({
       lastNumber: sequence.lastNumber,
-      nextNumber: sequence.lastNumber + 1,
-      nextRefNumber: formatRef(sequence.lastNumber + 1),
+      nextNumber,
+      nextRefNumber: formatRef(nextNumber),
     })
   } catch (error) {
     return NextResponse.json(
@@ -63,10 +77,12 @@ export async function PATCH(request: Request) {
       create: { id: SEQUENCE_ID, lastNumber },
     })
 
+    const nextNumber = await findNextAvailableNumber(sequence.lastNumber)
+
     return NextResponse.json({
       lastNumber: sequence.lastNumber,
-      nextNumber: sequence.lastNumber + 1,
-      nextRefNumber: formatRef(sequence.lastNumber + 1),
+      nextNumber,
+      nextRefNumber: formatRef(nextNumber),
     })
   } catch (error) {
     return NextResponse.json(

@@ -12,10 +12,21 @@ import type { DestinationCategory } from '@/lib/settlement-deadline'
 // الرقم المرجعي — atomic بدون race condition
 // ─────────────────────────────────────────────────────────────
 async function getNextRefNumber(): Promise<string> {
-  const result = await prisma.$queryRaw<Array<{ ref: string }>>`
-    SELECT get_next_loan_ref() AS ref
-  `
-  return result[0]?.ref ?? `وت/26/${Date.now()}`
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const result = await prisma.$queryRaw<Array<{ ref: string }>>`
+      SELECT get_next_loan_ref() AS ref
+    `
+    const ref = result[0]?.ref
+    if (!ref) break
+
+    const existing = await prisma.loan.findUnique({
+      where: { refNumber: ref },
+      select: { id: true },
+    })
+    if (!existing) return ref
+  }
+
+  throw new Error('تعذر توليد رقم مرجعي غير مستخدم.')
 }
 
 // ─────────────────────────────────────────────────────────────
