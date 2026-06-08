@@ -151,7 +151,7 @@ export async function DELETE(
 
     const { loan, currentUser } = result
 
-    if (!canManageAllLoans(currentUser) && !canEmployeeControlLoan(currentUser, loan)) {
+    if (!isSuperAdmin(currentUser) && !canEmployeeControlLoan(currentUser, loan)) {
       return NextResponse.json(
         { error: 'لا يمكن حذف المعاملة بعد اعتماد المراجع.' },
         { status: 409 },

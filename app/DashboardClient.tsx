@@ -202,6 +202,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
   const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
+  const reviewerModeLabel = isSuperAdmin ? 'مراقب ومعتمد' : 'مراجع'
 
   async function refreshLoans(mode: WorkMode = workMode) {
     const url = isAdminOrReviewer && mode === 'employee' ? '/api/loans?scope=own' : '/api/loans'
@@ -501,7 +502,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }
 
   async function deleteLoan(loanId: string) {
-    if (!window.confirm('سيتم حذف طلب السلفة نهائيًا. هل تريد المتابعة؟')) return
+    if (!window.confirm('سيتم حذف المعاملة نهائياً مع أي تسوية أو تنبيهات مرتبطة بها. هل تريد المتابعة؟')) return
     startTransition(async () => {
       const res = await fetch(`/api/loans/${loanId}`, { method: 'DELETE' })
       const data = await res.json().catch(() => ({}))
@@ -570,7 +571,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <nav className="flex-1 py-3 overflow-y-auto">
           <p className="sidebar-section-label">القائمة الرئيسية</p>
           {([
-            { tab: 'requests', label: isReviewerMode ? 'مكتب المراجع' : 'طلبات السلفة', icon: '📋' },
+            { tab: 'requests', label: isReviewerMode ? `مكتب ${reviewerModeLabel}` : 'طلبات السلفة', icon: '📋' },
             { tab: 'archive',  label: 'الأرشيف',       icon: '🗂️' },
             { tab: 'reports',  label: 'التقارير',       icon: '📊' },
             ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية', icon: '📣' }] : []),
@@ -613,7 +614,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </div>
           </div>
           <div className="flex flex-wrap gap-1 mb-3">
-            {currentUser.roles.map((r) => (
+            {isSuperAdmin ? (
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(199,176,140,0.24)', color: '#C7B08C' }}>
+                مراقب ومعتمد
+              </span>
+            ) : currentUser.roles.map((r) => (
               <span key={r} className="text-xs px-2 py-0.5 rounded-full font-semibold"
                 style={{ background: r === 'ADMIN' ? 'rgba(199,176,140,0.24)' : r === 'REVIEWER' ? 'rgba(42,99,100,0.35)' : 'rgba(32,63,64,0.45)', color: r === 'ADMIN' ? '#C7B08C' : '#E8ECEB' }}>
                 {r === 'ADMIN' ? 'مدير' : r === 'REVIEWER' ? 'مراجع' : 'موظف'}
@@ -634,14 +639,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <header className="app-topbar">
           <div>
             <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>
-              {activeTab === 'requests' ? (isReviewerMode ? 'مكتب المراجع' : 'طلبات السلفة') : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
+              {activeTab === 'requests' ? (isReviewerMode ? `مكتب ${reviewerModeLabel}` : 'طلبات السلفة') : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
             </h1>
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
             {isAdminOrReviewer && (
               <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
-                <button type="button" onClick={() => setWorkMode('reviewer')} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>مراجع</button>
+                <button type="button" onClick={() => setWorkMode('reviewer')} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{reviewerModeLabel}</button>
                 <button type="button" onClick={() => setWorkMode('employee')} className="rounded-lg px-3 py-2" style={{ background: !isReviewerMode ? '#2A6364' : 'transparent', color: !isReviewerMode ? '#fff' : '#5A5A5A' }}>موظف</button>
               </div>
             )}
@@ -750,7 +755,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           <div className="section-card animate-fade-up">
             <div className="tab-list">
               {([
-                { tab: 'requests', label: `${isReviewerMode ? 'مكتب المراجع' : 'طلبات السلفة'} (${loans.filter((l) => !l.isSettled).length})` },
+                { tab: 'requests', label: `${isReviewerMode ? `مكتب ${reviewerModeLabel}` : 'طلبات السلفة'} (${loans.filter((l) => !l.isSettled).length})` },
                 { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
                 { tab: 'reports',  label: 'التقارير' },
                 ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية' }] : []),
@@ -802,6 +807,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onReturn={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onPrint={() => openPrintDocument('loan', loan.id)}
+                        onDelete={() => deleteLoan(loan.id)}
+                        canDelete={isSuperAdmin}
                       />
                     ))}
                   </div>
@@ -838,7 +845,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     <p className="empty-state-desc">ستظهر هنا الطلبات بعد إتمام تسويتها</p>
                   </div>
                 ) : settledLoans.map((loan) => (
-                  <LoanCard key={loan.id} loan={loan} archived canReview={isReviewerMode} canModify={isReviewerMode}
+                  <LoanCard key={loan.id} loan={loan} archived canReview={isReviewerMode} canModify={isReviewerMode} canDelete={isSuperAdmin}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1444,13 +1451,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, onPrint }: {
+function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, onPrint, onDelete, canDelete }: {
   loan: LoanDashboardRecord
   onPreview: () => void
   onEdit: () => void
   onReturn: () => void
   onMarkReviewed: () => void
   onPrint: () => void
+  onDelete: () => void
+  canDelete: boolean
 }) {
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للموظف', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-danger' }
 
@@ -1480,14 +1489,15 @@ function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, o
           <button type="button" onClick={onReturn} disabled={loan.isSettled} className="btn btn-warning btn-sm">إعادة للموظف</button>
           <button type="button" onClick={onMarkReviewed} disabled={loan.isSettled} className="btn btn-success btn-sm">اعتماد المراجعة</button>
           <button type="button" onClick={onPrint} className="btn btn-outline btn-sm sm:col-span-2">طباعة نموذج ١٨</button>
+          {canDelete && <button type="button" onClick={onDelete} className="btn btn-danger btn-sm sm:col-span-2">حذف المعاملة التجريبية</button>}
         </div>
       </div>
     </div>
   )
 }
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder }: {
-  loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder }: {
+  loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean; canDelete?: boolean
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onPrintSettlement: () => void
@@ -1543,8 +1553,11 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
           {!archived && canModify && !loan.isSettled && (
             <>
               <button type="button" onClick={() => onEdit(loan.id)} className="btn btn-success btn-sm">✏️ تعديل</button>
-              <button type="button" onClick={() => onDelete(loan.id)} className="btn btn-danger btn-sm">🗑️ حذف</button>
             </>
+          )}
+
+          {((!archived && canModify && !loan.isSettled) || canDelete) && (
+            <button type="button" onClick={() => onDelete(loan.id)} className="btn btn-danger btn-sm">🗑️ حذف</button>
           )}
 
           {canReview && (
