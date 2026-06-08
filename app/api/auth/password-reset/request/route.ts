@@ -3,12 +3,20 @@ import { prisma } from '@/lib/prisma'
 import { ensureAuthSetup } from '@/lib/database-setup'
 import { createResetCode, savePasswordResetCode } from '@/lib/password-reset'
 import { sendPasswordResetCodeEmail } from '@/lib/notifications'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
     await ensureAuthSetup()
     const body = await request.json()
     const email = String(body.email ?? '').trim().toLowerCase()
+    const rateLimit = checkRateLimit(`password-reset-request:${getClientIp(request)}:${email || 'unknown'}`, 5, 30 * 60 * 1000)
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: 'محاولات كثيرة. حاول لاحقاً.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      )
+    }
 
     if (!email) {
       return NextResponse.json({ error: 'البريد الإلكتروني مطلوب' }, { status: 400 })

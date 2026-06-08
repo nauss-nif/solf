@@ -31,7 +31,13 @@ export async function PATCH(
     if (body.mobile) data.mobile = String(body.mobile).trim()
     if (body.extension) data.extension = String(body.extension).trim()
     if (body.status) data.status = body.status
-    if (body.password) data.passwordHash = hashPassword(String(body.password))
+    if (body.password) {
+      const password = String(body.password)
+      if (password.length < 10) {
+        return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 10 أحرف على الأقل' }, { status: 400 })
+      }
+      data.passwordHash = hashPassword(password)
+    }
     if (body.role || body.roles) {
       const roles = normalizeRoles(body.roles, (body.role ?? 'EMPLOYEE') as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER')
       data.roles = roles

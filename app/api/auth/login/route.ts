@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth'
 import { getPublicApiError } from '@/lib/api-errors'
 import { ensureAuthSetup } from '@/lib/database-setup'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -17,6 +18,13 @@ export async function POST(request: Request) {
     const body = await request.json()
     const email = String(body.email ?? '').trim().toLowerCase()
     const password = String(body.password ?? '')
+    const rateLimit = checkRateLimit(`login:${getClientIp(request)}:${email || 'unknown'}`, 8, 15 * 60 * 1000)
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: 'محاولات كثيرة. حاول لاحقاً.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      )
+    }
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 })

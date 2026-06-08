@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { ensureAuthSetup, isRuntimeDatabaseSetupEnabled } from '@/lib/database-setup'
 
 const SESSION_COOKIE = 'naif_session'
-const AUTH_SECRET = process.env.AUTH_SECRET ?? 'change-this-auth-secret'
+const AUTH_SECRET = process.env.AUTH_SECRET ?? ''
 export const SUPER_ADMIN_EMAIL = 'od@nauss.edu.sa'
 let defaultAdminPromise: Promise<void> | null = null
 
@@ -67,6 +67,12 @@ function fromBase64Url(value: string) {
 }
 
 function signValue(value: string) {
+  if (!AUTH_SECRET || AUTH_SECRET === 'change-this-auth-secret') {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('AUTH_SECRET must be configured in production')
+    }
+  }
+
   return createHmac('sha256', AUTH_SECRET).update(value).digest('base64url')
 }
 
@@ -178,13 +184,20 @@ export async function ensureDefaultAdmin() {
 
       if (existing) return
 
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD
+      if (!defaultPassword) {
+        if (process.env.NODE_ENV === 'production') {
+          throw new Error('DEFAULT_ADMIN_PASSWORD must be configured to create the default admin')
+        }
+      }
+
       await prisma.user.create({
         data: {
           fullName: 'مدير النظام',
           email: adminEmail,
           mobile: '0500000000',
           extension: '0000',
-          passwordHash: hashPassword('Zx.321321'),
+          passwordHash: hashPassword(defaultPassword ?? `Dev-${randomBytes(18).toString('base64url')}`),
           role: 'ADMIN',
           roles: ['EMPLOYEE', 'ADMIN'],
           status: 'ACTIVE',

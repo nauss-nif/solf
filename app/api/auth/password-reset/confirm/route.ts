@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 import { consumePasswordResetCode } from '@/lib/password-reset'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {
@@ -12,12 +13,19 @@ export async function POST(request: Request) {
     const code = String(body.code ?? '').trim()
     const password = String(body.password ?? '')
     const passwordConfirm = String(body.passwordConfirm ?? '')
+    const rateLimit = checkRateLimit(`password-reset-confirm:${getClientIp(request)}:${email || 'unknown'}`, 8, 30 * 60 * 1000)
+    if (!rateLimit.ok) {
+      return NextResponse.json(
+        { error: 'محاولات كثيرة. حاول لاحقاً.' },
+        { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+      )
+    }
 
     if (!email || !code || !password || !passwordConfirm) {
       return NextResponse.json({ error: 'أكمل جميع الحقول' }, { status: 400 })
     }
-    if (password.length < 6) {
-      return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, { status: 400 })
+    if (password.length < 10) {
+      return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 10 أحرف على الأقل' }, { status: 400 })
     }
     if (password !== passwordConfirm) {
       return NextResponse.json({ error: 'كلمتا المرور غير متطابقتين' }, { status: 400 })
