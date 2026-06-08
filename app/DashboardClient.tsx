@@ -202,7 +202,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
   const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
-  const reviewerModeLabel = isSuperAdmin ? 'مراقب ومعتمد' : 'مراجع'
+  const managementModeLabel = isSuperAdmin ? 'مدير النظام' : 'مراجع'
+  const requestsSectionLabel = isReviewerMode ? (isSuperAdmin ? 'لوحة المعلومات' : 'لوحة معلومات المراجع') : 'طلبات السلفة'
 
   async function refreshLoans(mode: WorkMode = workMode) {
     const url = isAdminOrReviewer && mode === 'employee' ? '/api/loans?scope=own' : '/api/loans'
@@ -507,7 +508,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       const res = await fetch(`/api/loans/${loanId}`, { method: 'DELETE' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر حذف الطلب.', 'error'); return }
-      setLoans((curr) => curr.filter((l) => l.id !== loanId)); showToast('تم حذف طلب السلفة.')
+      setLoans((curr) => curr.filter((l) => l.id !== loanId))
+      await refreshLoans(workMode)
+      showToast('تم حذف المعاملة.')
     })
   }
 
@@ -571,7 +574,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <nav className="flex-1 py-3 overflow-y-auto">
           <p className="sidebar-section-label">القائمة الرئيسية</p>
           {([
-            { tab: 'requests', label: isReviewerMode ? `مكتب ${reviewerModeLabel}` : 'طلبات السلفة', icon: '📋' },
+            { tab: 'requests', label: requestsSectionLabel, icon: '📊' },
             { tab: 'archive',  label: 'الأرشيف',       icon: '🗂️' },
             { tab: 'reports',  label: 'التقارير',       icon: '📊' },
             ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية', icon: '📣' }] : []),
@@ -616,7 +619,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           <div className="flex flex-wrap gap-1 mb-3">
             {isSuperAdmin ? (
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(199,176,140,0.24)', color: '#C7B08C' }}>
-                مراقب ومعتمد
+                مدير النظام
               </span>
             ) : currentUser.roles.map((r) => (
               <span key={r} className="text-xs px-2 py-0.5 rounded-full font-semibold"
@@ -639,14 +642,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         <header className="app-topbar">
           <div>
             <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>
-              {activeTab === 'requests' ? (isReviewerMode ? `مكتب ${reviewerModeLabel}` : 'طلبات السلفة') : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
+              {activeTab === 'requests' ? requestsSectionLabel : activeTab === 'archive' ? 'الأرشيف' : activeTab === 'reports' ? 'التقارير والإحصاءات' : activeTab === 'alerts' ? 'التنبيهات اليدوية' : 'التعليمات والدليل'}
             </h1>
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
             {isAdminOrReviewer && (
               <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
-                <button type="button" onClick={() => setWorkMode('reviewer')} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{reviewerModeLabel}</button>
+                <button type="button" onClick={() => setWorkMode('reviewer')} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{managementModeLabel}</button>
                 <button type="button" onClick={() => setWorkMode('employee')} className="rounded-lg px-3 py-2" style={{ background: !isReviewerMode ? '#2A6364' : 'transparent', color: !isReviewerMode ? '#fff' : '#5A5A5A' }}>موظف</button>
               </div>
             )}
@@ -755,7 +758,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           <div className="section-card animate-fade-up">
             <div className="tab-list">
               {([
-                { tab: 'requests', label: `${isReviewerMode ? `مكتب ${reviewerModeLabel}` : 'طلبات السلفة'} (${loans.filter((l) => !l.isSettled).length})` },
+                { tab: 'requests', label: `${isReviewerMode ? 'إدارة السلف' : 'طلبات السلفة'} (${loans.filter((l) => !l.isSettled).length})` },
                 { tab: 'archive',  label: `الأرشيف (${settledLoans.length})` },
                 { tab: 'reports',  label: 'التقارير' },
                 ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية' }] : []),
@@ -1489,7 +1492,7 @@ function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, o
           <button type="button" onClick={onReturn} disabled={loan.isSettled} className="btn btn-warning btn-sm">إعادة للموظف</button>
           <button type="button" onClick={onMarkReviewed} disabled={loan.isSettled} className="btn btn-success btn-sm">اعتماد المراجعة</button>
           <button type="button" onClick={onPrint} className="btn btn-outline btn-sm sm:col-span-2">طباعة نموذج ١٨</button>
-          {canDelete && <button type="button" onClick={onDelete} className="btn btn-danger btn-sm sm:col-span-2">حذف المعاملة التجريبية</button>}
+          {canDelete && <button type="button" onClick={onDelete} className="btn btn-danger btn-sm sm:col-span-2">🗑️ حذف</button>}
         </div>
       </div>
     </div>
