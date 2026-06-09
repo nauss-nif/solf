@@ -747,9 +747,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               </svg>
               تحديث
             </button>
-            {activeTab === 'requests' && !isReviewerMode && (
+            {activeTab === 'requests' && (
               <button type="button" onClick={openLoanModal} className="btn btn-primary btn-sm">
-                + طلب سلفة جديد
+                نموذج ١٨ — طلب سلفة
               </button>
             )}
           </div>
@@ -979,6 +979,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {/* REQUESTS TAB */}
             {activeTab === 'requests' && (
               <div className="space-y-4">
+                <div className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
+                  <div>
+                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>نموذج ١٨ — طلب سلفة مباشرة</h3>
+                    <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>استخدم هذا الخيار لإنشاء طلب سلفة بدون تحويل من نظام إقفال الدورات.</p>
+                  </div>
+                  <button type="button" onClick={openLoanModal} className="btn btn-primary">
+                    + طلب سلفة
+                  </button>
+                </div>
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
                     <svg className="absolute top-1/2 -translate-y-1/2 right-3 w-4 h-4" style={{ color: '#5A5A5A' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
