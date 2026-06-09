@@ -23,7 +23,7 @@ export default function AdminSettingsPage() {
             <span>👥</span> إدارة المستخدمين
           </Link>
           <Link href="/admin/settings" className="nav-item active">
-            <span>⚙️</span> إعدادات النظام
+            <span>⚙️</span> إعدادات السلف
           </Link>
         </nav>
         <div style={{ borderTop: '1px solid rgba(218,219,217,0.18)', padding: '1rem' }}>
@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
       <div className="app-content">
         <header className="app-topbar">
           <div>
-            <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>إعدادات النظام</h1>
+            <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>إعدادات السلف</h1>
             <p className="text-xs" style={{ color: '#5A5A5A' }}>{user.fullName} • {user.email}</p>
           </div>
         </header>

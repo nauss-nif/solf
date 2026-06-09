@@ -646,7 +646,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               </button>
               <button type="button" onClick={() => router.push('/admin/settings')}
                 className="nav-item w-full text-right">
-                <span>⚙️</span> إعدادات النظام
+                <span>⚙️</span> إعدادات السلف
               </button>
             </>
           )}

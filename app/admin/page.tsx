@@ -24,7 +24,7 @@ export default function AdminPage() {
             <span>👥</span> إدارة المستخدمين
           </Link>
           <Link href="/admin/settings" className="nav-item">
-            <span>⚙️</span> إعدادات النظام
+            <span>⚙️</span> إعدادات السلف
           </Link>
         </nav>
         <div style={{ borderTop: '1px solid rgba(218,219,217,0.18)', padding: '1rem' }}>
