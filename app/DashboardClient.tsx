@@ -219,9 +219,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     finally { setIsLoadingLoans(false) }
   }
 
-  useEffect(() => { if (initialLoans.length > 0) return; void refreshLoans() }, [initialLoans.length])
   useEffect(() => { void refreshLoans(workMode) }, [workMode])
-  useEffect(() => { void loadNotifications() }, [])
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadNotifications() }, 500)
+    return () => window.clearTimeout(timer)
+  }, [])
   useEffect(() => {
     if (handledCourseLink) return
     const courseId = searchParams.get('courseId')
