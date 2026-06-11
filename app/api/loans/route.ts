@@ -171,7 +171,7 @@ export async function POST(request: Request) {
         },
         include: dashboardLoanInclude,
       })
-    })
+    }, { timeout: 20000 })
 
     // ─── إشعار المراجعين ──────────────────────────────────────
     void notifyNewLoan({
