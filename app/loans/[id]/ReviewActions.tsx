@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 
 type PreviewForm = '18' | '19'
 
-export default function ReviewActions({ loanId, form, disabled }: { loanId: string; form: PreviewForm; disabled: boolean }) {
+export default function ReviewActions({ loanId, form, disabled, isApproved }: { loanId: string; form: PreviewForm; disabled: boolean; isApproved: boolean }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -63,8 +63,8 @@ export default function ReviewActions({ loanId, form, disabled }: { loanId: stri
     <div className="flex flex-wrap items-center gap-2">
       {error && <div className="alert alert-error mt-3">{error}</div>}
       {message && <div className="alert alert-success mt-3">{message}</div>}
-      <button type="button" onClick={approve} disabled={isPending || disabled} className="btn btn-success btn-sm">
-        اعتماد
+      <button type="button" onClick={approve} disabled={isPending || disabled || isApproved} className="btn btn-success btn-sm">
+        {isApproved ? 'تم الاعتماد' : isPending ? 'جاري الاعتماد...' : 'اعتماد'}
       </button>
       <button type="button" onClick={returnToEmployee} disabled={isPending} className="btn btn-warning btn-sm">
         إعادة للموظف

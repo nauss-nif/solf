@@ -20,6 +20,9 @@ export default async function LoanDetailPage({
   const requestedForm = searchParams?.form === '19' ? '19' : '18'
   const hasSettlement = Boolean(loan.settlement)
   const activeForm = requestedForm === '19' && hasSettlement ? '19' : '18'
+  const isActiveFormApproved = activeForm === '19'
+    ? loan.settlementStatus === 'APPROVED'
+    : loan.reviewStatus === 'REVIEWED'
   const html = activeForm === '19' && hasSettlement
     ? buildSettlementWordHtml(loan, { settings })
     : buildLoanRequestWordHtml(loan, { settings })
@@ -28,7 +31,7 @@ export default async function LoanDetailPage({
     <main className="min-h-screen bg-slate-100 px-2 py-4">
       <div className="mx-auto max-w-[210mm] space-y-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm print:hidden">
-          <PreviewToolbar loanId={loan.id} activeForm={activeForm} hasSettlement={hasSettlement} canReview={canReview} />
+          <PreviewToolbar loanId={loan.id} activeForm={activeForm} hasSettlement={hasSettlement} canReview={canReview} isApproved={isActiveFormApproved} />
           {requestedForm === '19' && !hasSettlement && (
             <div className="alert alert-warning mt-3">لم تُرفع التسوية بعد، لذلك لا تتوفر معاينة نموذج ١٩ لهذه المعاملة.</div>
           )}

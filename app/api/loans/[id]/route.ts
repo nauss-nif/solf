@@ -65,11 +65,16 @@ export async function PATCH(
       canManageAllLoans(currentUser)
     ) {
       const nextStatus = body.reviewStatus as 'REVIEWED' | 'RETURNED'
+      if (nextStatus === 'REVIEWED' && body.closureType === 'settlement' && !loan.settlement) {
+        return NextResponse.json({ error: 'لا توجد تسوية محفوظة لاعتماد نموذج ١٩.' }, { status: 409 })
+      }
+
       const reviewedLoan = await prisma.loan.update({
         where: { id: loan.id },
         data: {
           reviewStatus: nextStatus,
           reviewNote: String(body.reviewNote ?? '').trim() || null,
+          settlementStatus: nextStatus === 'REVIEWED' && body.closureType === 'settlement' ? 'APPROVED' : undefined,
         },
         include: dashboardLoanInclude,
       })

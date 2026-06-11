@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       }),
       prisma.loan.update({
         where: { id: body.loanId },
-        data: { isSettled: true },
+        data: { isSettled: true, settlementStatus: 'SUBMITTED' },
       }),
     ])
 

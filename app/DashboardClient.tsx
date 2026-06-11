@@ -34,6 +34,7 @@ export type LoanDashboardRecord = {
   id: string; userId?: string; refNumber: string; employee: string; activity: string; location: string
   amount: number; budgetApproved: boolean | null
   reviewStatus: 'PENDING' | 'RETURNED' | 'REVIEWED'
+  settlementStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'OVERDUE'
   reviewNote?: string; startDate: string; endDate: string
   createdAt: string; updatedAt?: string; printedAt: string | null
   files?: LoanRequestFiles | null; isSettled: boolean
@@ -76,8 +77,8 @@ function generateRef(loans: LoanDashboardRecord[]) {
   return `وت/${AGENCY_CODE}/${String(maxRef + 1).padStart(4, '0')}`
 }
 
-function normalizeLoanRecord(loan: Omit<LoanDashboardRecord, 'location' | 'budgetApproved' | 'reviewStatus' | 'reviewNote' | 'printedAt' | 'files'> & { location?: string | null; budgetApproved?: boolean | null; reviewStatus?: string; reviewNote?: string; printedAt?: string | null; files?: LoanRequestFiles | null }): LoanDashboardRecord {
-  return { ...loan, location: loan.location ?? '', budgetApproved: typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null, reviewStatus: (loan.reviewStatus as LoanDashboardRecord['reviewStatus']) ?? 'PENDING', reviewNote: loan.reviewNote ?? '', printedAt: loan.printedAt ?? null, files: loan.files ?? null }
+function normalizeLoanRecord(loan: Omit<LoanDashboardRecord, 'location' | 'budgetApproved' | 'reviewStatus' | 'settlementStatus' | 'reviewNote' | 'printedAt' | 'files'> & { location?: string | null; budgetApproved?: boolean | null; reviewStatus?: string; settlementStatus?: string; reviewNote?: string; printedAt?: string | null; files?: LoanRequestFiles | null }): LoanDashboardRecord {
+  return { ...loan, location: loan.location ?? '', budgetApproved: typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null, reviewStatus: (loan.reviewStatus as LoanDashboardRecord['reviewStatus']) ?? 'PENDING', settlementStatus: (loan.settlementStatus as LoanDashboardRecord['settlementStatus']) ?? 'NOT_STARTED', reviewNote: loan.reviewNote ?? '', printedAt: loan.printedAt ?? null, files: loan.files ?? null }
 }
 
 function createEmptyLoanForm(currentUser: CurrentUser, loans: LoanDashboardRecord[]): LoanFormState {
@@ -709,7 +710,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
-            {navigationFeedback && <span className="badge badge-info">{navigationFeedback}</span>}
             {isAdminOrReviewer && (
               <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
                 <button type="button" onClick={() => { showNavigationFeedback(`جاري فتح وضع ${managementModeLabel}...`); setWorkMode('reviewer') }} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{managementModeLabel}</button>
@@ -770,6 +770,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             )}
           </div>
         </header>
+
+        {navigationFeedback && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+            <div className="rounded-3xl bg-white px-8 py-6 text-center shadow-modal" style={{ border: '1px solid #DADBD9' }}>
+              <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[#DADBD9] border-t-[#2A6364]" />
+              <p className="font-bold" style={{ color: '#1F3F40' }}>{navigationFeedback}</p>
+            </div>
+          </div>
+        )}
 
         <main className="app-main">
           {!isAdminOrReviewer && (
@@ -1739,6 +1748,8 @@ function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onPreviewSettlem
 }) {
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للموظف', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-danger' }
   const hasSettlement = Boolean(loan.settlement)
+  const isLoanApproved = loan.reviewStatus === 'REVIEWED'
+  const isSettlementApproved = loan.settlementStatus === 'APPROVED'
 
   return (
     <div className="card p-5">
@@ -1762,11 +1773,15 @@ function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onPreviewSettlem
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة نموذج ١٨</button>
-          <button type="button" onClick={onApproveLoan} className="btn btn-success btn-sm">اعتماد نموذج ١٨</button>
+          <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="btn btn-success btn-sm">
+            {isLoanApproved ? 'تم اعتماد نموذج ١٨' : 'اعتماد نموذج ١٨'}
+          </button>
           {hasSettlement ? (
             <>
               <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة نموذج ١٩</button>
-              <button type="button" onClick={onApproveSettlement} className="btn btn-success btn-sm">اعتماد نموذج ١٩</button>
+              <button type="button" onClick={onApproveSettlement} disabled={isSettlementApproved} className="btn btn-success btn-sm">
+                {isSettlementApproved ? 'تم اعتماد نموذج ١٩' : 'اعتماد نموذج ١٩'}
+              </button>
             </>
           ) : (
             <span className="btn btn-outline btn-sm sm:col-span-2 opacity-60" aria-disabled="true">لم تُرفع التسوية بعد</span>

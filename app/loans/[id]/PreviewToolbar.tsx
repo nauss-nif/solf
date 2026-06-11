@@ -11,11 +11,13 @@ export default function PreviewToolbar({
   activeForm,
   hasSettlement,
   canReview,
+  isApproved,
 }: {
   loanId: string
   activeForm: PreviewForm
   hasSettlement: boolean
   canReview: boolean
+  isApproved: boolean
 }) {
   const router = useRouter()
   const [target, setTarget] = useState<PreviewForm | 'home' | null>(null)
@@ -50,6 +52,7 @@ export default function PreviewToolbar({
           loanId={loanId}
           form={activeForm}
           disabled={activeForm === '19' && !hasSettlement}
+          isApproved={isApproved}
         />
       )}
     </div>
