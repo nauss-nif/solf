@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { canManageAllLoans, getSessionUser, isSuperAdmin } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
-import { dashboardLoanInclude } from '@/lib/loan-selects'
+import { dashboardLoanInclude, fullLoanInclude } from '@/lib/loan-selects'
 import { notifyLoanReviewed } from '@/lib/notifications'
+import { validateLoanRequestFiles } from '@/lib/loan-form-options'
+import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 
 async function getEditableLoan(id: string) {
   await ensureDatabaseSetup()
@@ -53,6 +55,9 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const filesError = validateLoanRequestFiles(body.files)
+    if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
+
     if (
       typeof body.reviewStatus === 'string' &&
       !('activity' in body) &&
@@ -84,6 +89,19 @@ export async function PATCH(
             status: nextStatus,
             note: String(body.reviewNote ?? '').trim() || undefined,
           }).catch(console.error)
+        }
+      }
+
+      if (nextStatus === 'REVIEWED') {
+        const linkedLoan = await prisma.loan.findUnique({
+          where: { id: loan.id },
+          include: fullLoanInclude,
+        })
+        if (linkedLoan?.courseId) {
+          void syncClosureElementFromPrint('advance_req', linkedLoan).catch(console.error)
+          if (body.closureType === 'settlement' && linkedLoan.settlement) {
+            void syncClosureElementFromPrint('settlement', linkedLoan).catch(console.error)
+          }
         }
       }
 

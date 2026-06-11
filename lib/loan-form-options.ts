@@ -142,6 +142,54 @@ export type StoredFile = {
 
 export type LoanRequestFiles = Partial<Record<LoanAttachmentKey, StoredFile | null>>
 
+export function isStoredImageFile(value: unknown): value is StoredFile {
+  if (!value || typeof value !== 'object') return false
+  const file = value as Partial<StoredFile>
+  return (
+    typeof file.name === 'string' &&
+    typeof file.type === 'string' &&
+    file.type.startsWith('image/') &&
+    typeof file.size === 'number' &&
+    typeof file.dataUrl === 'string' &&
+    file.dataUrl.startsWith('data:image/')
+  )
+}
+
+export function validateLoanRequestFiles(files: unknown) {
+  if (files == null) return null
+  if (typeof files !== 'object' || Array.isArray(files)) return 'صيغة مرفقات الطلب غير صحيحة.'
+
+  const source = files as Record<string, unknown>
+  for (const attachment of LOAN_ATTACHMENT_DEFINITIONS) {
+    const file = source[attachment.key]
+    if (file == null) continue
+    if (!isStoredImageFile(file)) return `${attachment.label} يجب أن يكون صورة فقط.`
+  }
+
+  return null
+}
+
+export function validateSettlementAttachments(details: unknown, pettyCashApproval: unknown) {
+  if (pettyCashApproval != null && !isStoredImageFile(pettyCashApproval)) {
+    return 'موافقة المعالي في التسوية يجب أن تكون صورة فقط.'
+  }
+
+  if (!Array.isArray(details)) return null
+  for (const item of details) {
+    if (!item || typeof item !== 'object') continue
+    const category = String((item as { category?: unknown }).category ?? 'البند')
+    const invoices = (item as { invoices?: unknown }).invoices
+    if (!Array.isArray(invoices)) continue
+    for (const invoice of invoices) {
+      if (!invoice || typeof invoice !== 'object') continue
+      const attachment = (invoice as { attachment?: unknown }).attachment
+      if (attachment != null && !isStoredImageFile(attachment)) return `مرفق ${category} يجب أن يكون صورة فقط.`
+    }
+  }
+
+  return null
+}
+
 export type SettlementCurrencyRate = {
   currencyCode: CurrencyCode
   rate: number

@@ -6,6 +6,7 @@ import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
 import { calcSettlementDeadline } from '@/lib/settlement-deadline'
 import { notifyNewLoan } from '@/lib/notifications'
+import { validateLoanRequestFiles } from '@/lib/loan-form-options'
 import type { DestinationCategory } from '@/lib/settlement-deadline'
 
 const SEQUENCE_ID = 'singleton'
@@ -85,51 +86,24 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    const filesError = validateLoanRequestFiles(body.files)
+    if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
 
-    // ─── قاعدة السلفة الواحدة ────────────────────────────────
-    // تحقق: هل للموظف سلفة نشطة غير مسواة؟
-    const activeLoan = await prisma.loan.findFirst({
+    const activeLoansCount = await prisma.loan.count({
       where: {
         userId: currentUser.userId,
         isSettled: false,
       },
-      select: {
-        id: true,
-        refNumber: true,
-        exceptionGrantedById: true,
-      },
     })
 
-    if (activeLoan) {
-      // هل تم منح استثناء؟
-      if (!activeLoan.exceptionGrantedById) {
-        return NextResponse.json(
-          {
-            error: `لديك سلفة نشطة غير مسواة (${activeLoan.refNumber}). يجب تسويتها أولاً أو الحصول على استثناء من المدير.`,
-            code: 'ACTIVE_LOAN_EXISTS',
-            existingLoanRef: activeLoan.refNumber,
-          },
-          { status: 409 },
-        )
-      }
-
-      // إذا كان هناك استثناء، تحقق أن السلفتين لا تزيدان عن اثنتين
-      const totalActive = await prisma.loan.count({
-        where: {
-          userId: currentUser.userId,
-          isSettled: false,
+    if (activeLoansCount >= 3) {
+      return NextResponse.json(
+        {
+          error: 'لديك 3 سلف نشطة غير مسواة. يجب تسوية إحدى السلف قبل رفع طلب جديد.',
+          code: 'MAX_ACTIVE_LOANS_REACHED',
         },
-      })
-
-      if (totalActive >= 2) {
-        return NextResponse.json(
-          {
-            error: 'لا يمكن تجاوز سلفتين نشطتين في آنٍ واحد حتى مع الاستثناء.',
-            code: 'MAX_LOANS_REACHED',
-          },
-          { status: 409 },
-        )
-      }
+        { status: 409 },
+      )
     }
 
     // ─── حساب المهلة ─────────────────────────────────────────

@@ -131,9 +131,8 @@ async function optimizeImageFile(file: File): Promise<StoredFile> {
 
 async function fileToStoredFile(file: File): Promise<StoredFile> {
   if (file.size > FILE_SIZE_LIMIT_BYTES) throw new Error('حجم الملف كبير جدًا، الحد الأقصى 12 ميجابايت.')
-  if (file.type.startsWith('image/')) return optimizeImageFile(file)
-  const dataUrl = await readFileAsDataUrl(file)
-  return { name: file.name, type: file.type || 'application/octet-stream', size: file.size, dataUrl }
+  if (!file.type.startsWith('image/')) throw new Error('المرفقات تقبل الصور فقط، ولا تقبل ملفات PDF.')
+  return optimizeImageFile(file)
 }
 
 function cloneStoredFile(file: StoredFile | null | undefined) {
@@ -502,7 +501,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   async function uploadInvoiceAttachment(itemIndex: number, invoiceIndex: number, fileList: FileList | null) {
     const file = fileList?.[0]; if (!file) return
     const item = settlementItems[itemIndex]
-    if (item && isPettyCashCategory(item.category) && !file.type.startsWith('image/')) { setSettlementError('في بند النثريات يجب إرفاق موافقة المعالي كصورة فقط.'); return }
     try {
       const stored = await fileToStoredFile(file)
       setSettlementItems((curr) => curr.map((itm, ci) => ci !== itemIndex ? itm : { ...itm, invoices: itm.invoices.map((inv, ii) => ii !== invoiceIndex ? inv : { ...inv, attachment: stored }) }))
@@ -529,7 +527,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (!inv.amount || inv.sar <= 0) { setSettlementError(`أكمل مبلغ الفاتورة في بند ${inv.category}.`); return }
       if (!isPettyCashCategory(inv.category) && !inv.invoiceDate) { setSettlementError(`حدد تاريخ الفاتورة في بند ${inv.category}.`); return }
       if (!isPettyCashCategory(inv.category) && !inv.issuer.trim()) { setSettlementError(`أدخل الجهة المصدرة للفاتورة في بند ${inv.category}.`); return }
-      if (!isPettyCashCategory(inv.category) && !inv.attachment) { setSettlementError(`أرفق صورة أو ملف الفاتورة في بند ${inv.category}.`); return }
+      if (!isPettyCashCategory(inv.category) && !inv.attachment) { setSettlementError(`أرفق صورة الفاتورة في بند ${inv.category}.`); return }
     }
     if (settlementSummary.overage > 0 && !settlementMeta.overageReason.trim()) { setSettlementError('أدخل مبرر الزيادة عند تجاوز إجمالي المصروفات مبلغ السلفة.'); return }
     if (settlementSummary.savings > 0) {
@@ -564,13 +562,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   async function handleLogout() { try { await fetch('/api/auth/logout', { method: 'POST' }) } finally { window.location.replace('/login') } }
 
-  async function updateReviewState(loanId: string, reviewStatus: LoanDashboardRecord['reviewStatus'], reviewNote = '') {
+  async function updateReviewState(loanId: string, reviewStatus: LoanDashboardRecord['reviewStatus'], reviewNote = '', closureType?: 'advance_req' | 'settlement') {
     startTransition(async () => {
-      const res = await fetch(`/api/loans/${loanId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewStatus, reviewNote }) })
+      const res = await fetch(`/api/loans/${loanId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewStatus, reviewNote, closureType }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر تحديث حالة المراجعة.', 'error'); return }
       setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
-      showToast(reviewStatus === 'RETURNED' ? 'تمت إعادة المعاملة للموظف.' : 'تم تحديث حالة المراجعة.')
+      showToast(closureType === 'settlement' ? 'تم اعتماد نموذج ١٩.' : reviewStatus === 'RETURNED' ? 'تمت إعادة المعاملة للموظف.' : 'تم اعتماد نموذج ١٨.')
     })
   }
 
@@ -602,10 +600,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const requestLoans = filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
   const reviewerQueue = filteredLoans
-    .filter((loan) => !loan.isSettled)
     .sort((a, b) => {
       const rank = { PENDING: 0, RETURNED: 1, REVIEWED: 2 } as Record<LoanDashboardRecord['reviewStatus'], number>
-      return rank[a.reviewStatus] - rank[b.reviewStatus] || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      return (a.settlement ? 0 : 1) - (b.settlement ? 0 : 1) || rank[a.reviewStatus] - rank[b.reviewStatus] || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
 
   // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -1032,24 +1029,21 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="summary-pill"><p className="summary-pill-label">بانتظار المراجعة</p><p className="summary-pill-value" style={{ color: '#73384B' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'PENDING').length)}</p></div>
                       <div className="summary-pill"><p className="summary-pill-label">معادة للموظف</p><p className="summary-pill-value" style={{ color: '#C7B08C' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'RETURNED').length)}</p></div>
-                      <div className="summary-pill"><p className="summary-pill-label">جاهزة للطباعة</p><p className="summary-pill-value" style={{ color: '#2A6364' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'REVIEWED').length)}</p></div>
+                      <div className="summary-pill"><p className="summary-pill-label">لها نموذج ١٩</p><p className="summary-pill-value" style={{ color: '#2A6364' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.settlement).length)}</p></div>
                     </div>
                     {reviewerQueue.length === 0 ? (
                       <div className="empty-state">
                         <div className="empty-state-icon text-4xl">✅</div>
-                        <p className="empty-state-title">لا توجد معاملات مفتوحة للمراجعة</p>
+                        <p className="empty-state-title">لا توجد معاملات للمراجعة</p>
                       </div>
                     ) : reviewerQueue.map((loan) => (
                       <ReviewerLoanCard
                         key={loan.id}
                         loan={loan}
-                        onPreview={() => router.push(`/loans/${loan.id}`)}
-                        onEdit={() => openEditLoanModal(loan.id)}
-                        onReturn={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
-                        onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
-                        onPrint={() => openPrintDocument('loan', loan.id)}
-                        onDelete={() => deleteLoan(loan.id)}
-                        canDelete={isSuperAdmin}
+                        onPreviewLoan={() => router.push(`/loans/${loan.id}?form=18`)}
+                        onApproveLoan={() => updateReviewState(loan.id, 'REVIEWED', '', 'advance_req')}
+                        onPreviewSettlement={() => router.push(`/loans/${loan.id}?form=19`)}
+                        onApproveSettlement={() => updateReviewState(loan.id, 'REVIEWED', '', 'settlement')}
                       />
                     ))}
                   </div>
@@ -1062,7 +1056,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 ) : (
                   <div className="space-y-3">
                     {requestLoans.map((loan) => (
-                      <LoanCard key={loan.id} loan={loan} canReview={isReviewerMode} canModify={isReviewerMode || loan.reviewStatus !== 'REVIEWED'}
+                      <LoanCard key={loan.id} loan={loan} canReview={false} canModify={loan.reviewStatus !== 'REVIEWED'}
                         onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1086,7 +1080,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     <p className="empty-state-desc">ستظهر هنا الطلبات بعد إتمام تسويتها</p>
                   </div>
                 ) : settledLoans.map((loan) => (
-                  <LoanCard key={loan.id} loan={loan} archived canReview={isReviewerMode} canModify={isReviewerMode} canDelete={isSuperAdmin}
+                  <LoanCard key={loan.id} loan={loan} archived canReview={false} canModify={false} canDelete={isSuperAdmin}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1451,7 +1445,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         <div className="flex gap-2 flex-shrink-0">
                           <label className="btn btn-primary btn-sm cursor-pointer">
                             {currentFile ? 'تغيير' : 'رفع ملف'}
-                            <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => void handleLoanAttachmentUpload(att.key, e.target.files)} />
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => void handleLoanAttachmentUpload(att.key, e.target.files)} />
                           </label>
                           {currentFile && (
                             <button type="button" onClick={() => setLoanAttachments((c) => ({ ...c, [att.key]: null }))} className="btn btn-danger btn-sm">إزالة</button>
@@ -1603,7 +1597,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
                             {isPettyCash && (
                               <div className="text-xs rounded-lg px-3 py-2" style={{ background: '#F3EDE3', color: '#6B5A4A', border: '1px solid #C7B08C' }}>
-                                في بند النثريات يجب إرفاق موافقة المعالي كصورة فقط — لا تقبل ملفات PDF
+                                المرفقات تقبل الصور فقط — لا تقبل ملفات PDF
                               </div>
                             )}
 
@@ -1622,7 +1616,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                               <div className="flex gap-2 flex-shrink-0">
                                 <label className="btn btn-primary btn-sm cursor-pointer">
                                   {invoice.attachment ? 'تغيير' : 'رفع'}
-                                  <input type="file" className="hidden" accept={isPettyCash ? 'image/*' : '.pdf,image/*'} onChange={(e) => void uploadInvoiceAttachment(itemIndex, invoiceIndex, e.target.files)} />
+                                  <input type="file" className="hidden" accept="image/*" onChange={(e) => void uploadInvoiceAttachment(itemIndex, invoiceIndex, e.target.files)} />
                                 </label>
                                 {invoice.attachment && <button type="button" onClick={() => removeInvoiceAttachment(itemIndex, invoiceIndex)} className="btn btn-danger btn-sm">إزالة</button>}
                                 {item.invoices.length > 1 && <button type="button" onClick={() => removeInvoice(itemIndex, invoiceIndex)} className="btn btn-ghost btn-sm">حذف الفاتورة</button>}
@@ -1692,20 +1686,18 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, onPrint, onDelete, canDelete }: {
+function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onPreviewSettlement, onApproveSettlement }: {
   loan: LoanDashboardRecord
-  onPreview: () => void
-  onEdit: () => void
-  onReturn: () => void
-  onMarkReviewed: () => void
-  onPrint: () => void
-  onDelete: () => void
-  canDelete: boolean
+  onPreviewLoan: () => void
+  onApproveLoan: () => void
+  onPreviewSettlement: () => void
+  onApproveSettlement: () => void
 }) {
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للموظف', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-danger' }
+  const hasSettlement = Boolean(loan.settlement)
 
   return (
-    <div className="card p-5" style={{ borderRight: `4px solid ${loan.reviewStatus === 'PENDING' ? '#73384B' : loan.reviewStatus === 'RETURNED' ? '#C7B08C' : '#2A6364'}` }}>
+    <div className="card p-5">
       <div className="grid gap-4 xl:grid-cols-[1fr_420px] xl:items-center">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -1725,12 +1717,10 @@ function ReviewerLoanCard({ loan, onPreview, onEdit, onReturn, onMarkReviewed, o
           {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={onPreview} className="btn btn-primary btn-sm">معاينة المعاملة</button>
-          <button type="button" onClick={onEdit} disabled={loan.isSettled} className="btn btn-success btn-sm">تعديل المعاملة</button>
-          <button type="button" onClick={onReturn} disabled={loan.isSettled} className="btn btn-warning btn-sm">إعادة للموظف</button>
-          <button type="button" onClick={onMarkReviewed} disabled={loan.isSettled} className="btn btn-success btn-sm">اعتماد المراجعة</button>
-          <button type="button" onClick={onPrint} className="btn btn-outline btn-sm sm:col-span-2">طباعة نموذج ١٨</button>
-          {canDelete && <button type="button" onClick={onDelete} className="btn btn-danger btn-sm sm:col-span-2">🗑️ حذف</button>}
+          <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة نموذج ١٨</button>
+          <button type="button" onClick={onApproveLoan} className="btn btn-success btn-sm">اعتماد نموذج ١٨</button>
+          <button type="button" onClick={onPreviewSettlement} disabled={!hasSettlement} className="btn btn-primary btn-sm">معاينة نموذج ١٩</button>
+          <button type="button" onClick={onApproveSettlement} disabled={!hasSettlement} className="btn btn-success btn-sm">اعتماد نموذج ١٩</button>
         </div>
       </div>
     </div>

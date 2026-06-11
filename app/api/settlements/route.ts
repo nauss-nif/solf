@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { canManageAllLoans, getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
-import { dashboardLoanInclude } from '@/lib/loan-selects'
+import { dashboardLoanInclude, fullLoanInclude } from '@/lib/loan-selects'
+import { validateSettlementAttachments } from '@/lib/loan-form-options'
+import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 
 export async function POST(request: Request) {
   try {
@@ -13,6 +15,8 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    const attachmentsError = validateSettlementAttachments(body.details, body.pettyCashApproval)
+    if (attachmentsError) return NextResponse.json({ error: attachmentsError }, { status: 400 })
 
     const loan = await prisma.loan.findUnique({
       where: { id: body.loanId },
@@ -60,6 +64,14 @@ export async function POST(request: Request) {
       where: { id: body.loanId },
       include: dashboardLoanInclude,
     })
+
+    if (updatedLoan?.reviewStatus === 'REVIEWED' && updatedLoan.courseId) {
+      const linkedLoan = await prisma.loan.findUnique({
+        where: { id: body.loanId },
+        include: fullLoanInclude,
+      })
+      if (linkedLoan) void syncClosureElementFromPrint('settlement', linkedLoan).catch(console.error)
+    }
 
     return NextResponse.json(updatedLoan)
   } catch (error) {
