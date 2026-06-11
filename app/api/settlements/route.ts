@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { canManageAllLoans, getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
-import { dashboardLoanInclude, fullLoanInclude } from '@/lib/loan-selects'
+import { dashboardLoanInclude } from '@/lib/loan-selects'
 import { validateSettlementAttachments } from '@/lib/loan-form-options'
-import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 
 export async function POST(request: Request) {
   try {
@@ -35,9 +34,26 @@ export async function POST(request: Request) {
     const receiptDate = String(body.receiptDate ?? '').trim()
 
     await prisma.$transaction([
-      prisma.settlement.create({
-        data: {
+      prisma.settlement.upsert({
+        where: { loanId: body.loanId },
+        create: {
           loanId: body.loanId,
+          supported: body.supported,
+          unsupported: body.unsupported,
+          total: body.total,
+          savings: body.savings,
+          overage: body.overage,
+          invoices: {
+            settlementDate: new Date().toISOString(),
+            currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
+            details: Array.isArray(body.details) ? body.details : [],
+            receiptNumber,
+            receiptDate,
+            overageReason: String(body.overageReason ?? '').trim(),
+            pettyCashApproval: body.pettyCashApproval ?? null,
+          },
+        },
+        update: {
           supported: body.supported,
           unsupported: body.unsupported,
           total: body.total,
@@ -64,14 +80,6 @@ export async function POST(request: Request) {
       where: { id: body.loanId },
       include: dashboardLoanInclude,
     })
-
-    if (updatedLoan?.reviewStatus === 'REVIEWED' && updatedLoan.courseId) {
-      const linkedLoan = await prisma.loan.findUnique({
-        where: { id: body.loanId },
-        include: fullLoanInclude,
-      })
-      if (linkedLoan) void syncClosureElementFromPrint('settlement', linkedLoan).catch(console.error)
-    }
 
     return NextResponse.json(updatedLoan)
   } catch (error) {

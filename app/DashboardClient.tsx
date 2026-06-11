@@ -36,6 +36,7 @@ export type LoanDashboardRecord = {
   reviewStatus: 'PENDING' | 'RETURNED' | 'REVIEWED'
   settlementStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'OVERDUE'
   reviewNote?: string; startDate: string; endDate: string
+  courseId?: string | null; courseCode?: string | null
   createdAt: string; updatedAt?: string; printedAt: string | null
   files?: LoanRequestFiles | null; isSettled: boolean
   items: LoanItemRecord[]; settlement: SettlementRecord | null
@@ -49,6 +50,7 @@ type SettlementMetaState = { receiptNumber: string; receiptDate: string; overage
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
+type ReviewerQueueFilter = 'all' | 'advance' | 'settlement' | 'approved' | 'returned'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
@@ -206,6 +208,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [linkedCourse, setLinkedCourse] = useState<LinkedCourse | null>(null)
   const [handledCourseLink, setHandledCourseLink] = useState(false)
   const [navigationFeedback, setNavigationFeedback] = useState('')
+  const [reviewerFilter, setReviewerFilter] = useState<ReviewerQueueFilter>('all')
 
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
@@ -579,13 +582,19 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   async function handleLogout() { try { await fetch('/api/auth/logout', { method: 'POST' }) } finally { window.location.replace('/login') } }
 
-  async function updateReviewState(loanId: string, reviewStatus: LoanDashboardRecord['reviewStatus'], reviewNote = '', closureType?: 'advance_req' | 'settlement') {
+  async function updateReviewState(loanId: string, reviewStatus: LoanDashboardRecord['reviewStatus'] | 'PENDING', reviewNote = '', closureType?: 'advance_req' | 'settlement') {
     startTransition(async () => {
       const res = await fetch(`/api/loans/${loanId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewStatus, reviewNote, closureType }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر تحديث حالة المراجعة.', 'error'); return }
       setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
-      showToast(closureType === 'settlement' ? 'تم اعتماد نموذج ١٩.' : reviewStatus === 'RETURNED' ? 'تمت إعادة المعاملة للموظف.' : 'تم اعتماد نموذج ١٨.')
+      showToast(reviewStatus === 'PENDING'
+        ? (closureType === 'settlement' ? 'تم إلغاء اعتماد نموذج ١٩ وإعادته للمراجعة.' : 'تم إلغاء اعتماد نموذج ١٨ وإعادته للمراجعة.')
+        : reviewStatus === 'RETURNED'
+          ? (closureType === 'settlement' ? 'تمت إعادة نموذج ١٩ للموظف.' : 'تمت إعادة المعاملة للموظف.')
+          : closureType === 'settlement'
+            ? 'تم اعتماد نموذج ١٩.'
+            : 'تم اعتماد نموذج ١٨.')
     })
   }
 
@@ -616,10 +625,29 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   const requestLoans = filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
+  const reviewerStats = useMemo(() => ({
+    advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING').length,
+    settlementPending: loans.filter((loan) => loan.settlement && loan.settlementStatus !== 'APPROVED').length,
+    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')).length,
+    returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED').length,
+    linkedCourses: loans.filter((loan) => loan.courseId).length,
+  }), [loans])
   const reviewerQueue = filteredLoans
+    .filter((loan) => {
+      if (reviewerFilter === 'advance') return loan.reviewStatus === 'PENDING'
+      if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && loan.settlementStatus !== 'APPROVED'
+      if (reviewerFilter === 'approved') return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
+      if (reviewerFilter === 'returned') return loan.reviewStatus === 'RETURNED'
+      return true
+    })
     .sort((a, b) => {
-      const rank = { PENDING: 0, RETURNED: 1, REVIEWED: 2 } as Record<LoanDashboardRecord['reviewStatus'], number>
-      return (a.settlement ? 0 : 1) - (b.settlement ? 0 : 1) || rank[a.reviewStatus] - rank[b.reviewStatus] || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      const priority = (loan: LoanDashboardRecord) => {
+        if (loan.reviewStatus === 'PENDING') return 0
+        if (loan.settlement && loan.settlementStatus !== 'APPROVED') return 1
+        if (loan.reviewStatus === 'RETURNED') return 2
+        return 3
+      }
+      return priority(a) - priority(b) || new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime()
     })
 
   // ── RENDER ────────────────────────────────────────────────────────────────────
@@ -1045,10 +1073,34 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {activeTab === 'requests' && (
               <div className="space-y-4">
                 {isReviewerMode ? (
-                  <div className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
-                    <div>
-                      <h3 className="font-bold" style={{ color: '#1F3F40' }}>طلبات الاعتماد</h3>
-                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>افتح نموذج ١٨ لاعتماد السلفة. يظهر نموذج ١٩ فقط بعد أن يرفع الموظف التسوية.</p>
+                  <div className="reviewer-workbench">
+                    <div className="reviewer-workbench-header">
+                      <div>
+                        <p className="text-xs font-bold" style={{ color: '#2A6364' }}>مساحة عمل المراجع</p>
+                        <h3 className="mt-1 font-bold" style={{ color: '#1F3F40' }}>اعتماد نموذج ١٨ ونموذج ١٩</h3>
+                        <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>تعامل مع طلب السلفة وتسوية السلفة كعنصرين مستقلين، مع إمكانية المعاينة، الاعتماد، الإعادة، وإلغاء الاعتماد عند الحاجة.</p>
+                      </div>
+                      <button type="button" onClick={() => void refreshLoans(workMode)} className="btn btn-outline btn-sm">
+                        تحديث القائمة
+                      </button>
+                    </div>
+                    <div className="reviewer-metrics">
+                      <button type="button" onClick={() => setReviewerFilter('advance')} className={`reviewer-metric ${reviewerFilter === 'advance' ? 'active' : ''}`}>
+                        <span>طلبات سلفة تنتظر نموذج ١٨</span>
+                        <strong>{formatEnglishNumber(reviewerStats.advancePending)}</strong>
+                      </button>
+                      <button type="button" onClick={() => setReviewerFilter('settlement')} className={`reviewer-metric ${reviewerFilter === 'settlement' ? 'active' : ''}`}>
+                        <span>تسويات تنتظر نموذج ١٩</span>
+                        <strong>{formatEnglishNumber(reviewerStats.settlementPending)}</strong>
+                      </button>
+                      <button type="button" onClick={() => setReviewerFilter('returned')} className={`reviewer-metric ${reviewerFilter === 'returned' ? 'active' : ''}`}>
+                        <span>معادة للموظف</span>
+                        <strong>{formatEnglishNumber(reviewerStats.returned)}</strong>
+                      </button>
+                      <button type="button" onClick={() => setReviewerFilter('approved')} className={`reviewer-metric ${reviewerFilter === 'approved' ? 'active' : ''}`}>
+                        <span>مكتملة الاعتماد</span>
+                        <strong>{formatEnglishNumber(reviewerStats.approved)}</strong>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -1079,10 +1131,18 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 ) : isReviewerMode ? (
                   <div className="space-y-4">
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="summary-pill"><p className="summary-pill-label">بانتظار المراجعة</p><p className="summary-pill-value" style={{ color: '#73384B' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'PENDING').length)}</p></div>
-                      <div className="summary-pill"><p className="summary-pill-label">معادة للموظف</p><p className="summary-pill-value" style={{ color: '#C7B08C' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.reviewStatus === 'RETURNED').length)}</p></div>
-                      <div className="summary-pill"><p className="summary-pill-label">لها نموذج ١٩</p><p className="summary-pill-value" style={{ color: '#2A6364' }}>{formatEnglishNumber(reviewerQueue.filter((loan) => loan.settlement).length)}</p></div>
+                    <div className="reviewer-filter-bar">
+                      {([
+                        ['all', 'كل المعاملات'],
+                        ['advance', 'نموذج ١٨'],
+                        ['settlement', 'نموذج ١٩'],
+                        ['returned', 'المعادة'],
+                        ['approved', 'المكتملة'],
+                      ] as Array<[ReviewerQueueFilter, string]>).map(([value, label]) => (
+                        <button key={value} type="button" onClick={() => setReviewerFilter(value)} className={reviewerFilter === value ? 'active' : ''}>
+                          {label}
+                        </button>
+                      ))}
                     </div>
                     {reviewerQueue.length === 0 ? (
                       <div className="empty-state">
@@ -1095,8 +1155,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         loan={loan}
                         onPreviewLoan={() => pushWithFeedback(`/loans/${loan.id}?form=18`, 'جاري فتح معاينة نموذج ١٨...')}
                         onApproveLoan={() => updateReviewState(loan.id, 'REVIEWED', '', 'advance_req')}
+                        onReturnLoan={() => { const note = window.prompt('سبب إعادة نموذج ١٨ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'advance_req') }}
+                        onCancelLoanApproval={() => { if (!window.confirm('سيعود نموذج ١٨ إلى قائمة المراجعة. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٨ لإعادة المراجعة.', 'advance_req') }}
                         onPreviewSettlement={() => pushWithFeedback(`/loans/${loan.id}?form=19`, 'جاري فتح معاينة نموذج ١٩...')}
                         onApproveSettlement={() => updateReviewState(loan.id, 'REVIEWED', '', 'settlement')}
+                        onReturnSettlement={() => { const note = window.prompt('سبب إعادة نموذج ١٩ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'settlement') }}
+                        onCancelSettlementApproval={() => { if (!window.confirm('سيعود نموذج ١٩ إلى قائمة مراجعة التسويات. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٩ لإعادة المراجعة.', 'settlement') }}
                       />
                     ))}
                   </div>
@@ -1739,26 +1803,32 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onPreviewSettlement, onApproveSettlement }: {
+function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval }: {
   loan: LoanDashboardRecord
   onPreviewLoan: () => void
   onApproveLoan: () => void
+  onReturnLoan: () => void
+  onCancelLoanApproval: () => void
   onPreviewSettlement: () => void
   onApproveSettlement: () => void
+  onReturnSettlement: () => void
+  onCancelSettlementApproval: () => void
 }) {
-  const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للموظف', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-danger' }
   const hasSettlement = Boolean(loan.settlement)
   const isLoanApproved = loan.reviewStatus === 'REVIEWED'
   const isSettlementApproved = loan.settlementStatus === 'APPROVED'
+  const advanceBadge = isLoanApproved ? { label: 'نموذج ١٨ معتمد', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'نموذج ١٨ معاد للموظف', cls: 'badge-warning' } : { label: 'نموذج ١٨ بانتظار المراجع', cls: 'badge-danger' }
+  const settlementBadge = !hasSettlement ? { label: 'نموذج ١٩ غير مرفوع', cls: 'badge-neutral' } : isSettlementApproved ? { label: 'نموذج ١٩ معتمد', cls: 'badge-success' } : { label: 'نموذج ١٩ بانتظار المراجع', cls: 'badge-info' }
 
   return (
-    <div className="card p-5">
-      <div className="grid gap-4 xl:grid-cols-[1fr_420px] xl:items-center">
+    <div className="reviewer-card">
+      <div className="grid gap-4 xl:grid-cols-[1fr_460px] xl:items-start">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>
+            <span className={`badge ${advanceBadge.cls}`}>{advanceBadge.label}</span>
+            <span className={`badge ${settlementBadge.cls}`}>{settlementBadge.label}</span>
             <span className="badge badge-primary">{loan.refNumber}</span>
-            {loan.isSettled && <span className="badge badge-success">تمت التسوية</span>}
+            {loan.courseId && <span className="badge badge-info">مرتبط بإقفال الدورات</span>}
           </div>
           <div>
             <h3 className="text-lg font-bold" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
@@ -1771,21 +1841,51 @@ function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onPreviewSettlem
           </div>
           {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة نموذج ١٨</button>
-          <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="btn btn-success btn-sm">
-            {isLoanApproved ? 'تم اعتماد نموذج ١٨' : 'اعتماد نموذج ١٨'}
-          </button>
-          {hasSettlement ? (
-            <>
-              <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة نموذج ١٩</button>
-              <button type="button" onClick={onApproveSettlement} disabled={isSettlementApproved} className="btn btn-success btn-sm">
-                {isSettlementApproved ? 'تم اعتماد نموذج ١٩' : 'اعتماد نموذج ١٩'}
+        <div className="reviewer-action-grid">
+          <div className="reviewer-action-panel">
+            <div>
+              <p className="text-sm font-bold" style={{ color: '#1F3F40' }}>طلب السلفة، نموذج ١٨</p>
+              <p className="text-xs" style={{ color: '#5A5A5A' }}>العنصر الأول في منصة إقفال الدورات.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة ١٨</button>
+              <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="btn btn-success btn-sm">
+                {isLoanApproved ? 'معتمد' : 'اعتماد ١٨'}
               </button>
-            </>
-          ) : (
-            <span className="btn btn-outline btn-sm sm:col-span-2 opacity-60" aria-disabled="true">لم تُرفع التسوية بعد</span>
-          )}
+              <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-sm">إعادة للموظف</button>
+              {isLoanApproved ? (
+                <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-sm">
+                  إلغاء الاعتماد
+                </button>
+              ) : (
+                <span className="reviewer-action-note">لم يعتمد بعد</span>
+              )}
+            </div>
+            {isSettlementApproved && <p className="text-xs" style={{ color: '#73384B' }}>ألغ اعتماد نموذج ١٩ أولًا قبل إلغاء نموذج ١٨.</p>}
+          </div>
+
+          <div className="reviewer-action-panel">
+            <div>
+              <p className="text-sm font-bold" style={{ color: '#1F3F40' }}>تسوية السلفة، نموذج ١٩</p>
+              <p className="text-xs" style={{ color: '#5A5A5A' }}>العنصر الثاني في منصة إقفال الدورات.</p>
+            </div>
+            {hasSettlement ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة ١٩</button>
+                <button type="button" onClick={onApproveSettlement} disabled={isSettlementApproved} className="btn btn-success btn-sm">
+                  {isSettlementApproved ? 'معتمد' : 'اعتماد ١٩'}
+                </button>
+                <button type="button" onClick={onReturnSettlement} className="btn btn-warning btn-sm">إعادة للموظف</button>
+                {isSettlementApproved ? (
+                  <button type="button" onClick={onCancelSettlementApproval} className="btn btn-danger btn-sm">إلغاء اعتماد ١٩</button>
+                ) : (
+                  <span className="reviewer-action-note">مرفوع وينتظر قرار المراجع</span>
+                )}
+              </div>
+            ) : (
+              <span className="reviewer-action-note">لم يرفع الموظف التسوية بعد</span>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -64,9 +64,84 @@ export async function PATCH(
       !('startDate' in body) &&
       canManageAllLoans(currentUser)
     ) {
-      const nextStatus = body.reviewStatus as 'REVIEWED' | 'RETURNED'
-      if (nextStatus === 'REVIEWED' && body.closureType === 'settlement' && !loan.settlement) {
+      const nextStatus = body.reviewStatus as 'PENDING' | 'REVIEWED' | 'RETURNED'
+      const closureType = body.closureType === 'settlement' ? 'settlement' : 'advance_req'
+
+      if (nextStatus === 'REVIEWED' && closureType === 'settlement' && !loan.settlement) {
         return NextResponse.json({ error: 'لا توجد تسوية محفوظة لاعتماد نموذج ١٩.' }, { status: 409 })
+      }
+
+      if (nextStatus === 'PENDING') {
+        if (closureType === 'settlement') {
+          if (!loan.settlement) {
+            return NextResponse.json({ error: 'لا توجد تسوية محفوظة لإلغاء اعتماد نموذج ١٩.' }, { status: 409 })
+          }
+
+          const pendingSettlementLoan = await prisma.loan.update({
+            where: { id: loan.id },
+            data: {
+              settlementStatus: 'SUBMITTED',
+              reviewNote: String(body.reviewNote ?? '').trim() || null,
+            },
+            include: dashboardLoanInclude,
+          })
+
+          return NextResponse.json(pendingSettlementLoan)
+        }
+
+        if (loan.settlementStatus === 'APPROVED') {
+          return NextResponse.json(
+            { error: 'ألغ اعتماد نموذج ١٩ قبل إلغاء اعتماد نموذج ١٨.' },
+            { status: 409 },
+          )
+        }
+
+        const pendingLoan = await prisma.loan.update({
+          where: { id: loan.id },
+          data: {
+            reviewStatus: 'PENDING',
+            reviewNote: String(body.reviewNote ?? '').trim() || null,
+          },
+          include: dashboardLoanInclude,
+        })
+
+        return NextResponse.json(pendingLoan)
+      }
+
+      if (nextStatus === 'RETURNED' && closureType === 'settlement') {
+        if (!loan.settlement) {
+          return NextResponse.json({ error: 'لا توجد تسوية محفوظة لإعادتها للموظف.' }, { status: 409 })
+        }
+
+        const returnedSettlementLoan = await prisma.loan.update({
+          where: { id: loan.id },
+          data: {
+            isSettled: false,
+            settlementStatus: 'IN_PROGRESS',
+            reviewNote: String(body.reviewNote ?? '').trim() || null,
+          },
+          include: dashboardLoanInclude,
+        })
+
+        if (loan.userId) {
+          const owner = await prisma.user.findUnique({
+            where: { id: loan.userId },
+            select: { email: true },
+          })
+
+          if (owner?.email) {
+            void notifyLoanReviewed({
+              userId: loan.userId,
+              userEmail: owner.email,
+              refNumber: loan.refNumber,
+              loanId: loan.id,
+              status: 'RETURNED',
+              note: String(body.reviewNote ?? '').trim() || undefined,
+            }).catch(console.error)
+          }
+        }
+
+        return NextResponse.json(returnedSettlementLoan)
       }
 
       const reviewedLoan = await prisma.loan.update({
@@ -74,7 +149,7 @@ export async function PATCH(
         data: {
           reviewStatus: nextStatus,
           reviewNote: String(body.reviewNote ?? '').trim() || null,
-          settlementStatus: nextStatus === 'REVIEWED' && body.closureType === 'settlement' ? 'APPROVED' : undefined,
+          settlementStatus: nextStatus === 'REVIEWED' && closureType === 'settlement' ? 'APPROVED' : undefined,
         },
         include: dashboardLoanInclude,
       })
@@ -103,10 +178,7 @@ export async function PATCH(
           include: fullLoanInclude,
         })
         if (linkedLoan?.courseId) {
-          void syncClosureElementFromPrint('advance_req', linkedLoan).catch(console.error)
-          if (body.closureType === 'settlement' && linkedLoan.settlement) {
-            void syncClosureElementFromPrint('settlement', linkedLoan).catch(console.error)
-          }
+          await syncClosureElementFromPrint(closureType, linkedLoan)
         }
       }
 

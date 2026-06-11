@@ -6,6 +6,7 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "build": "next build",
+    "resync:closure": "node scripts/resync-closure-elements.mjs",
     "start": "next start"
   },
   "dependencies": {

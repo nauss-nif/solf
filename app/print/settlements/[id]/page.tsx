@@ -23,7 +23,7 @@ export default async function SettlementPrintPage({
     notFound()
   }
 
-  if (loan.reviewStatus === 'REVIEWED') {
+  if (loan.settlementStatus === 'APPROVED') {
     await syncClosureElementFromPrint('settlement', loan)
   }
 
