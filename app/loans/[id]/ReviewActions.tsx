@@ -31,16 +31,45 @@ export default function ReviewActions({ loanId, form, disabled }: { loanId: stri
     })
   }
 
+  function returnToEmployee() {
+    const note = window.prompt('سبب الإعادة للموظف:')
+    if (note === null) return
+    const reviewNote = note.trim()
+    if (!reviewNote) {
+      setError('اكتب سبب الإعادة قبل إرسالها للموظف.')
+      return
+    }
+
+    setError('')
+    setMessage('')
+    startTransition(async () => {
+      const res = await fetch(`/api/loans/${loanId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewStatus: 'RETURNED', reviewNote }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setError(typeof data?.error === 'string' ? data.error : 'تعذر إعادة المعاملة للموظف.')
+        return
+      }
+
+      setMessage('تمت إعادة المعاملة للموظف.')
+      router.refresh()
+    })
+  }
+
   return (
-    <div className="section-card p-5">
-      <h3 className="mb-3 text-base font-bold" style={{ color: '#1F3F40' }}>اعتماد المراجع</h3>
-      <p className="text-sm" style={{ color: '#5A5A5A' }}>راجع البيانات والمرفقات، ثم اعتمد النموذج من هنا.</p>
+    <div className="flex flex-wrap items-center gap-2">
       {error && <div className="alert alert-error mt-3">{error}</div>}
       {message && <div className="alert alert-success mt-3">{message}</div>}
-      <button type="button" onClick={approve} disabled={isPending || disabled} className="btn btn-success btn-sm mt-4 w-full">
-        {form === '19' ? 'اعتماد نموذج ١٩' : 'اعتماد نموذج ١٨'}
+      <button type="button" onClick={approve} disabled={isPending || disabled} className="btn btn-success btn-sm">
+        اعتماد
       </button>
-      {disabled && <p className="mt-3 text-xs" style={{ color: '#5A5A5A' }}>هذا النموذج غير متاح للاعتماد حالياً.</p>}
+      <button type="button" onClick={returnToEmployee} disabled={isPending} className="btn btn-warning btn-sm">
+        إعادة للموظف
+      </button>
+      {disabled && <p className="text-xs" style={{ color: '#5A5A5A' }}>هذا النموذج غير متاح للاعتماد حالياً.</p>}
     </div>
   )
 }
