@@ -60,7 +60,10 @@ export async function POST(request: Request) {
       roles,
     })
 
-    return NextResponse.json({ success: true, role: getPrimaryRole(roles), roles })
+    return NextResponse.json(
+      { success: true, role: getPrimaryRole(roles), roles },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
   } catch (error) {
     console.error('Login failed', error)
 

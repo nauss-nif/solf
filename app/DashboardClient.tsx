@@ -560,7 +560,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
   }
 
-  async function handleLogout() { try { await fetch('/api/auth/logout', { method: 'POST' }) } finally { router.push('/login') } }
+  async function handleLogout() { try { await fetch('/api/auth/logout', { method: 'POST' }) } finally { window.location.replace('/login') } }
 
   async function updateReviewState(loanId: string, reviewStatus: LoanDashboardRecord['reviewStatus'], reviewNote = '') {
     startTransition(async () => {

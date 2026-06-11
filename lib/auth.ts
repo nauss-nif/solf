@@ -6,6 +6,7 @@ import { ensureAuthSetup, isRuntimeDatabaseSetupEnabled } from '@/lib/database-s
 
 const SESSION_COOKIE = 'naif_session'
 const AUTH_SECRET = process.env.AUTH_SECRET ?? ''
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 90
 export const SUPER_ADMIN_EMAIL = 'od@nauss.edu.sa'
 let defaultAdminPromise: Promise<void> | null = null
 
@@ -162,7 +163,7 @@ export function setSessionCookie(user: SessionUser) {
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   })
 }
 

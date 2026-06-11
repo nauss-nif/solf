@@ -1,13 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const SYSTEM_ADMIN_EMAIL = 'od@nauss.edu.sa'
 
 export default function LoginForm({ nextPath = '/' }: { nextPath?: string }) {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,7 +33,7 @@ export default function LoginForm({ nextPath = '/' }: { nextPath?: string }) {
             setError(data.error ?? 'تعذر تسجيل الدخول')
             return
           }
-          router.push(nextPath)
+          window.location.replace(nextPath)
         })
       }}
     >
