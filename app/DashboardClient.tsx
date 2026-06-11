@@ -1350,7 +1350,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 <Field label="الرقم المرجعي">
                   <input value={editingLoanId ? loanForm.refNumber : 'يُولّد تلقائياً عند حفظ الطلب'} readOnly={!editingLoanId || !isSuperAdmin} onChange={(e) => setLoanForm((c) => ({ ...c, refNumber: e.target.value }))} className="input-shell" />
                 </Field>
-                <Field label="كود الوكالة">
+                <Field label="كود الوكالة (ثابت)">
                   <input value={loanForm.agencyCode} readOnly className="input-shell" />
                 </Field>
               </div>

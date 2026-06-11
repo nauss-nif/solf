@@ -125,7 +125,7 @@ export default function AdminSettingsClient() {
           <div>
             <h2 className="font-bold" style={{ color: '#1F3F40' }}>تسلسل أرقام معاملات السلف</h2>
             <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
-              استخدم هذا الحقل لضبط آخر رقم مستخدم. إذا كان آخر رقم يدوي هو 27 فسيكون الطلب القادم {sequence?.nextRefNumber ?? 'وت/26/0028'}.
+              هذا الحقل يضبط آخر رقم مستخدم في تسلسل المعاملات وليس كود الوكالة. إذا كان آخر رقم مستخدم هو 27 فسيكون الطلب القادم {sequence?.nextRefNumber ?? 'وت/26/0028'}.
             </p>
             {sequence && (
               <div className="mt-3 flex flex-wrap gap-2 text-sm">
