@@ -8,18 +8,36 @@ import { calcSettlementDeadline } from '@/lib/settlement-deadline'
 import { notifyNewLoan } from '@/lib/notifications'
 import type { DestinationCategory } from '@/lib/settlement-deadline'
 
+const SEQUENCE_ID = 'singleton'
+
+type LoanSequenceClient = {
+  loanSequence: typeof prisma.loanSequence
+  loan: typeof prisma.loan
+}
+
+function formatRef(nextNumber: number) {
+  return `وت/26/${String(nextNumber).padStart(4, '0')}`
+}
+
 // ─────────────────────────────────────────────────────────────
 // الرقم المرجعي — atomic بدون race condition
 // ─────────────────────────────────────────────────────────────
-async function getNextRefNumber(): Promise<string> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const result = await prisma.$queryRaw<Array<{ ref: string }>>`
-      SELECT get_next_loan_ref() AS ref
-    `
-    const ref = result[0]?.ref
-    if (!ref) break
+async function getNextRefNumber(db: LoanSequenceClient): Promise<string> {
+  await db.loanSequence.upsert({
+    where: { id: SEQUENCE_ID },
+    update: {},
+    create: { id: SEQUENCE_ID, lastNumber: 0 },
+  })
 
-    const existing = await prisma.loan.findUnique({
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const sequence = await db.loanSequence.update({
+      where: { id: SEQUENCE_ID },
+      data: { lastNumber: { increment: 1 } },
+      select: { lastNumber: true },
+    })
+    const ref = formatRef(sequence.lastNumber)
+
+    const existing = await db.loan.findUnique({
       where: { refNumber: ref },
       select: { id: true },
     })
@@ -121,37 +139,38 @@ export async function POST(request: Request) {
     const endDate = new Date(body.endDate)
     const settlementDeadline = calcSettlementDeadline(endDate, destinationCategory)
 
-    // ─── الرقم المرجعي atomic ─────────────────────────────────
-    const refNumber = await getNextRefNumber()
-
     // ─── إنشاء السلفة ─────────────────────────────────────────
     const items = Array.isArray(body.items) ? body.items : []
 
-    const loan = await prisma.loan.create({
-      data: {
-        refNumber,
-        userId: currentUser.userId,
-        employee: currentUser.fullName,
-        activity: String(body.activity ?? '').trim(),
-        location: String(body.location ?? '').trim(),
-        amount: Number(body.amount ?? 0),
-        budgetApproved:
-          typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
-        destinationCategory,
-        settlementDeadline,
-        files: body.files ?? undefined,
-        startDate: new Date(body.startDate),
-        endDate,
-        courseId: body.courseId ?? null,
-        courseCode: body.courseCode ?? null,
-        items: {
-          create: items.map((item: { category: string; amount: number }) => ({
-            category: item.category,
-            amount: item.amount,
-          })),
+    const loan = await prisma.$transaction(async (tx) => {
+      const refNumber = await getNextRefNumber(tx)
+
+      return tx.loan.create({
+        data: {
+          refNumber,
+          userId: currentUser.userId,
+          employee: currentUser.fullName,
+          activity: String(body.activity ?? '').trim(),
+          location: String(body.location ?? '').trim(),
+          amount: Number(body.amount ?? 0),
+          budgetApproved:
+            typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
+          destinationCategory,
+          settlementDeadline,
+          files: body.files ?? undefined,
+          startDate: new Date(body.startDate),
+          endDate,
+          courseId: body.courseId ?? null,
+          courseCode: body.courseCode ?? null,
+          items: {
+            create: items.map((item: { category: string; amount: number }) => ({
+              category: item.category,
+              amount: item.amount,
+            })),
+          },
         },
-      },
-      include: dashboardLoanInclude,
+        include: dashboardLoanInclude,
+      })
     })
 
     // ─── إشعار المراجعين ──────────────────────────────────────
