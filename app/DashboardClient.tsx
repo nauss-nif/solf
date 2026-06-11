@@ -461,7 +461,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     if (cleanExpenses.length === 0) { setLoanError('أضف بند صرف واحد على الأقل.'); return }
     for (const att of LOAN_ATTACHMENT_DEFINITIONS) { if (att.required && !loanAttachments[att.key]) { setLoanError(`أرفق ${att.label} قبل إرسال الطلب.`); return } }
     const total = cleanExpenses.reduce((s, i) => s + i.amount, 0)
-    const payload = { refNumber: loanForm.refNumber, employee: loanForm.employee, activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses, courseId: linkedCourse?.id, courseCode: linkedCourse?.code }
+    const payload = { activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses, courseId: linkedCourse?.id, courseCode: linkedCourse?.code, ...(editingLoanId ? { refNumber: loanForm.refNumber } : {}) }
     startTransition(async () => {
       const isEditing = Boolean(editingLoanId)
       const res = await fetch(isEditing ? `/api/loans/${editingLoanId}` : '/api/loans', { method: isEditing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -1346,7 +1346,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <input type="date" value={loanForm.requestDate} onChange={(e) => setLoanForm((c) => ({ ...c, requestDate: e.target.value }))} className="input-shell" />
                 </Field>
                 <Field label="الرقم المرجعي">
-                  <input value={loanForm.refNumber} readOnly={!isSuperAdmin} onChange={(e) => setLoanForm((c) => ({ ...c, refNumber: e.target.value }))} className="input-shell" />
+                  <input value={editingLoanId ? loanForm.refNumber : 'يُولّد تلقائياً عند حفظ الطلب'} readOnly={!editingLoanId || !isSuperAdmin} onChange={(e) => setLoanForm((c) => ({ ...c, refNumber: e.target.value }))} className="input-shell" />
                 </Field>
                 <Field label="كود الوكالة">
                   <input value={loanForm.agencyCode} readOnly className="input-shell" />
