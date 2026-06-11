@@ -204,12 +204,28 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [settlementMeta, setSettlementMeta] = useState<SettlementMetaState>({ receiptNumber: '', receiptDate: '', overageReason: '' })
   const [linkedCourse, setLinkedCourse] = useState<LinkedCourse | null>(null)
   const [handledCourseLink, setHandledCourseLink] = useState(false)
+  const [navigationFeedback, setNavigationFeedback] = useState('')
 
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
   const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
   const managementModeLabel = isSuperAdmin ? 'مدير النظام' : 'مراجع'
   const requestsSectionLabel = isReviewerMode ? 'إدارة السلف' : 'طلبات السلفة'
+
+  function showNavigationFeedback(message: string) {
+    setNavigationFeedback(message)
+    window.setTimeout(() => setNavigationFeedback((current) => current === message ? '' : current), 2500)
+  }
+
+  function selectTab(tab: ActiveTab, label: string) {
+    showNavigationFeedback(`جاري فتح ${label}...`)
+    setActiveTab(tab)
+  }
+
+  function pushWithFeedback(url: string, message: string) {
+    showNavigationFeedback(message)
+    router.push(url)
+  }
 
   async function refreshLoans(mode: WorkMode = workMode) {
     const url = isAdminOrReviewer && mode === 'employee' ? '/api/loans?scope=own' : '/api/loans'
@@ -626,7 +642,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             ...(isAdminOrReviewer ? [{ tab: 'alerts' as ActiveTab, label: 'التنبيهات اليدوية', icon: '📣' }] : []),
             { tab: 'guide',    label: 'التعليمات',      icon: '📖' },
           ] as Array<{ tab: ActiveTab; label: string; icon: string }>).map(({ tab, label, icon }) => (
-            <button key={tab} type="button" onClick={() => setActiveTab(tab)}
+            <button key={tab} type="button" onClick={() => selectTab(tab, label)}
               className={`nav-item w-full text-right ${activeTab === tab ? 'active' : ''}`}>
               <span style={{ fontSize: '1rem' }}>{icon}</span>
               {label}
@@ -639,11 +655,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           {isSuperAdmin && (
             <>
               <p className="sidebar-section-label mt-4">الإدارة</p>
-              <button type="button" onClick={() => router.push('/admin')}
+              <button type="button" onClick={() => pushWithFeedback('/admin', 'جاري فتح إدارة المستخدمين...')}
                 className="nav-item w-full text-right">
                 <span>👥</span> إدارة المستخدمين
               </button>
-              <button type="button" onClick={() => router.push('/admin/settings')}
+              <button type="button" onClick={() => pushWithFeedback('/admin/settings', 'جاري فتح إعدادات السلف...')}
                 className="nav-item w-full text-right">
                 <span>⚙️</span> إعدادات السلف
               </button>
@@ -693,10 +709,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
           </div>
           <div className="flex items-center gap-3">
+            {navigationFeedback && <span className="badge badge-info">{navigationFeedback}</span>}
             {isAdminOrReviewer && (
               <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
-                <button type="button" onClick={() => setWorkMode('reviewer')} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{managementModeLabel}</button>
-                <button type="button" onClick={() => setWorkMode('employee')} className="rounded-lg px-3 py-2" style={{ background: !isReviewerMode ? '#2A6364' : 'transparent', color: !isReviewerMode ? '#fff' : '#5A5A5A' }}>موظف</button>
+                <button type="button" onClick={() => { showNavigationFeedback(`جاري فتح وضع ${managementModeLabel}...`); setWorkMode('reviewer') }} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{managementModeLabel}</button>
+                <button type="button" onClick={() => { showNavigationFeedback('جاري فتح وضع الموظف...'); setWorkMode('employee') }} className="rounded-lg px-3 py-2" style={{ background: !isReviewerMode ? '#2A6364' : 'transparent', color: !isReviewerMode ? '#fff' : '#5A5A5A' }}>موظف</button>
               </div>
             )}
             <div className="relative">
@@ -1040,9 +1057,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <ReviewerLoanCard
                         key={loan.id}
                         loan={loan}
-                        onPreviewLoan={() => router.push(`/loans/${loan.id}?form=18`)}
+                        onPreviewLoan={() => pushWithFeedback(`/loans/${loan.id}?form=18`, 'جاري فتح معاينة نموذج ١٨...')}
                         onApproveLoan={() => updateReviewState(loan.id, 'REVIEWED', '', 'advance_req')}
-                        onPreviewSettlement={() => router.push(`/loans/${loan.id}?form=19`)}
+                        onPreviewSettlement={() => pushWithFeedback(`/loans/${loan.id}?form=19`, 'جاري فتح معاينة نموذج ١٩...')}
                         onApproveSettlement={() => updateReviewState(loan.id, 'REVIEWED', '', 'settlement')}
                       />
                     ))}
@@ -1719,8 +1736,14 @@ function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onPreviewSettlem
         <div className="grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة نموذج ١٨</button>
           <button type="button" onClick={onApproveLoan} className="btn btn-success btn-sm">اعتماد نموذج ١٨</button>
-          <button type="button" onClick={onPreviewSettlement} disabled={!hasSettlement} className="btn btn-primary btn-sm">معاينة نموذج ١٩</button>
-          <button type="button" onClick={onApproveSettlement} disabled={!hasSettlement} className="btn btn-success btn-sm">اعتماد نموذج ١٩</button>
+          {hasSettlement ? (
+            <>
+              <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة نموذج ١٩</button>
+              <button type="button" onClick={onApproveSettlement} className="btn btn-success btn-sm">اعتماد نموذج ١٩</button>
+            </>
+          ) : (
+            <span className="btn btn-outline btn-sm sm:col-span-2 opacity-60" aria-disabled="true">لم تُرفع التسوية بعد</span>
+          )}
         </div>
       </div>
     </div>
