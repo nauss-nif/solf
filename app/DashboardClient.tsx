@@ -210,7 +210,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
   const isSuperAdmin = currentUser.email.toLowerCase() === 'od@nauss.edu.sa'
   const managementModeLabel = isSuperAdmin ? 'مدير النظام' : 'مراجع'
-  const requestsSectionLabel = isReviewerMode ? 'إدارة السلف' : 'طلبات السلفة'
+  const requestsSectionLabel = isReviewerMode ? 'اعتماد السلف والتسويات' : 'طلبات السلفة'
 
   function showNavigationFeedback(message: string) {
     setNavigationFeedback(message)
@@ -763,7 +763,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               </svg>
               تحديث
             </button>
-            {activeTab === 'requests' && (
+            {activeTab === 'requests' && !isReviewerMode && (
               <button type="button" onClick={openLoanModal} className="btn btn-primary btn-sm">
                 نموذج ١٨ — طلب سلفة
               </button>
@@ -826,27 +826,45 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {/* DASHBOARD TAB */}
             {activeTab === 'dashboard' && isAdminOrReviewer && (
               <div className="space-y-6">
-                <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
-                  <div>
-                    <p className="text-xs font-semibold" style={{ color: '#6B5A4A' }}>الإجراءات الأساسية</p>
-                    <h2 className="mt-1 text-lg font-bold" style={{ color: '#1F3F40' }}>طلبات السلف والتسويات</h2>
-                    <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>يمكن إنشاء طلب سلفة مباشر من هنا، أو تسوية سلفة مفتوحة عند توفرها.</p>
+                {isReviewerMode ? (
+                  <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: '#6B5A4A' }}>أولوية المراجع</p>
+                      <h2 className="mt-1 text-lg font-bold" style={{ color: '#1F3F40' }}>اعتماد طلبات السلف وطلبات التسوية</h2>
+                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>راجع نموذج ١٨ لاعتماد طلب السلفة، وراجع نموذج ١٩ فقط بعد رفع الموظف للتسوية.</p>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <button type="button" onClick={() => selectTab('requests', requestsSectionLabel)} className="btn btn-primary">
+                        طلبات السلف بانتظار الاعتماد
+                      </button>
+                      <button type="button" onClick={() => selectTab('requests', requestsSectionLabel)} className="btn btn-gold">
+                        طلبات التسوية المرفوعة
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <button type="button" onClick={openLoanModal} className="btn btn-primary">
-                      نموذج ١٨ — طلب سلفة
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!loans.some((l) => !l.isSettled)}
-                      onClick={() => { const first = loans.find((l) => !l.isSettled); if (first) openSettlementModal(first.id) }}
-                      className="btn btn-gold disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={loans.some((l) => !l.isSettled) ? 'بدء تسوية سلفة مفتوحة' : 'لا توجد سلفة مفتوحة للتسوية'}
-                    >
-                      نموذج ١٩ — تسوية السلفة
-                    </button>
+                ) : (
+                  <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
+                    <div>
+                      <p className="text-xs font-semibold" style={{ color: '#6B5A4A' }}>الإجراءات الأساسية</p>
+                      <h2 className="mt-1 text-lg font-bold" style={{ color: '#1F3F40' }}>طلبات السلف والتسويات</h2>
+                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>يمكن إنشاء طلب سلفة مباشر من هنا، أو تسوية سلفة مفتوحة عند توفرها.</p>
+                    </div>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button type="button" onClick={openLoanModal} className="btn btn-primary">
+                        نموذج ١٨ — طلب سلفة
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!loans.some((l) => !l.isSettled)}
+                        onClick={() => { const first = loans.find((l) => !l.isSettled); if (first) openSettlementModal(first.id) }}
+                        className="btn btn-gold disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={loans.some((l) => !l.isSettled) ? 'بدء تسوية سلفة مفتوحة' : 'لا توجد سلفة مفتوحة للتسوية'}
+                      >
+                        نموذج ١٩ — تسوية السلفة
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <StatCard label="قيد التسوية" value={stats.pending} accent="warning" icon="⏳" />
@@ -1017,15 +1035,24 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {/* REQUESTS TAB */}
             {activeTab === 'requests' && (
               <div className="space-y-4">
-                <div className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
-                  <div>
-                    <h3 className="font-bold" style={{ color: '#1F3F40' }}>نموذج ١٨ — طلب سلفة مباشرة</h3>
-                    <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>استخدم هذا الخيار لإنشاء طلب سلفة بدون تحويل من نظام إقفال الدورات.</p>
+                {isReviewerMode ? (
+                  <div className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
+                    <div>
+                      <h3 className="font-bold" style={{ color: '#1F3F40' }}>طلبات الاعتماد</h3>
+                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>افتح نموذج ١٨ لاعتماد السلفة. يظهر نموذج ١٩ فقط بعد أن يرفع الموظف التسوية.</p>
+                    </div>
                   </div>
-                  <button type="button" onClick={openLoanModal} className="btn btn-primary">
-                    + طلب سلفة
-                  </button>
-                </div>
+                ) : (
+                  <div className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
+                    <div>
+                      <h3 className="font-bold" style={{ color: '#1F3F40' }}>نموذج ١٨ — طلب سلفة مباشرة</h3>
+                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>استخدم هذا الخيار لإنشاء طلب سلفة بدون تحويل من نظام إقفال الدورات.</p>
+                    </div>
+                    <button type="button" onClick={openLoanModal} className="btn btn-primary">
+                      + طلب سلفة
+                    </button>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <div className="flex-1 relative">
                     <svg className="absolute top-1/2 -translate-y-1/2 right-3 w-4 h-4" style={{ color: '#5A5A5A' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
