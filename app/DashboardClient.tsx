@@ -317,6 +317,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const isAdmin = currentUser.roles.includes('ADMIN')
   const [reviewersList, setReviewersList] = useState<Array<{ id: string; fullName: string }>>([])
   const [onBehalfSelections, setOnBehalfSelections] = useState<Record<string, string>>({})
+  const [myProfileImage, setMyProfileImage] = useState<StoredFile | null>(null)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
@@ -367,6 +369,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       .then((data: Array<{ id: string; fullName: string }>) => setReviewersList(Array.isArray(data) ? data : []))
       .catch(() => setReviewersList([]))
   }, [isAdmin])
+  useEffect(() => {
+    fetch('/api/account', { cache: 'no-store' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data: { profileImage?: StoredFile | null } | null) => setMyProfileImage(data?.profileImage ?? null))
+      .catch(() => setMyProfileImage(null))
+  }, [])
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadNotifications() }, 500)
     return () => window.clearTimeout(timer)
@@ -901,12 +909,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </button>
           ))}
 
-          <p className="sidebar-section-label mt-4">الحساب</p>
-          <button type="button" onClick={() => pushWithFeedback('/account', 'جاري فتح الملف الشخصي...')}
-            className="nav-item w-full text-right">
-            <span>👤</span> الملف الشخصي
-          </button>
-
           {isSuperAdmin && (
             <>
               <p className="sidebar-section-label mt-4">الإدارة</p>
@@ -921,36 +923,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </>
           )}
         </nav>
-
-        {/* User section */}
-        <div style={{ borderTop: '1px solid rgba(218,219,217,0.18)', padding: '1rem' }}>
-          <div className="flex items-center gap-3 mb-3">
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#2A6364', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', color: '#E8ECEB', fontWeight: 700, flexShrink: 0 }}>
-              {currentUser.fullName.charAt(0)}
-            </div>
-            <div style={{ overflow: 'hidden' }}>
-              <p className="text-sm font-semibold truncate" style={{ color: '#DADBD9' }}>{currentUser.fullName}</p>
-              <p className="text-xs truncate" style={{ color: '#5A5A5A' }}>{currentUser.email}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-1 mb-3">
-            {isSuperAdmin ? (
-              <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(199,176,140,0.24)', color: '#C7B08C' }}>
-                مدير النظام
-              </span>
-            ) : currentUser.roles.map((r) => (
-              <span key={r} className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ background: r === 'ADMIN' ? 'rgba(199,176,140,0.24)' : r === 'REVIEWER' ? 'rgba(42,99,100,0.35)' : 'rgba(32,63,64,0.45)', color: r === 'ADMIN' ? '#C7B08C' : '#E8ECEB' }}>
-                {r === 'ADMIN' ? 'مدير' : r === 'REVIEWER' ? 'مراجع' : 'موظف'}
-              </span>
-            ))}
-          </div>
-          <button type="button" onClick={handleLogout}
-            className="w-full text-xs font-semibold py-2 rounded-lg transition text-center"
-            style={{ background: 'rgba(220,38,38,0.12)', color: '#FCA5A5', border: '1px solid rgba(220,38,38,0.2)' }}>
-            تسجيل الخروج
-          </button>
-        </div>
       </aside>
 
       {/* MAIN CONTENT */}
@@ -1022,6 +994,65 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 نموذج ١٨ — طلب سلفة
               </button>
             )}
+            <div className="relative">
+              <button type="button" onClick={() => setUserMenuOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-xl px-1.5 py-1.5 transition hover:opacity-90"
+                style={{ border: '1.5px solid #DADBD9', background: '#fff', height: 36 }}>
+                {myProfileImage ? (
+                  <img src={myProfileImage.dataUrl} alt={currentUser.fullName} style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#2A6364', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#E8ECEB', fontWeight: 700, flexShrink: 0 }}>
+                    {currentUser.fullName.charAt(0)}
+                  </div>
+                )}
+                <span className="hidden md:inline text-sm font-semibold truncate max-w-[120px]" style={{ color: '#1F3F40' }}>{currentUser.fullName}</span>
+              </button>
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                  <div className="absolute left-0 top-11 z-50 w-64 overflow-hidden rounded-2xl bg-white shadow-modal" style={{ border: '1px solid #DADBD9' }}>
+                    <div className="p-4" style={{ borderBottom: '1px solid #DADBD9' }}>
+                      <div className="flex items-center gap-3">
+                        {myProfileImage ? (
+                          <img src={myProfileImage.dataUrl} alt={currentUser.fullName} style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#2A6364', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#E8ECEB', fontWeight: 700, flexShrink: 0 }}>
+                            {currentUser.fullName.charAt(0)}
+                          </div>
+                        )}
+                        <div style={{ overflow: 'hidden' }}>
+                          <p className="text-sm font-semibold truncate" style={{ color: '#1F3F40' }}>{currentUser.fullName}</p>
+                          <p className="text-xs truncate" style={{ color: '#5A5A5A' }}>{currentUser.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {isSuperAdmin ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: 'rgba(199,176,140,0.24)', color: '#C7B08C' }}>
+                            مدير النظام
+                          </span>
+                        ) : currentUser.roles.map((r) => (
+                          <span key={r} className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                            style={{ background: r === 'ADMIN' ? '#F3EDE3' : r === 'REVIEWER' ? '#E4EEF3' : '#E7F3EE', color: r === 'ADMIN' ? '#C7B08C' : r === 'REVIEWER' ? '#2E6F8E' : '#2A6364' }}>
+                            {r === 'ADMIN' ? 'مدير' : r === 'REVIEWER' ? 'مراجع' : 'موظف'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <button type="button" onClick={() => { setUserMenuOpen(false); pushWithFeedback('/account', 'جاري فتح الملف الشخصي...') }}
+                        className="nav-item w-full text-right">
+                        <span>👤</span> الملف الشخصي
+                      </button>
+                      <button type="button" onClick={handleLogout}
+                        className="w-full mt-1 text-xs font-semibold py-2 rounded-lg transition text-center"
+                        style={{ background: 'rgba(220,38,38,0.12)', color: '#C0392B', border: '1px solid rgba(220,38,38,0.2)' }}>
+                        تسجيل الخروج
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
