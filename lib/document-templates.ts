@@ -294,14 +294,14 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature {
       position: absolute;
-      width: 24mm;
-      max-height: 11mm;
+      width: 16mm;
+      max-height: 9mm;
       object-fit: contain;
       pointer-events: none;
     }
-    .reviewer-signature-1 { top: 2mm; right: -8mm; }
-    .reviewer-signature-2 { top: 24mm; right: -8mm; }
-    .reviewer-signature-3 { bottom: 2mm; right: -8mm; }
+    .reviewer-signature-1 { top: 4mm; right: -13mm; }
+    .reviewer-signature-2 { top: 26mm; right: -13mm; }
+    .reviewer-signature-3 { bottom: 4mm; right: -13mm; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
