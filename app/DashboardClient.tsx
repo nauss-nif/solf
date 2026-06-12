@@ -1,12 +1,9 @@
 'use client'
 
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
-} from 'recharts'
 import {
   CURRENCY_OPTIONS,
   EXPENSE_CATEGORIES,
@@ -150,8 +147,13 @@ function buildSettlementPayload(items: SettlementDraft[], rates: SettlementCurre
   }))
 }
 
-// ── CHART COLORS ──────────────────────────────────────────────────────────────
-const CHART_COLORS = ['#2A6364', '#C7B08C', '#2E6F8E', '#C7B08C', '#5A5A5A', '#C7B08C', '#B5BDBE', '#5A5A5A']
+// ── CHARTS (تحميل كسول — تُستخدم فقط في لوحة المراجع) ───────────────────────────
+const ChartSkeleton = ({ height = 220 }: { height?: number }) => (
+  <div className="flex items-center justify-center text-sm animate-pulse" style={{ height, color: '#B5BDBE' }}>...جاري تحميل الرسم البياني</div>
+)
+const MonthlyAmountsChart = dynamic(() => import('./dashboard-charts').then((m) => m.MonthlyAmountsChart), { ssr: false, loading: () => <ChartSkeleton /> })
+const StatusDistributionChart = dynamic(() => import('./dashboard-charts').then((m) => m.StatusDistributionChart), { ssr: false, loading: () => <ChartSkeleton /> })
+const CategoryUsageChart = dynamic(() => import('./dashboard-charts').then((m) => m.CategoryUsageChart), { ssr: false, loading: () => <ChartSkeleton /> })
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
@@ -931,52 +933,18 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 <div className="grid gap-6 lg:grid-cols-2">
                   <div className="section-card p-4">
                     <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>المبالغ الشهرية</h3>
-                    {monthlyData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5A5A5A' }} />
-                          <YAxis tick={{ fontSize: 10, fill: '#5A5A5A' }} width={60} />
-                          <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), '']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                          <Bar dataKey="requested" name="مطلوب" fill="#2A6364" radius={[4,4,0,0]} />
-                          <Bar dataKey="settled" name="مسوّى" fill="#C7B08C" radius={[4,4,0,0]} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>}
+                    <MonthlyAmountsChart data={monthlyData} />
                   </div>
 
                   <div className="section-card p-4">
                     <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>توزيع الطلبات</h3>
-                    {statusChartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                          <Pie data={statusChartData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
-                            {statusChartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip formatter={(v) => [Number(v), 'طلب']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات</div>}
+                    <StatusDistributionChart data={statusChartData} />
                   </div>
                 </div>
 
                 <div className="section-card p-4">
                   <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>أعلى أوجه الصرف استخداماً</h3>
-                  {categoryReport.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={categoryReport.map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 10, fill: '#5A5A5A' }} width={80} tickFormatter={(v) => formatEnglishNumber(v)} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#2D4D40' }} width={120} />
-                        <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), 'الإجمالي']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                        <Bar dataKey="value" radius={[0,4,4,0]}>
-                          {categoryReport.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>}
+                  <CategoryUsageChart data={categoryReport} />
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-2">
@@ -1309,60 +1277,20 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   {/* Monthly bar chart */}
                   <div>
                     <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>المبالغ الشهرية (ر.س)</h3>
-                    {monthlyData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={220}>
-                        <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" />
-                          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#5A5A5A' }} />
-                          <YAxis tick={{ fontSize: 10, fill: '#5A5A5A' }} width={60} />
-                          <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), '']} labelStyle={{ fontFamily: 'inherit', fontSize: 12 }} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                          <Bar dataKey="requested" name="مطلوب" fill="#2A6364" radius={[4,4,0,0]} />
-                          <Bar dataKey="settled"   name="مسوّى" fill="#C7B08C" radius={[4,4,0,0]} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>
-                    )}
+                    <MonthlyAmountsChart data={monthlyData} />
                   </div>
 
                   {/* Status donut chart */}
                   <div>
                     <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>توزيع الطلبات حسب الحالة</h3>
-                    {statusChartData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height={220}>
-                        <PieChart>
-                          <Pie data={statusChartData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
-                            {statusChartData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip formatter={(v) => [Number(v), 'طلب']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 11, color: '#5A5A5A' }}>{v}</span>} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-[220px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات</div>
-                    )}
+                    <StatusDistributionChart data={statusChartData} />
                   </div>
                 </div>
 
                 {/* Category bar chart */}
                 <div>
                   <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>أعلى أوجه الصرف استخدامًا</h3>
-                  {categoryReport.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={categoryReport.map(([name, value]) => ({ name, value }))} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#DADBD9" horizontal={false} />
-                        <XAxis type="number" tick={{ fontSize: 10, fill: '#5A5A5A' }} width={80} tickFormatter={(v) => formatEnglishNumber(v)} />
-                        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#2D4D40' }} width={120} />
-                        <Tooltip formatter={(v) => [formatCurrencySar(Number(v)), 'الإجمالي']} contentStyle={{ borderRadius: 8, border: '1px solid #C8D9D0', fontSize: 12 }} />
-                        <Bar dataKey="value" radius={[0,4,4,0]}>
-                          {categoryReport.map((_, index) => <Cell key={index} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-[200px] flex items-center justify-center text-sm" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية لعرض التقرير</div>
-                  )}
+                  <CategoryUsageChart data={categoryReport} height={200} emptyText="لا توجد بيانات كافية لعرض التقرير" />
                 </div>
 
                 <div className="grid gap-4 lg:grid-cols-2">
