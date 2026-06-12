@@ -109,9 +109,9 @@ export function SettlementUrgencyRadarChart({ data, height = 280 }: { data: Sett
   return (
     <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data} outerRadius="70%">
-        <PolarGrid stroke="#DADBD9" />
+        <PolarGrid gridType="circle" stroke="#DADBD9" />
         <PolarAngleAxis dataKey="employee" tick={{ fontSize: 11, fill: '#2D4D40' }} />
-        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#B5BDBE' }} tickCount={5} />
+        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
         <Tooltip
           formatter={(_v, _n, item) => {
             const p = item.payload as SettlementUrgencyEntry
@@ -119,7 +119,7 @@ export function SettlementUrgencyRadarChart({ data, height = 280 }: { data: Sett
           }}
           contentStyle={tooltipStyle}
         />
-        <Radar dataKey="indicator" name="درجة الاستعجال" stroke="#73384B" fill="#73384B" fillOpacity={0.45} />
+        <Radar dataKey="indicator" name="درجة الاستعجال" stroke="#73384B" fill="#73384B" fillOpacity={0.45} dot={{ r: 4, fillOpacity: 1 }} />
       </RadarChart>
     </ResponsiveContainer>
   )
