@@ -33,8 +33,18 @@ export async function POST(request: Request) {
     const receiptNumber = String(body.receiptNumber ?? '').trim()
     const receiptDate = String(body.receiptDate ?? '').trim()
 
-    await prisma.$transaction([
-      prisma.settlement.upsert({
+    const invoicesData = {
+      settlementDate: new Date().toISOString(),
+      currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
+      details: Array.isArray(body.details) ? body.details : [],
+      receiptNumber,
+      receiptDate,
+      overageReason: String(body.overageReason ?? '').trim(),
+      pettyCashApproval: body.pettyCashApproval ?? null,
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.settlement.upsert({
         where: { loanId: body.loanId },
         create: {
           loanId: body.loanId,
@@ -43,15 +53,7 @@ export async function POST(request: Request) {
           total: body.total,
           savings: body.savings,
           overage: body.overage,
-          invoices: {
-            settlementDate: new Date().toISOString(),
-            currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
-            details: Array.isArray(body.details) ? body.details : [],
-            receiptNumber,
-            receiptDate,
-            overageReason: String(body.overageReason ?? '').trim(),
-            pettyCashApproval: body.pettyCashApproval ?? null,
-          },
+          invoices: invoicesData,
         },
         update: {
           supported: body.supported,
@@ -59,22 +61,15 @@ export async function POST(request: Request) {
           total: body.total,
           savings: body.savings,
           overage: body.overage,
-          invoices: {
-            settlementDate: new Date().toISOString(),
-            currencyRates: Array.isArray(body.currencyRates) ? body.currencyRates : [],
-            details: Array.isArray(body.details) ? body.details : [],
-            receiptNumber,
-            receiptDate,
-            overageReason: String(body.overageReason ?? '').trim(),
-            pettyCashApproval: body.pettyCashApproval ?? null,
-          },
+          invoices: invoicesData,
         },
-      }),
-      prisma.loan.update({
+      })
+
+      await tx.loan.update({
         where: { id: body.loanId },
         data: { isSettled: true, settlementStatus: 'SUBMITTED' },
-      }),
-    ])
+      })
+    }, { timeout: 20000 })
 
     const updatedLoan = await prisma.loan.findUnique({
       where: { id: body.loanId },
