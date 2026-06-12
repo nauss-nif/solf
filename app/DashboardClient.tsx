@@ -270,6 +270,7 @@ const ChartSkeleton = ({ height = 220 }: { height?: number }) => (
 const MonthlyAmountsChart = dynamic(() => import('./dashboard-charts').then((m) => m.MonthlyAmountsChart), { ssr: false, loading: () => <ChartSkeleton /> })
 const StatusDistributionChart = dynamic(() => import('./dashboard-charts').then((m) => m.StatusDistributionChart), { ssr: false, loading: () => <ChartSkeleton /> })
 const CategoryUsageChart = dynamic(() => import('./dashboard-charts').then((m) => m.CategoryUsageChart), { ssr: false, loading: () => <ChartSkeleton /> })
+const SettlementUrgencyRadarChart = dynamic(() => import('./dashboard-charts').then((m) => m.SettlementUrgencyRadarChart), { ssr: false, loading: () => <ChartSkeleton /> })
 const ItemUsageInsights = dynamic(() => import('./dashboard-charts').then((m) => m.ItemUsageInsights), { ssr: false, loading: () => <ChartSkeleton height={160} /> })
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
@@ -459,6 +460,19 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     { name: 'مسوّاة', value: stats.settled, color: '#2A6364' },
     { name: 'متأخرة', value: stats.overdue, color: '#73384B' },
   ].filter((d) => d.value > 0), [stats])
+
+  const settlementUrgencyData = useMemo(() => {
+    const URGENCY_WINDOW_DAYS = 14
+    return loans
+      .filter((l) => !l.isSettled)
+      .map((loan) => {
+        const countdown = getSettlementCountdown(loan)
+        const days = countdown?.days ?? 0
+        const overdue = countdown?.overdue ?? false
+        const indicator = overdue ? 100 : Math.max(0, Math.min(100, Math.round(100 - (days / URGENCY_WINDOW_DAYS) * 100)))
+        return { employee: loan.employee, indicator, days, overdue }
+      })
+  }, [loans])
 
   const dashboardInsights = useMemo(() => {
     const requesters = new Map<string, { employee: string; count: number; active: number; settled: number; overdue: number; totalAmount: number }>()
@@ -1105,36 +1119,43 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 </div>
 
-                <div>
-                  <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>عدادات تسوية السلف المفتوحة</h3>
-                  {loans.filter((l) => !l.isSettled).length === 0 ? (
-                    <div className="summary-pill">
-                      <p className="text-sm" style={{ color: '#5A5A5A' }}>لا توجد سلف مفتوحة بانتظار التسوية حالياً</p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                      {loans.filter((l) => !l.isSettled).map((loan) => {
-                        const countdown = getSettlementCountdown(loan)
-                        return (
-                          <div key={loan.id} className="summary-pill flex items-center gap-3">
-                            {countdown && (
-                              <div className={`reviewer-counter-box ${countdown.overdue ? 'is-overdue' : ''}`}>
-                                <span className="reviewer-counter-number">{formatEnglishNumber(countdown.days)}</span>
-                                <span className="reviewer-counter-label">{countdown.overdue ? 'يوم تأخير' : 'يوم متبقي'}</span>
-                              </div>
-                            )}
-                            <div className="min-w-0">
-                              <p className="summary-pill-label">{loan.refNumber}</p>
-                              <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div>
+                    <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>عدادات تسوية السلف المفتوحة</h3>
+                    {loans.filter((l) => !l.isSettled).length === 0 ? (
+                      <div className="summary-pill">
+                        <p className="text-sm" style={{ color: '#5A5A5A' }}>لا توجد سلف مفتوحة بانتظار التسوية حالياً</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {loans.filter((l) => !l.isSettled).map((loan) => {
+                          const countdown = getSettlementCountdown(loan)
+                          return (
+                            <div key={loan.id} className="summary-pill flex items-center gap-3">
                               {countdown && (
-                                <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>آخر مهلة لرفع التسوية: {countdown.deadlineLabel}</p>
+                                <div className={`reviewer-counter-box ${countdown.overdue ? 'is-overdue' : ''}`}>
+                                  <span className="reviewer-counter-number">{formatEnglishNumber(countdown.days)}</span>
+                                  <span className="reviewer-counter-label">{countdown.overdue ? 'يوم تأخير' : 'يوم متبقي'}</span>
+                                </div>
                               )}
+                              <div className="min-w-0">
+                                <p className="summary-pill-label">{loan.refNumber}</p>
+                                <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
+                                {countdown && (
+                                  <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>آخر مهلة لرفع التسوية: {countdown.deadlineLabel}</p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="section-card p-4">
+                    <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>مؤشر استعجال التسوية حسب الموظف</h3>
+                    <SettlementUrgencyRadarChart data={settlementUrgencyData} />
+                  </div>
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">

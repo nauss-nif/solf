@@ -3,6 +3,7 @@
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from 'recharts'
 import { formatCurrencySar, formatEnglishNumber } from '@/lib/utils'
 
@@ -95,6 +96,32 @@ export function ItemUsageInsights({ data }: { data: ItemUsageStat[] }) {
       <Table title="أكثر البنود استخدامًا في التسويات" rows={mostUsed} valueLabel="إجمالي الصرف" valueKey="settlementTotal" />
       <Table title="أقل البنود استخدامًا في التسويات" rows={leastUsed} valueLabel="إجمالي الصرف" valueKey="settlementTotal" />
     </div>
+  )
+}
+
+type SettlementUrgencyEntry = { employee: string; indicator: number; days: number; overdue: boolean }
+
+export function SettlementUrgencyRadarChart({ data, height = 280 }: { data: SettlementUrgencyEntry[]; height?: number }) {
+  if (data.length === 0) {
+    return <div className="flex items-center justify-center text-sm" style={{ height, color: '#5A5A5A' }}>لا توجد سلف مفتوحة بانتظار التسوية حالياً</div>
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <RadarChart data={data} outerRadius="70%">
+        <PolarGrid stroke="#DADBD9" />
+        <PolarAngleAxis dataKey="employee" tick={{ fontSize: 11, fill: '#2D4D40' }} />
+        <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 9, fill: '#B5BDBE' }} tickCount={5} />
+        <Tooltip
+          formatter={(_v, _n, item) => {
+            const p = item.payload as SettlementUrgencyEntry
+            return [p.overdue ? `متأخر ${formatEnglishNumber(p.days)} يوم` : `متبقي ${formatEnglishNumber(p.days)} يوم`, p.employee]
+          }}
+          contentStyle={tooltipStyle}
+        />
+        <Radar dataKey="indicator" name="درجة الاستعجال" stroke="#73384B" fill="#73384B" fillOpacity={0.45} />
+      </RadarChart>
+    </ResponsiveContainer>
   )
 }
 
