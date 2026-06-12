@@ -67,20 +67,26 @@ function workDaysSince(endDate: string) {
   return count
 }
 
-// عدادات التسوية لكل سلفة: الأيام الكلية من الطلب، مهلة ما بعد الدورة، وأيام التأخير
-function getSettlementCounters(loan: { createdAt: string; endDate: string; settlementDeadline?: string | null }) {
-  if (!loan.settlementDeadline) return null
+// عداد تنازلي واحد لمهلة التسوية: أخضر وهو يتناقص، أحمر عند التأخير
+function getSettlementCountdown(loan: { isSettled: boolean; settlementDeadline?: string | null }) {
+  if (loan.isSettled || !loan.settlementDeadline) return null
   const dayMs = 1000 * 60 * 60 * 24
-  const created = new Date(loan.createdAt)
-  const end = new Date(loan.endDate)
-  const deadline = new Date(loan.settlementDeadline)
-  const today = new Date()
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const deadline = new Date(loan.settlementDeadline); deadline.setHours(0, 0, 0, 0)
+  const diff = Math.round((deadline.getTime() - today.getTime()) / dayMs)
+  const deadlineLabel = formatDate(loan.settlementDeadline)
 
+  if (diff >= 0) {
+    return {
+      label: diff === 0 ? '⏳ اليوم آخر يوم لرفع التسوية!' : `⏳ متبقي ${formatEnglishNumber(diff)} يوم لرفع التسوية`,
+      cls: 'alert-success',
+      deadlineLabel,
+    }
+  }
   return {
-    totalDaysFromRequest: Math.round((deadline.getTime() - created.getTime()) / dayMs),
-    graceDaysAfterEnd: Math.round((deadline.getTime() - end.getTime()) / dayMs),
-    overdueDays: Math.max(0, Math.round((today.getTime() - deadline.getTime()) / dayMs)),
-    deadlineLabel: formatDate(loan.settlementDeadline),
+    label: `🚨 متأخر ${formatEnglishNumber(-diff)} يوم عن رفع التسوية!`,
+    cls: 'alert-error',
+    deadlineLabel,
   }
 }
 
@@ -787,7 +793,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && loan.settlementStatus !== 'APPROVED'
       if (reviewerFilter === 'approved') return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
       if (reviewerFilter === 'returned') return loan.reviewStatus === 'RETURNED'
-      return true
+      // كل المعاملات النشطة: تستبعد السلف المؤرشفة (المُسوّاة)، فهي موجودة في تبويب الأرشيف
+      return !loan.isSettled
     })
     .sort((a, b) => {
       const priority = (loan: LoanDashboardRecord) => {
@@ -1101,31 +1108,18 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <p className="text-sm" style={{ color: '#5A5A5A' }}>لا توجد سلف مفتوحة بانتظار التسوية حالياً</p>
                     </div>
                   ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                       {loans.filter((l) => !l.isSettled).map((loan) => {
-                        const counters = getSettlementCounters(loan)
+                        const countdown = getSettlementCountdown(loan)
                         return (
                           <div key={loan.id} className="summary-pill">
                             <p className="summary-pill-label">{loan.refNumber}</p>
                             <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
-                            {counters && (
-                              <>
-                                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
-                                  <div>
-                                    <p className="text-lg font-bold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>{formatEnglishNumber(counters.totalDaysFromRequest)}</p>
-                                    <p className="text-[11px]" style={{ color: '#5A5A5A' }}>يوم من تاريخ الطلب حتى آخر مهلة</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-lg font-bold" style={{ color: '#2E6F8E', fontFamily: 'IBM Plex Mono, monospace' }}>{formatEnglishNumber(counters.graceDaysAfterEnd)}</p>
-                                    <p className="text-[11px]" style={{ color: '#5A5A5A' }}>يوم مهلة بعد انتهاء البرنامج</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-lg font-bold" style={{ color: counters.overdueDays > 0 ? '#73384B' : '#4F8F7A', fontFamily: 'IBM Plex Mono, monospace' }}>{formatEnglishNumber(counters.overdueDays)}</p>
-                                    <p className="text-[11px]" style={{ color: '#5A5A5A' }}>يوم تأخير عن التسوية</p>
-                                  </div>
-                                </div>
-                                <p className="mt-2 text-xs font-semibold text-center" style={{ color: '#6B5A4A' }}>آخر مهلة لرفع التسوية: {counters.deadlineLabel}</p>
-                              </>
+                            {countdown && (
+                              <div className={`alert ${countdown.cls} mt-2 text-xs font-semibold flex flex-wrap items-center justify-between gap-2`}>
+                                <span>{countdown.label}</span>
+                                <span style={{ opacity: 0.8 }}>آخر مهلة: {countdown.deadlineLabel}</span>
+                              </div>
                             )}
                           </div>
                         )
@@ -1305,7 +1299,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-4">
                     <div className="reviewer-filter-bar">
                       {([
-                        ['all', 'كل المعاملات'],
+                        ['all', 'المعاملات النشطة'],
                         ['advance', 'نموذج ١٨'],
                         ['settlement', 'نموذج ١٩'],
                         ['returned', 'المعادة'],
@@ -1971,87 +1965,86 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
   const advanceBadge = isLoanApproved ? { label: 'نموذج ١٨ معتمد', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'نموذج ١٨ معاد للموظف', cls: 'badge-warning' } : { label: 'نموذج ١٨ بانتظار المراجع', cls: 'badge-danger' }
   const settlementBadge = !hasSettlement ? { label: 'نموذج ١٩ غير مرفوع', cls: 'badge-neutral' } : isSettlementApproved ? { label: 'نموذج ١٩ معتمد', cls: 'badge-success' } : { label: 'نموذج ١٩ بانتظار المراجع', cls: 'badge-info' }
 
-  return (
-    <div className="reviewer-card">
-      <div className="grid gap-4 xl:grid-cols-[1fr_460px] xl:items-start">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`badge ${advanceBadge.cls}`}>{advanceBadge.label}</span>
-            <span className={`badge ${settlementBadge.cls}`}>{settlementBadge.label}</span>
-            <span className="badge badge-primary">{loan.refNumber}</span>
-            {loan.courseId && <span className="badge badge-info">مرتبط بإقفال الدورات</span>}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
-            <p className="text-sm" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.location || 'بدون موقع'}</p>
-          </div>
-          <div className="grid gap-2 text-sm md:grid-cols-3" style={{ color: '#2D4D40' }}>
-            <span>المبلغ: <strong>{formatCurrencySar(loan.amount)}</strong></span>
-            <span>الفترة: {formatDate(loan.startDate)} - {formatDate(loan.endDate)}</span>
-            <span>الموازنة: {loan.budgetApproved === true ? 'معتمدة' : loan.budgetApproved === false ? 'غير معتمدة' : 'غير محددة'}</span>
-          </div>
-          {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
-          {loan.recallRequested && (
-            <div className="alert alert-warning text-xs space-y-2">
-              <div><strong>طلب الموظف إعادة فتح المعاملة:</strong> {loan.recallReason}</div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-sm">✓ قبول إعادة الفتح</button>
-                <button type="button" onClick={() => onRecallDecision(false)} className="btn btn-danger btn-sm">✗ رفض الطلب</button>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="reviewer-action-grid">
-          <div className="reviewer-action-panel">
-            <div>
-              <p className="text-sm font-bold" style={{ color: '#1F3F40' }}>طلب السلفة، نموذج ١٨</p>
-              <p className="text-xs" style={{ color: '#5A5A5A' }}>العنصر الأول في منصة إقفال الدورات.</p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة ١٨</button>
-              <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="btn btn-success btn-sm">
-                {isLoanApproved ? 'معتمد' : 'اعتماد ١٨'}
-              </button>
-              {!isLoanApproved && (
-                <button type="button" onClick={onEditItems} className="btn btn-outline btn-sm" title="إضافة أو حذف أو تعديل بنود الصرف قبل الاعتماد">
-                  ✏️ تعديل البنود
-                </button>
-              )}
-              <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-sm">إعادة للموظف</button>
-              {isLoanApproved ? (
-                <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-sm">
-                  إلغاء الاعتماد
-                </button>
-              ) : (
-                <span className="reviewer-action-note">لم يعتمد بعد</span>
-              )}
-            </div>
-            {isSettlementApproved && <p className="text-xs" style={{ color: '#73384B' }}>ألغ اعتماد نموذج ١٩ أولًا قبل إلغاء نموذج ١٨.</p>}
-          </div>
+  const countdown = getSettlementCountdown(loan)
 
-          <div className="reviewer-action-panel">
-            <div>
-              <p className="text-sm font-bold" style={{ color: '#1F3F40' }}>تسوية السلفة، نموذج ١٩</p>
-              <p className="text-xs" style={{ color: '#5A5A5A' }}>العنصر الثاني في منصة إقفال الدورات.</p>
-            </div>
-            {hasSettlement ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة ١٩</button>
-                <button type="button" onClick={onApproveSettlement} disabled={isSettlementApproved} className="btn btn-success btn-sm">
-                  {isSettlementApproved ? 'معتمد' : 'اعتماد ١٩'}
-                </button>
-                <button type="button" onClick={onReturnSettlement} className="btn btn-warning btn-sm">إعادة للموظف</button>
-                {isSettlementApproved ? (
-                  <button type="button" onClick={onCancelSettlementApproval} className="btn btn-danger btn-sm">إلغاء اعتماد ١٩</button>
-                ) : (
-                  <span className="reviewer-action-note">مرفوع وينتظر قرار المراجع</span>
-                )}
-              </div>
-            ) : (
-              <span className="reviewer-action-note">لم يرفع الموظف التسوية بعد</span>
-            )}
+  return (
+    <div className="reviewer-card-compact">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <span className="badge badge-primary">{loan.refNumber}</span>
+          <h3 className="text-sm font-bold truncate" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
+          <span className="text-xs truncate" style={{ color: '#5A5A5A' }}>{loan.employee}</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={`badge ${advanceBadge.cls}`}>{advanceBadge.label}</span>
+          <span className={`badge ${settlementBadge.cls}`}>{settlementBadge.label}</span>
+          {loan.courseId && <span className="badge badge-info">إقفال الدورات</span>}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-xs" style={{ color: '#2D4D40' }}>
+        <span>المبلغ: <strong>{formatCurrencySar(loan.amount)}</strong></span>
+        <span>الفترة: {formatDate(loan.startDate)} - {formatDate(loan.endDate)}</span>
+        <span>الموازنة: {loan.budgetApproved === true ? 'معتمدة' : loan.budgetApproved === false ? 'غير معتمدة' : 'غير محددة'}</span>
+        <span>{loan.location || 'بدون موقع'}</span>
+        {countdown && (
+          <span className={`alert ${countdown.cls} text-xs font-semibold`} style={{ padding: '0.125rem 0.5rem' }}>
+            {countdown.label} • آخر مهلة: {countdown.deadlineLabel}
+          </span>
+        )}
+      </div>
+
+      {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
+      {loan.recallRequested && (
+        <div className="alert alert-warning text-xs flex flex-wrap items-center justify-between gap-2">
+          <span><strong>طلب الموظف إعادة فتح المعاملة:</strong> {loan.recallReason}</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-xs">✓ قبول</button>
+            <button type="button" onClick={() => onRecallDecision(false)} className="btn btn-danger btn-xs">✗ رفض</button>
           </div>
         </div>
+      )}
+
+      <div className="reviewer-action-row">
+        <span className="reviewer-action-row-label">نموذج ١٨:</span>
+        <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-xs">معاينة</button>
+        <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="btn btn-success btn-xs">
+          {isLoanApproved ? 'معتمد' : 'اعتماد'}
+        </button>
+        {!isLoanApproved && (
+          <button type="button" onClick={onEditItems} className="btn btn-outline btn-xs" title="إضافة أو حذف أو تعديل بنود الصرف قبل الاعتماد">
+            ✏️ تعديل البنود
+          </button>
+        )}
+        <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-xs">إعادة للموظف</button>
+        {isLoanApproved ? (
+          <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-xs">
+            إلغاء الاعتماد
+          </button>
+        ) : (
+          <span className="reviewer-action-note">لم يعتمد بعد</span>
+        )}
+        {isSettlementApproved && <span className="text-xs" style={{ color: '#73384B' }}>ألغ اعتماد ١٩ أولًا</span>}
+      </div>
+
+      <div className="reviewer-action-row">
+        <span className="reviewer-action-row-label">نموذج ١٩:</span>
+        {hasSettlement ? (
+          <>
+            <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-xs">معاينة</button>
+            <button type="button" onClick={onApproveSettlement} disabled={isSettlementApproved} className="btn btn-success btn-xs">
+              {isSettlementApproved ? 'معتمد' : 'اعتماد'}
+            </button>
+            <button type="button" onClick={onReturnSettlement} className="btn btn-warning btn-xs">إعادة للموظف</button>
+            {isSettlementApproved ? (
+              <button type="button" onClick={onCancelSettlementApproval} className="btn btn-danger btn-xs">إلغاء الاعتماد</button>
+            ) : (
+              <span className="reviewer-action-note">مرفوع وينتظر قرار المراجع</span>
+            )}
+          </>
+        ) : (
+          <span className="reviewer-action-note">لم يرفع الموظف التسوية بعد</span>
+        )}
       </div>
     </div>
   )
@@ -2093,14 +2086,10 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             <span className="font-semibold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>💰 {formatCurrencySar(loan.amount)}</span>
           </div>
 
-          {!loan.isSettled && (() => { const counters = getSettlementCounters(loan); return counters && (
-            <div className="alert alert-info text-xs font-semibold space-y-1">
-              <div className="flex flex-wrap gap-3">
-                <span>📆 {formatEnglishNumber(counters.totalDaysFromRequest)} يوم من تاريخ الطلب حتى آخر مهلة</span>
-                <span>🏁 {formatEnglishNumber(counters.graceDaysAfterEnd)} يوم مهلة بعد انتهاء البرنامج</span>
-                <span style={{ color: counters.overdueDays > 0 ? '#73384B' : 'inherit' }}>⏰ {formatEnglishNumber(counters.overdueDays)} يوم تأخير عن التسوية</span>
-              </div>
-              <div>آخر مهلة لرفع التسوية (نموذج ١٩): {counters.deadlineLabel}</div>
+          {(() => { const countdown = getSettlementCountdown(loan); return countdown && (
+            <div className={`alert ${countdown.cls} text-xs font-semibold flex flex-wrap items-center justify-between gap-2`}>
+              <span>{countdown.label}</span>
+              <span style={{ opacity: 0.8 }}>آخر مهلة: {countdown.deadlineLabel}</span>
             </div>
           ) })()}
 
