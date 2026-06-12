@@ -1,6 +1,6 @@
 import { canManageAllLoans, requireSessionUser } from '@/lib/auth'
 import { buildLoanRequestWordHtml, buildSettlementWordHtml } from '@/lib/document-templates'
-import { getAuthorizedLoan } from '@/lib/loan-records'
+import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
 import PreviewToolbar from './PreviewToolbar'
 
@@ -23,9 +23,10 @@ export default async function LoanDetailPage({
   const isActiveFormApproved = activeForm === '19'
     ? loan.settlementStatus === 'APPROVED'
     : loan.reviewStatus === 'REVIEWED'
+  const reviewerSignatures = activeForm === '18' ? await getReviewerSignatures() : undefined
   const html = activeForm === '19' && hasSettlement
     ? buildSettlementWordHtml(loan, { settings })
-    : buildLoanRequestWordHtml(loan, { settings })
+    : buildLoanRequestWordHtml(loan, { settings, reviewerSignatures })
 
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4">

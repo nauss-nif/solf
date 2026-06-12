@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { fileToStoredFile } from '@/lib/client-files'
+import { optimizeSignatureImage } from '@/lib/client-files'
 import { type StoredFile } from '@/lib/loan-form-options'
 
 type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
@@ -36,7 +36,7 @@ export default function AdminUsersClient() {
     const file = fileList?.[0]; if (!file) return
     setSignatureUploadingId(userId); setSignatureError('')
     try {
-      const stored = await fileToStoredFile(file)
+      const stored = await optimizeSignatureImage(file)
       const res = await fetch(`/api/admin/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureImage: stored }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setSignatureError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ التوقيع.'); return }

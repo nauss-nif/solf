@@ -66,6 +66,7 @@ export type LoanDocumentRecord = {
 
 type DocumentRenderOptions = {
   settings?: SystemSettings
+  reviewerSignatures?: StoredFile[]
 }
 
 type LoanTemplateRow = {
@@ -288,6 +289,19 @@ function printShell(body: string, options: PrintShellOptions) {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+    .loan-table-wrap {
+      position: relative;
+    }
+    .reviewer-signature {
+      position: absolute;
+      width: 24mm;
+      max-height: 11mm;
+      object-fit: contain;
+      pointer-events: none;
+    }
+    .reviewer-signature-1 { top: 2mm; right: -8mm; }
+    .reviewer-signature-2 { top: 24mm; right: -8mm; }
+    .reviewer-signature-3 { bottom: 2mm; right: -8mm; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
@@ -1077,6 +1091,14 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: Do
   return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
 
+function buildReviewerSignatureOverlay(signatures?: StoredFile[]) {
+  const list = (signatures ?? []).slice(0, 3)
+  if (list.length === 0) return ''
+  return list
+    .map((file, index) => `<img class="reviewer-signature reviewer-signature-${index + 1}" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
+    .join('')
+}
+
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   const settings = resolveSettings(options)
   const tableFontSize =
@@ -1127,24 +1149,27 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
     </div>
 
-    <table class="form-grid" style="font-size: ${tableFontSize};">
-      <thead>
-        <tr>
-          <th style="width:5%;">م</th>
-          <th style="width:16%;">المبلغ</th>
-          <th>أوجه الصرف</th>
-          <th style="width:28%;">الملاحظات</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
-        </tr>
-      </tfoot>
-    </table>
+    <div class="loan-table-wrap">
+      <table class="form-grid" style="font-size: ${tableFontSize};">
+        <thead>
+          <tr>
+            <th style="width:5%;">م</th>
+            <th style="width:16%;">المبلغ</th>
+            <th>أوجه الصرف</th>
+            <th style="width:28%;">الملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
+          </tr>
+        </tfoot>
+      </table>
+      ${buildReviewerSignatureOverlay(options?.reviewerSignatures)}
+    </div>
 
     <div class="official-inline" style="grid-template-columns: 0.9fr 1fr 1.55fr 1fr;">
       <span>مسؤول الجهة:</span>

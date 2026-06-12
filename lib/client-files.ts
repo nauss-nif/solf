@@ -24,3 +24,39 @@ export async function fileToStoredFile(file: File): Promise<StoredFile> {
   if (!file.type.startsWith('image/')) throw new Error('المرفقات تقبل الصور فقط، ولا تقبل ملفات PDF.')
   return optimizeImageFile(file)
 }
+
+// يحوّل صورة التوقيع إلى PNG بخلفية شفافة: أي بكسل قريب من الأبيض يصبح شفافاً
+const SIGNATURE_MAX_DIMENSION = 700
+const SIGNATURE_WHITE_THRESHOLD = 235
+
+export async function optimizeSignatureImage(file: File): Promise<StoredFile> {
+  if (file.size > FILE_SIZE_LIMIT_BYTES) throw new Error('حجم الملف كبير جدًا، الحد الأقصى 12 ميجابايت.')
+  if (!file.type.startsWith('image/')) throw new Error('التوقيع يجب أن يكون صورة فقط.')
+
+  const sourceUrl = await readFileAsDataUrl(file)
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new window.Image(); el.onload = () => resolve(el); el.onerror = () => reject(new Error('تعذر معالجة الصورة.')); el.src = sourceUrl })
+
+  const maxSide = Math.max(image.width, image.height)
+  const ratio = maxSide > SIGNATURE_MAX_DIMENSION ? SIGNATURE_MAX_DIMENSION / maxSide : 1
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(image.width * ratio))
+  canvas.height = Math.max(1, Math.round(image.height * ratio))
+  const ctx = canvas.getContext('2d'); if (!ctx) throw new Error('تعذر تهيئة معالجة الصورة.')
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const data = imageData.data
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]; const g = data[i + 1]; const b = data[i + 2]
+    const brightness = (r + g + b) / 3
+    if (brightness >= SIGNATURE_WHITE_THRESHOLD) {
+      data[i + 3] = 0
+    } else if (brightness >= SIGNATURE_WHITE_THRESHOLD - 30) {
+      data[i + 3] = Math.round(data[i + 3] * ((SIGNATURE_WHITE_THRESHOLD - brightness) / 30))
+    }
+  }
+  ctx.putImageData(imageData, 0, 0)
+
+  const dataUrl = canvas.toDataURL('image/png')
+  return { name: file.name.replace(/\.[^.]+$/, '') + '.png', type: 'image/png', size: Math.round((dataUrl.length * 3) / 4), dataUrl }
+}

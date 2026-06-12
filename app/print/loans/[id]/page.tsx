@@ -1,7 +1,7 @@
 import PrintActions from '@/app/print/PrintActions'
 import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildLoanRequestWordHtml } from '@/lib/document-templates'
-import { getAuthorizedLoan } from '@/lib/loan-records'
+import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
 import { notFound } from 'next/navigation'
 
@@ -27,7 +27,8 @@ export default async function LoanPrintPage({
     await syncClosureElementFromPrint('advance_req', loan)
   }
 
-  const html = buildLoanRequestWordHtml(loan, { settings })
+  const reviewerSignatures = await getReviewerSignatures()
+  const html = buildLoanRequestWordHtml(loan, { settings, reviewerSignatures })
 
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">
