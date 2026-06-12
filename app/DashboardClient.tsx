@@ -50,6 +50,7 @@ type ReviewerQueueFilter = 'all' | 'advance' | 'settlement' | 'approved' | 'retu
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
+type ItemUsageStat = { category: string; requestCount: number; requestTotal: number; settlementCount: number; settlementTotal: number }
 
 const AGENCY_CODE = '26'
 const SETTLEMENT_GRACE_WORKDAYS = 10
@@ -68,6 +69,92 @@ function workDaysBetween(startDate: string, endDate: string) {
   const start = new Date(startDate); const end = new Date(endDate); const current = new Date(start); let count = 0
   while (current < end) { current.setDate(current.getDate() + 1); const day = current.getDay(); if (day !== 5 && day !== 6) count++ }
   return count
+}
+
+const REVIEW_STATUS_LABEL: Record<string, string> = { PENDING: 'بانتظار الاعتماد', REVIEWED: 'معتمد', RETURNED: 'معاد للموظف' }
+
+function downloadAgencyExcelReport(loans: LoanDashboardRecord[], itemUsage: ItemUsageStat[]) {
+  const requesterMap = new Map<string, { count: number; totalAmount: number; totalSettlement: number; totalSavings: number }>()
+  for (const loan of loans) {
+    const r = requesterMap.get(loan.employee) ?? { count: 0, totalAmount: 0, totalSettlement: 0, totalSavings: 0 }
+    r.count += 1
+    r.totalAmount += loan.amount
+    if (loan.isSettled && loan.settlement) {
+      r.totalSettlement += loan.settlement.total
+      r.totalSavings += loan.settlement.savings - loan.settlement.overage
+    }
+    requesterMap.set(loan.employee, r)
+  }
+  const requesters = [...requesterMap.entries()].sort((a, b) => b[1].totalAmount - a[1].totalAmount)
+
+  const byRequestTotal = [...itemUsage].sort((a, b) => b.requestTotal - a.requestTotal)
+  const mostUsedSettlement = [...itemUsage].filter((i) => i.settlementCount > 0).sort((a, b) => b.settlementCount - a.settlementCount).slice(0, 10)
+  const leastUsedSettlement = [...itemUsage].filter((i) => i.settlementCount > 0).sort((a, b) => a.settlementCount - b.settlementCount).slice(0, 10)
+
+  const escapeHtml = (value: string | number) => String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
+  const tableRows = (rows: Array<Array<string | number>>) =>
+    rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')
+
+  const section = (title: string, headers: string[], rows: Array<Array<string | number>>) => `
+    <h2>${escapeHtml(title)}</h2>
+    <table border="1">
+      <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${tableRows(rows)}</tbody>
+    </table>
+    <br/>
+  `
+
+  const html = `
+    <html dir="rtl">
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; }
+          th, td { border: 1px solid #999; padding: 4px 8px; text-align: right; }
+          th { background: #E7F3EE; font-weight: bold; }
+          h2 { font-family: Arial, sans-serif; color: #1F3F40; }
+        </style>
+      </head>
+      <body>
+        <h1>التقرير الشامل لطلبات السلف والتسويات</h1>
+        <p>تاريخ التصدير: ${new Date().toLocaleDateString('en-GB')}</p>
+
+        ${section('أكثر الموظفين طلباً للسلف', ['الموظف', 'عدد الطلبات', 'إجمالي الطلب', 'إجمالي التسوية', 'صافي الوفر'],
+          requesters.map(([employee, r]) => [employee, r.count, r.totalAmount.toFixed(2), r.totalSettlement.toFixed(2), r.totalSavings.toFixed(2)]))}
+
+        ${section('أعلى البنود طلباً (حسب المبلغ)', ['البند', 'عدد المرات', 'إجمالي الطلب'],
+          byRequestTotal.map((i) => [i.category, i.requestCount, i.requestTotal.toFixed(2)]))}
+
+        ${section('أكثر البنود استخداماً في التسويات', ['البند', 'عدد المرات', 'إجمالي الصرف'],
+          mostUsedSettlement.map((i) => [i.category, i.settlementCount, i.settlementTotal.toFixed(2)]))}
+
+        ${section('أقل البنود استخداماً في التسويات', ['البند', 'عدد المرات', 'إجمالي الصرف'],
+          leastUsedSettlement.map((i) => [i.category, i.settlementCount, i.settlementTotal.toFixed(2)]))}
+
+        ${section('كافة الطلبات', ['الرقم المرجعي', 'الموظف', 'النشاط', 'المبلغ المطلوب', 'الحالة', 'التسوية', 'الوفر'],
+          loans.map((loan) => [
+            loan.refNumber,
+            loan.employee,
+            loan.activity,
+            loan.amount.toFixed(2),
+            loan.isSettled ? 'مسوّاة' : (REVIEW_STATUS_LABEL[loan.reviewStatus] ?? loan.reviewStatus),
+            loan.isSettled ? (loan.settlement?.total ?? 0).toFixed(2) : '—',
+            loan.isSettled ? ((loan.settlement?.savings ?? 0) - (loan.settlement?.overage ?? 0)).toFixed(2) : '—',
+          ]))}
+      </body>
+    </html>
+  `
+
+  const blob = new Blob(['﻿', html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `تقرير-السلف-والتسويات-${new Date().toISOString().slice(0, 10)}.xls`
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }
 
 function generateRef(loans: LoanDashboardRecord[]) {
@@ -154,6 +241,7 @@ const ChartSkeleton = ({ height = 220 }: { height?: number }) => (
 const MonthlyAmountsChart = dynamic(() => import('./dashboard-charts').then((m) => m.MonthlyAmountsChart), { ssr: false, loading: () => <ChartSkeleton /> })
 const StatusDistributionChart = dynamic(() => import('./dashboard-charts').then((m) => m.StatusDistributionChart), { ssr: false, loading: () => <ChartSkeleton /> })
 const CategoryUsageChart = dynamic(() => import('./dashboard-charts').then((m) => m.CategoryUsageChart), { ssr: false, loading: () => <ChartSkeleton /> })
+const ItemUsageInsights = dynamic(() => import('./dashboard-charts').then((m) => m.ItemUsageInsights), { ssr: false, loading: () => <ChartSkeleton height={160} /> })
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
@@ -188,6 +276,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [navigationFeedback, setNavigationFeedback] = useState('')
   const [reviewerFilter, setReviewerFilter] = useState<ReviewerQueueFilter>('all')
   const [employeeStatFilter, setEmployeeStatFilter] = useState<'all' | 'pending' | 'overdue'>('all')
+  const [itemUsage, setItemUsage] = useState<ItemUsageStat[]>([])
 
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
@@ -223,6 +312,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }
 
   useEffect(() => { void refreshLoans(workMode) }, [workMode])
+
+  useEffect(() => {
+    if (!isAdminOrReviewer) return
+    fetch('/api/reports/item-usage', { cache: 'no-store' })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: ItemUsageStat[]) => setItemUsage(Array.isArray(data) ? data : []))
+      .catch(() => setItemUsage([]))
+  }, [isAdminOrReviewer])
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadNotifications() }, 500)
     return () => window.clearTimeout(timer)
@@ -868,11 +965,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>راجع نموذج ١٨ لاعتماد طلب السلفة، وراجع نموذج ١٩ فقط بعد رفع الموظف للتسوية.</p>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <button type="button" onClick={() => selectTab('requests', requestsSectionLabel)} className="btn btn-primary">
-                        طلبات السلف بانتظار الاعتماد
+                      <button type="button" onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }} className="btn btn-primary">
+                        🔍 مراجعة طلبات السلف
                       </button>
-                      <button type="button" onClick={() => selectTab('requests', requestsSectionLabel)} className="btn btn-gold">
-                        طلبات التسوية المرفوعة
+                      <button type="button" onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }} className="btn btn-gold">
+                        ✅ اعتماد طلبات التسوية
                       </button>
                     </div>
                   </div>
@@ -900,12 +997,25 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard label="قيد التسوية" value={stats.pending} accent="warning" icon="⏳" />
-                  <StatCard label="تمت تسويتها" value={stats.settled} accent="success" icon="✅" />
-                  <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" icon="📋" />
-                  <StatCard label="متأخرة بعد ١٠ أيام عمل" value={stats.overdue} accent="danger" icon="⚠️" />
-                </div>
+                {isReviewerMode ? (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard label="بانتظار اعتماد نموذج ١٨" value={reviewerStats.advancePending} accent="danger" icon="📝"
+                      onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }} />
+                    <StatCard label="تسويات بانتظار نموذج ١٩" value={reviewerStats.settlementPending} accent="warning" icon="🧾"
+                      onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }} />
+                    <StatCard label="معادة للموظف" value={reviewerStats.returned} accent="primary" icon="↩️"
+                      onClick={() => { setReviewerFilter('returned'); selectTab('requests', requestsSectionLabel) }} />
+                    <StatCard label="مكتملة الاعتماد" value={reviewerStats.approved} accent="success" icon="✅"
+                      onClick={() => { setReviewerFilter('approved'); selectTab('requests', requestsSectionLabel) }} />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <StatCard label="قيد التسوية" value={stats.pending} accent="warning" icon="⏳" />
+                    <StatCard label="تمت تسويتها" value={stats.settled} accent="success" icon="✅" />
+                    <StatCard label="إجمالي الطلبات" value={stats.total} accent="primary" icon="📋" />
+                    <StatCard label="متأخرة بعد ١٠ أيام عمل" value={stats.overdue} accent="danger" icon="⚠️" />
+                  </div>
+                )}
 
                 <div className="hero-banner animate-fade-up">
                   <div className="grid gap-6 md:grid-cols-4">
@@ -958,6 +1068,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>أعلى أوجه الصرف استخداماً</h3>
                   <CategoryUsageChart data={categoryReport} />
                 </div>
+
+                {isReviewerMode && (
+                  <div>
+                    <h3 className="text-sm font-bold mb-3" style={{ color: '#1F3F40' }}>تحليل البنود لدعم قرارات المراجعة</h3>
+                    <ItemUsageInsights data={itemUsage} />
+                  </div>
+                )}
 
                 <div className="grid gap-6 xl:grid-cols-2">
                   <div className="section-card p-4">
@@ -1126,6 +1243,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <ReviewerLoanCard
                         key={loan.id}
                         loan={loan}
+                        onEditItems={() => openEditLoanModal(loan.id)}
                         onPreviewLoan={() => pushWithFeedback(`/loans/${loan.id}?form=18`, 'جاري فتح معاينة نموذج ١٨...')}
                         onApproveLoan={() => updateReviewState(loan.id, 'REVIEWED', '', 'advance_req')}
                         onReturnLoan={() => { const note = window.prompt('سبب إعادة نموذج ١٨ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'advance_req') }}
@@ -1224,6 +1342,16 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       صافي الوفورات: <strong>{formatCurrencySar(executiveReport.netPosition)}</strong>
                     </div>
                   </div>
+                  {isAdminOrReviewer && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <a href="/print/agency-report" target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
+                        📄 فتح التقرير الشامل لسعادة الوكيل (PDF)
+                      </a>
+                      <button type="button" className="btn btn-outline btn-sm" onClick={() => downloadAgencyExcelReport(loans, itemUsage)}>
+                        📊 تصدير التقرير الشامل (Excel)
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Summary tiles */}
@@ -1739,8 +1867,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval }: {
+function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval }: {
   loan: LoanDashboardRecord
+  onEditItems: () => void
   onPreviewLoan: () => void
   onApproveLoan: () => void
   onReturnLoan: () => void
@@ -1788,6 +1917,11 @@ function ReviewerLoanCard({ loan, onPreviewLoan, onApproveLoan, onReturnLoan, on
               <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="btn btn-success btn-sm">
                 {isLoanApproved ? 'معتمد' : 'اعتماد ١٨'}
               </button>
+              {!isLoanApproved && (
+                <button type="button" onClick={onEditItems} className="btn btn-outline btn-sm" title="إضافة أو حذف أو تعديل بنود الصرف قبل الاعتماد">
+                  ✏️ تعديل البنود
+                </button>
+              )}
               <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-sm">إعادة للموظف</button>
               {isLoanApproved ? (
                 <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-sm">

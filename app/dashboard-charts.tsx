@@ -49,6 +49,55 @@ export function StatusDistributionChart({ data, height = 220 }: { data: Array<{ 
   )
 }
 
+type ItemUsageStat = { category: string; requestCount: number; requestTotal: number; settlementCount: number; settlementTotal: number }
+
+export function ItemUsageInsights({ data }: { data: ItemUsageStat[] }) {
+  if (data.length === 0) {
+    return <div className="flex items-center justify-center text-sm h-[160px]" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية بعد</div>
+  }
+
+  const bySettlement = [...data].filter((d) => d.settlementCount > 0).sort((a, b) => b.settlementCount - a.settlementCount)
+  const mostUsed = bySettlement.slice(0, 5)
+  const leastUsed = [...bySettlement].reverse().slice(0, 5)
+  const byRequestTotal = [...data].sort((a, b) => b.requestTotal - a.requestTotal).slice(0, 5)
+
+  const Table = ({ title, rows, valueLabel, valueKey }: { title: string; rows: ItemUsageStat[]; valueLabel: string; valueKey: 'requestTotal' | 'settlementTotal' }) => (
+    <div className="section-card p-4">
+      <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>{title}</h3>
+      {rows.length === 0 ? (
+        <div className="flex items-center justify-center text-sm h-[120px]" style={{ color: '#5A5A5A' }}>لا توجد بيانات كافية</div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ color: '#5A5A5A' }}>
+              <th className="text-right py-1 font-medium">البند</th>
+              <th className="text-right py-1 font-medium">عدد المرات</th>
+              <th className="text-right py-1 font-medium">{valueLabel}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.category} style={{ borderTop: '1px solid #EDEEEC' }}>
+                <td className="py-1.5" style={{ color: '#2D4D40' }}>{row.category}</td>
+                <td className="py-1.5">{formatEnglishNumber(valueKey === 'requestTotal' ? row.requestCount : row.settlementCount)}</td>
+                <td className="py-1.5" style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{formatCurrencySar(row[valueKey])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <Table title="أعلى البنود طلبًا (حسب المبلغ)" rows={byRequestTotal} valueLabel="إجمالي الطلب" valueKey="requestTotal" />
+      <Table title="أكثر البنود استخدامًا في التسويات" rows={mostUsed} valueLabel="إجمالي الصرف" valueKey="settlementTotal" />
+      <Table title="أقل البنود استخدامًا في التسويات" rows={leastUsed} valueLabel="إجمالي الصرف" valueKey="settlementTotal" />
+    </div>
+  )
+}
+
 export function CategoryUsageChart({ data, height = 220, emptyText = 'لا توجد بيانات كافية' }: { data: Array<[string, number]>; height?: number; emptyText?: string }) {
   if (data.length === 0) {
     return <div className="flex items-center justify-center text-sm" style={{ height, color: '#5A5A5A' }}>{emptyText}</div>
