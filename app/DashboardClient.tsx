@@ -187,6 +187,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [handledCourseLink, setHandledCourseLink] = useState(false)
   const [navigationFeedback, setNavigationFeedback] = useState('')
   const [reviewerFilter, setReviewerFilter] = useState<ReviewerQueueFilter>('all')
+  const [employeeStatFilter, setEmployeeStatFilter] = useState<'all' | 'pending' | 'overdue'>('all')
 
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
@@ -202,6 +203,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   function selectTab(tab: ActiveTab, label: string) {
     showNavigationFeedback(`جاري فتح ${label}...`)
     setActiveTab(tab)
+  }
+
+  function selectEmployeeStat(tab: ActiveTab, label: string, filter: 'all' | 'pending' | 'overdue') {
+    setEmployeeStatFilter(filter)
+    selectTab(tab, label)
   }
 
   function pushWithFeedback(url: string, message: string) {
@@ -608,7 +614,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
   }
 
-  const requestLoans = filteredLoans
+  const requestLoans = (!isAdminOrReviewer && employeeStatFilter !== 'all')
+    ? filteredLoans.filter((l) => !l.isSettled && (employeeStatFilter !== 'overdue' || workDaysSince(l.endDate) > SETTLEMENT_GRACE_WORKDAYS))
+    : filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
   const reviewerStats = useMemo(() => ({
     advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING').length,
@@ -798,10 +806,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             <>
               {/* STAT CARDS */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 animate-fade-up">
-                <StatCard label="قيد التسوية"   value={stats.pending}  accent="warning" icon="⏳" />
-                <StatCard label="تمت تسويتها"  value={stats.settled}  accent="success" icon="✅" />
-                <StatCard label="إجمالي الطلبات" value={stats.total}   accent="primary" icon="📋" />
-                <StatCard label="متأخرة بعد ١٠ أيام عمل" value={stats.overdue} accent="danger"  icon="⚠️" />
+                <StatCard label="قيد التسوية"   value={stats.pending}  accent="warning" icon="⏳"
+                  onClick={() => selectEmployeeStat('requests', requestsSectionLabel, 'pending')} />
+                <StatCard label="تمت تسويتها"  value={stats.settled}  accent="success" icon="✅"
+                  onClick={() => selectEmployeeStat('archive', 'الأرشيف', 'all')} />
+                <StatCard label="إجمالي الطلبات" value={stats.total}   accent="primary" icon="📋"
+                  onClick={() => selectEmployeeStat('requests', requestsSectionLabel, 'all')} />
+                <StatCard label="متأخرة بعد ١٠ أيام عمل" value={stats.overdue} accent="danger"  icon="⚠️"
+                  onClick={() => selectEmployeeStat('requests', requestsSectionLabel, 'overdue')} />
               </div>
 
               {/* HERO AMOUNTS */}
@@ -1058,10 +1070,20 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
                     <div>
                       <h3 className="font-bold" style={{ color: '#1F3F40' }}>نموذج ١٨ — طلب سلفة مباشرة</h3>
-                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>استخدم هذا الخيار لإنشاء طلب سلفة بدون تحويل من نظام إقفال الدورات.</p>
+                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>استخدم هذا الخيار لإنشاء طلب سلفة بدون تحويل من نظام إقفال الدورات. إذا كانت السلفة مخصصة لتمويل دورة، يجب أن يأتي الطلب من "منصة إقفال الدورات" بالضغط على إجراء طلب السلفة الخاص بالدورة، حتى يتم ربط الطلب بها تلقائيًا.</p>
                     </div>
                     <button type="button" onClick={openLoanModal} className="btn btn-primary">
                       + طلب سلفة
+                    </button>
+                  </div>
+                )}
+                {!isReviewerMode && employeeStatFilter !== 'all' && (
+                  <div className="flex items-center justify-between rounded-xl px-4 py-2 text-sm" style={{ background: '#E7F3EE', border: '1px solid #C8D9D0', color: '#2A6364' }}>
+                    <span>
+                      {employeeStatFilter === 'pending' ? 'عرض الطلبات قيد التسوية فقط' : 'عرض الطلبات المتأخرة عن التسوية فقط'}
+                    </span>
+                    <button type="button" onClick={() => setEmployeeStatFilter('all')} className="btn btn-ghost btn-sm">
+                      إلغاء التصفية ✕
                     </button>
                   </div>
                 )}
@@ -1887,17 +1909,18 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   )
 }
 
-function StatCard({ label, value, accent, icon }: { label: string; value: number; accent: 'primary' | 'warning' | 'success' | 'danger'; icon: string }) {
+function StatCard({ label, value, accent, icon, onClick }: { label: string; value: number; accent: 'primary' | 'warning' | 'success' | 'danger'; icon: string; onClick?: () => void }) {
   const colors = { primary: '#2A6364', warning: '#6B5A4A', success: '#4F8F7A', danger: '#73384B' }
   const bgs    = { primary: '#E7F3EE', warning: '#F3EDE3', success: '#E7F3EE', danger: '#F3E7EB' }
+  const Tag = onClick ? 'button' : 'div'
   return (
-    <div className="stat-card">
+    <Tag type={onClick ? 'button' : undefined} onClick={onClick} className={`stat-card w-full text-right ${onClick ? 'stat-card-clickable' : ''}`}>
       <div className="flex items-center justify-between mb-2">
         <span className="stat-label">{label}</span>
         <span className="text-xl w-9 h-9 flex items-center justify-center rounded-lg" style={{ background: bgs[accent] }}>{icon}</span>
       </div>
       <p className="stat-value" style={{ color: colors[accent] }}>{value}</p>
-    </div>
+    </Tag>
   )
 }
 
