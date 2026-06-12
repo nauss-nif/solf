@@ -11,10 +11,14 @@ export const dashboardLoanInclude = {
       createdAt: true,
     },
   },
+  reviewedBy: { select: { id: true, fullName: true } },
+  settlementReviewedBy: { select: { id: true, fullName: true } },
 } as const
 
 export const fullLoanInclude = {
   items: true,
   settlement: true,
   user: { select: { email: true } },
+  reviewedBy: { select: { id: true, fullName: true } },
+  settlementReviewedBy: { select: { id: true, fullName: true } },
 } as const

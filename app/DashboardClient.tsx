@@ -37,6 +37,9 @@ export type LoanDashboardRecord = {
   settlementDeadline?: string | null
   files?: LoanRequestFiles | null; isSettled: boolean
   recallRequested?: boolean; recallReason?: string | null
+  reviewedById?: string | null; settlementReviewedById?: string | null
+  reviewedBy?: { id: string; fullName: string } | null
+  settlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
 }
 
@@ -311,6 +314,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [reviewerFilter, setReviewerFilter] = useState<ReviewerQueueFilter>('all')
   const [employeeStatFilter, setEmployeeStatFilter] = useState<'all' | 'pending' | 'overdue'>('all')
   const [itemUsage, setItemUsage] = useState<ItemUsageStat[]>([])
+  const isAdmin = currentUser.roles.includes('ADMIN')
+  const [reviewersList, setReviewersList] = useState<Array<{ id: string; fullName: string }>>([])
+  const [onBehalfSelections, setOnBehalfSelections] = useState<Record<string, string>>({})
 
   const [workMode, setWorkMode] = useState<WorkMode>(isAdminOrReviewer ? 'reviewer' : 'employee')
   const isReviewerMode = isAdminOrReviewer && workMode === 'reviewer'
@@ -354,6 +360,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       .then((data: ItemUsageStat[]) => setItemUsage(Array.isArray(data) ? data : []))
       .catch(() => setItemUsage([]))
   }, [isAdminOrReviewer])
+  useEffect(() => {
+    if (!isAdmin) return
+    fetch('/api/admin/reviewers', { cache: 'no-store' })
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: Array<{ id: string; fullName: string }>) => setReviewersList(Array.isArray(data) ? data : []))
+      .catch(() => setReviewersList([]))
+  }, [isAdmin])
   useEffect(() => {
     const timer = window.setTimeout(() => { void loadNotifications() }, 500)
     return () => window.clearTimeout(timer)
@@ -762,7 +775,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
   async function updateReviewState(loanId: string, reviewStatus: LoanDashboardRecord['reviewStatus'] | 'PENDING', reviewNote = '', closureType?: 'advance_req' | 'settlement') {
     startTransition(async () => {
-      const res = await fetch(`/api/loans/${loanId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewStatus, reviewNote, closureType }) })
+      const onBehalfOfUserId = reviewStatus === 'REVIEWED' ? onBehalfSelections[loanId] || undefined : undefined
+      const res = await fetch(`/api/loans/${loanId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewStatus, reviewNote, closureType, onBehalfOfUserId }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر تحديث حالة المراجعة.', 'error'); return }
       setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
@@ -886,6 +900,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
               )}
             </button>
           ))}
+
+          <p className="sidebar-section-label mt-4">الحساب</p>
+          <button type="button" onClick={() => pushWithFeedback('/account', 'جاري فتح الملف الشخصي...')}
+            className="nav-item w-full text-right">
+            <span>👤</span> الملف الشخصي
+          </button>
 
           {isSuperAdmin && (
             <>
@@ -1380,6 +1400,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <ReviewerLoanCard
                         key={loan.id}
                         loan={loan}
+                        isAdmin={isAdmin}
+                        reviewersList={reviewersList}
+                        onBehalfUserId={onBehalfSelections[loan.id] || ''}
+                        onChangeOnBehalf={(userId) => setOnBehalfSelections((curr) => ({ ...curr, [loan.id]: userId }))}
                         onEditItems={() => openEditLoanModal(loan.id)}
                         onPreviewLoan={() => pushWithFeedback(`/loans/${loan.id}?form=18&returnTab=requests&returnFilter=${reviewerFilter}`, 'جاري فتح معاينة نموذج ١٨...')}
                         onApproveLoan={() => updateReviewState(loan.id, 'REVIEWED', '', 'advance_req')}
@@ -2007,8 +2031,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision }: {
+function ReviewerLoanCard({ loan, isAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision }: {
   loan: LoanDashboardRecord
+  isAdmin: boolean
+  reviewersList: Array<{ id: string; fullName: string }>
+  onBehalfUserId: string
+  onChangeOnBehalf: (userId: string) => void
   onEditItems: () => void
   onPreviewLoan: () => void
   onApproveLoan: () => void
@@ -2023,6 +2051,7 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
   const hasSettlement = Boolean(loan.settlement)
   const isLoanApproved = loan.reviewStatus === 'REVIEWED'
   const isSettlementApproved = loan.settlementStatus === 'APPROVED'
+  const canActAsReviewer = !isLoanApproved || (hasSettlement && !isSettlementApproved)
 
   return (
     <div className={`reviewer-card ${isLoanApproved ? 'is-approved' : ''}`}>
@@ -2038,6 +2067,25 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
           {isLoanApproved && <span className="badge badge-success">✓ طلب معتمد</span>}
         </div>
       </div>
+
+      {isAdmin && reviewersList.length > 0 && canActAsReviewer && (
+        <div className="flex items-center gap-2 mt-2 text-xs">
+          <label style={{ color: '#5A5A5A' }}>اعتماد بالنيابة عن:</label>
+          <select value={onBehalfUserId} onChange={(e) => onChangeOnBehalf(e.target.value)} className="input-shell" style={{ maxWidth: 200, padding: '0.25rem 0.5rem', height: 'auto' }}>
+            <option value="">(توقيعي)</option>
+            {reviewersList.map((r) => (
+              <option key={r.id} value={r.id}>{r.fullName}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {loan.reviewedBy && isLoanApproved && (
+        <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}</p>
+      )}
+      {loan.settlementReviewedBy && isSettlementApproved && (
+        <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}</p>
+      )}
 
       {loan.reviewNote && <div className="alert alert-warning text-xs mt-2"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
       {loan.recallRequested && (

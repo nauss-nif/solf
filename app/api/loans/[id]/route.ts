@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { canManageAllLoans, getSessionUser, isSuperAdmin } from '@/lib/auth'
+import { canManageAllLoans, getSessionUser, hasRole, isSuperAdmin, normalizeRoles } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude, fullLoanInclude } from '@/lib/loan-selects'
 import { notifyLoanReviewed } from '@/lib/notifications'
@@ -28,6 +28,28 @@ async function getEditableLoan(id: string) {
   }
 
   return { currentUser, loan }
+}
+
+// المدير يستطيع الاعتماد "بالنيابة عن" مراجع آخر (يُستخدم توقيع ذلك المراجع في النماذج)
+async function resolveReviewerOnBehalf(
+  currentUser: NonNullable<ReturnType<typeof getSessionUser>>,
+  onBehalfOfUserId: unknown,
+): Promise<{ reviewerId: string } | { error: NextResponse }> {
+  if (hasRole(currentUser, 'ADMIN') && typeof onBehalfOfUserId === 'string' && onBehalfOfUserId) {
+    const targetReviewer = await prisma.user.findUnique({
+      where: { id: onBehalfOfUserId },
+      select: { id: true, role: true, roles: true },
+    })
+
+    const role = targetReviewer?.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | undefined
+    if (!targetReviewer || !hasRole({ role: role!, roles: normalizeRoles(targetReviewer.roles, role!) }, 'REVIEWER')) {
+      return { error: NextResponse.json({ error: 'المستخدم المحدد لا يملك صلاحية مراجع.' }, { status: 400 }) }
+    }
+
+    return { reviewerId: targetReviewer.id }
+  }
+
+  return { reviewerId: currentUser.userId }
 }
 
 function canEmployeeControlLoan(
@@ -112,6 +134,7 @@ export async function PATCH(
             data: {
               settlementStatus: 'SUBMITTED',
               reviewNote: String(body.reviewNote ?? '').trim() || null,
+              settlementReviewedById: null,
             },
             include: dashboardLoanInclude,
           })
@@ -131,6 +154,7 @@ export async function PATCH(
           data: {
             reviewStatus: 'PENDING',
             reviewNote: String(body.reviewNote ?? '').trim() || null,
+            reviewedById: null,
           },
           include: dashboardLoanInclude,
         })
@@ -149,6 +173,7 @@ export async function PATCH(
             isSettled: false,
             settlementStatus: 'IN_PROGRESS',
             reviewNote: String(body.reviewNote ?? '').trim() || null,
+            settlementReviewedById: null,
           },
           include: dashboardLoanInclude,
         })
@@ -174,12 +199,21 @@ export async function PATCH(
         return NextResponse.json(returnedSettlementLoan)
       }
 
+      let reviewerId: string | null = null
+      if (nextStatus === 'REVIEWED') {
+        const resolved = await resolveReviewerOnBehalf(currentUser, body.onBehalfOfUserId)
+        if ('error' in resolved) return resolved.error
+        reviewerId = resolved.reviewerId
+      }
+
       const reviewedLoan = await prisma.loan.update({
         where: { id: loan.id },
         data: {
           reviewStatus: nextStatus,
           reviewNote: String(body.reviewNote ?? '').trim() || null,
           settlementStatus: nextStatus === 'REVIEWED' && closureType === 'settlement' ? 'APPROVED' : undefined,
+          reviewedById: closureType === 'advance_req' ? (nextStatus === 'REVIEWED' ? reviewerId : null) : undefined,
+          settlementReviewedById: closureType === 'settlement' && nextStatus === 'REVIEWED' ? reviewerId : undefined,
         },
         include: dashboardLoanInclude,
       })

@@ -40,24 +40,28 @@ export async function getAuthorizedLoan(
 }
 
 // تأشيرات المراجعين: توقيعات أول 3 مستخدمين بدور "مراجع" لديهم توقيع محفوظ
-export async function getReviewerSignatures(): Promise<StoredFile[]> {
+// إن أُعطي preferredReviewerId (اعتماد المدير بالنيابة عن مراجع محدد)، يُقدَّم توقيع ذلك المراجع أولاً
+export async function getReviewerSignatures(preferredReviewerId?: string | null): Promise<StoredFile[]> {
   await ensureDatabaseSetup()
 
   const users = await prisma.user.findMany({
     where: { signatureImage: { not: Prisma.DbNull } },
     orderBy: { createdAt: 'asc' },
-    select: { role: true, roles: true, signatureImage: true },
+    select: { id: true, role: true, roles: true, signatureImage: true },
   })
 
-  const signatures: StoredFile[] = []
-  for (const user of users) {
-    if (signatures.length >= 3) break
+  const reviewers = users.filter((user) => {
     const role = user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
-    if (!hasRole({ role, roles: normalizeRoles(user.roles, role) }, 'REVIEWER')) continue
-    if (isStoredImageFile(user.signatureImage)) {
-      signatures.push(user.signatureImage)
+    return hasRole({ role, roles: normalizeRoles(user.roles, role) }, 'REVIEWER') && isStoredImageFile(user.signatureImage)
+  })
+
+  if (preferredReviewerId) {
+    const preferredIndex = reviewers.findIndex((user) => user.id === preferredReviewerId)
+    if (preferredIndex > 0) {
+      const [preferred] = reviewers.splice(preferredIndex, 1)
+      reviewers.unshift(preferred)
     }
   }
 
-  return signatures
+  return reviewers.slice(0, 3).map((user) => user.signatureImage as StoredFile)
 }
