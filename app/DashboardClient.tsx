@@ -355,6 +355,13 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     setLoanModalOpen(true)
   }, [handledCourseLink, searchParams])
 
+  useEffect(() => {
+    const tab = searchParams.get('tab') as ActiveTab | null
+    const filter = searchParams.get('filter') as ReviewerQueueFilter | null
+    if (tab) setActiveTab(tab)
+    if (filter) setReviewerFilter(filter)
+  }, [])
+
   const showToast = (message: string, tone: ToastItem['tone'] = 'success', important = tone === 'error') => {
     const id = Date.now() + Math.floor(Math.random() * 1000)
     setToasts((curr) => [...curr.slice(-2), { id, message, tone, important }])
@@ -527,13 +534,22 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   function resetLoanForm() { setLoanError(''); setEditingLoanId(null); setLoanForm(createEmptyLoanForm(currentUser, loans)); setExpenses([{ category: '', amount: '' }]); setLoanAttachments(createEmptyAttachments()) }
   function openLoanModal() { setLinkedCourse(null); resetLoanForm(); setLoanModalOpen(true) }
 
-  function openEditLoanModal(loanId: string) {
+  async function openEditLoanModal(loanId: string) {
     const loan = loans.find((l) => l.id === loanId); if (!loan || loan.isSettled || (!isReviewerMode && loan.reviewStatus === 'REVIEWED')) return
     setLoanError(''); setEditingLoanId(loan.id)
     setLoanForm({ requestDate: loan.createdAt.slice(0, 10), refNumber: loan.refNumber, agencyCode: AGENCY_CODE, employee: loan.employee, activity: loan.activity, location: loan.location, startDate: loan.startDate.slice(0, 10), endDate: loan.endDate.slice(0, 10), budgetApproved: loan.budgetApproved })
     setExpenses(loan.items.length > 0 ? loan.items.map((i) => ({ category: i.category, amount: String(i.amount) })) : [{ category: '', amount: '' }])
     setLoanAttachments(Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((att) => [att.key, toStoredFileArray(loan.files?.[att.key]).map((f) => cloneStoredFile(f) as StoredFile)])))
     setLoanModalOpen(true)
+    try {
+      const res = await fetch(`/api/loans/${loanId}`)
+      if (res.ok) {
+        const fullLoan = await res.json()
+        setLoanAttachments(Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((att) => [att.key, toStoredFileArray(fullLoan.files?.[att.key]).map((f) => cloneStoredFile(f) as StoredFile)])))
+      }
+    } catch {
+      // تجاهل الخطأ والاحتفاظ بالمرفقات المحملة مسبقاً (بدون بيانات الصور)
+    }
   }
 
   function openSettlementModal(loanId: string) {
@@ -1244,11 +1260,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         key={loan.id}
                         loan={loan}
                         onEditItems={() => openEditLoanModal(loan.id)}
-                        onPreviewLoan={() => pushWithFeedback(`/loans/${loan.id}?form=18`, 'جاري فتح معاينة نموذج ١٨...')}
+                        onPreviewLoan={() => pushWithFeedback(`/loans/${loan.id}?form=18&returnTab=requests&returnFilter=${reviewerFilter}`, 'جاري فتح معاينة نموذج ١٨...')}
                         onApproveLoan={() => updateReviewState(loan.id, 'REVIEWED', '', 'advance_req')}
                         onReturnLoan={() => { const note = window.prompt('سبب إعادة نموذج ١٨ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'advance_req') }}
                         onCancelLoanApproval={() => { if (!window.confirm('سيعود نموذج ١٨ إلى قائمة المراجعة. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٨ لإعادة المراجعة.', 'advance_req') }}
-                        onPreviewSettlement={() => pushWithFeedback(`/loans/${loan.id}?form=19`, 'جاري فتح معاينة نموذج ١٩...')}
+                        onPreviewSettlement={() => pushWithFeedback(`/loans/${loan.id}?form=19&returnTab=requests&returnFilter=${reviewerFilter}`, 'جاري فتح معاينة نموذج ١٩...')}
                         onApproveSettlement={() => updateReviewState(loan.id, 'REVIEWED', '', 'settlement')}
                         onReturnSettlement={() => { const note = window.prompt('سبب إعادة نموذج ١٩ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'settlement') }}
                         onCancelSettlementApproval={() => { if (!window.confirm('سيعود نموذج ١٩ إلى قائمة مراجعة التسويات. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٩ لإعادة المراجعة.', 'settlement') }}

@@ -6,7 +6,7 @@ import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
 import { calcSettlementDeadline } from '@/lib/settlement-deadline'
 import { notifyNewLoan } from '@/lib/notifications'
-import { validateLoanRequestFiles } from '@/lib/loan-form-options'
+import { validateLoanRequestFiles, stripFileData } from '@/lib/loan-form-options'
 import type { DestinationCategory } from '@/lib/settlement-deadline'
 
 const SEQUENCE_ID = 'singleton'
@@ -68,7 +68,9 @@ export async function GET(request: Request) {
       include: dashboardLoanInclude,
     })
 
-    return NextResponse.json(loans)
+    const lightLoans = loans.map((loan) => ({ ...loan, files: stripFileData(loan.files) }))
+
+    return NextResponse.json(lightLoans)
   } catch {
     return NextResponse.json({ error: 'Failed to load loans' }, { status: 500 })
   }

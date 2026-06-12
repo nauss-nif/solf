@@ -37,6 +37,36 @@ function canEmployeeControlLoan(
   return loan.userId === currentUser.userId && loan.reviewStatus !== 'REVIEWED' && !loan.isSettled
 }
 
+export async function GET(
+  _: Request,
+  { params }: { params: { id: string } },
+) {
+  try {
+    await ensureDatabaseSetup()
+    const currentUser = getSessionUser()
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const loan = await prisma.loan.findUnique({
+      where: { id: params.id },
+      include: dashboardLoanInclude,
+    })
+
+    if (!loan) {
+      return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
+    }
+
+    if (!canManageAllLoans(currentUser) && loan.userId !== currentUser.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    return NextResponse.json(loan)
+  } catch {
+    return NextResponse.json({ error: 'Failed to load loan' }, { status: 500 })
+  }
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },

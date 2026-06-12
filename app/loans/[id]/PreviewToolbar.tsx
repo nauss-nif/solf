@@ -12,12 +12,16 @@ export default function PreviewToolbar({
   hasSettlement,
   canReview,
   isApproved,
+  returnTab,
+  returnFilter,
 }: {
   loanId: string
   activeForm: PreviewForm
   hasSettlement: boolean
   canReview: boolean
   isApproved: boolean
+  returnTab?: string
+  returnFilter?: string
 }) {
   const router = useRouter()
   const [target, setTarget] = useState<PreviewForm | 'home' | null>(null)
@@ -26,7 +30,18 @@ export default function PreviewToolbar({
   function go(nextTarget: PreviewForm | 'home') {
     setTarget(nextTarget)
     startTransition(() => {
-      router.push(nextTarget === 'home' ? '/' : `/loans/${loanId}?form=${nextTarget}`)
+      if (nextTarget === 'home') {
+        const query = new URLSearchParams()
+        if (returnTab) query.set('tab', returnTab)
+        if (returnFilter) query.set('filter', returnFilter)
+        const queryString = query.toString()
+        router.push(queryString ? `/?${queryString}` : '/')
+        return
+      }
+      const query = new URLSearchParams({ form: nextTarget })
+      if (returnTab) query.set('returnTab', returnTab)
+      if (returnFilter) query.set('returnFilter', returnFilter)
+      router.push(`/loans/${loanId}?${query.toString()}`)
     })
   }
 

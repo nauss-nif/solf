@@ -167,6 +167,21 @@ export function toStoredFileArray(value: unknown): StoredFile[] {
   return isStoredImageFile(value) ? [value] : []
 }
 
+// يحذف بيانات الصور (dataUrl) من المرفقات مع الحفاظ على عددها وأسمائها، لتقليل حجم استجابة قائمة الطلبات
+export function stripFileData(files: unknown): LoanRequestFiles | null {
+  if (!files || typeof files !== 'object' || Array.isArray(files)) return null
+  const result: LoanRequestFiles = {}
+  for (const [key, value] of Object.entries(files as Record<string, unknown>)) {
+    result[key as LoanAttachmentKey] = toStoredFileArray(value).map((f) => ({
+      name: f.name,
+      type: f.type,
+      size: f.size,
+      dataUrl: '',
+    }))
+  }
+  return result
+}
+
 export function validateLoanRequestFiles(files: unknown) {
   if (files == null) return null
   if (typeof files !== 'object' || Array.isArray(files)) return 'صيغة مرفقات الطلب غير صحيحة.'
