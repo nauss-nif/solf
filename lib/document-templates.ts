@@ -299,9 +299,9 @@ function printShell(body: string, options: PrintShellOptions) {
       object-fit: contain;
       pointer-events: none;
     }
-    .reviewer-signature-1 { top: 4mm; right: -13mm; }
-    .reviewer-signature-2 { top: 26mm; right: -13mm; }
-    .reviewer-signature-3 { bottom: 4mm; right: -13mm; }
+    .reviewer-signature-1 { top: 4mm; right: -16mm; }
+    .reviewer-signature-2 { top: 26mm; right: -16mm; }
+    .reviewer-signature-3 { bottom: 4mm; right: -16mm; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
