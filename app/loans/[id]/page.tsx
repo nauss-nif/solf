@@ -23,9 +23,9 @@ export default async function LoanDetailPage({
   const isActiveFormApproved = activeForm === '19'
     ? loan.settlementStatus === 'APPROVED'
     : loan.reviewStatus === 'REVIEWED'
-  const reviewerSignatures = activeForm === '18' ? await getReviewerSignatures() : undefined
+  const reviewerSignatures = isActiveFormApproved ? await getReviewerSignatures() : undefined
   const html = activeForm === '19' && hasSettlement
-    ? buildSettlementWordHtml(loan, { settings })
+    ? buildSettlementWordHtml(loan, { settings, reviewerSignatures })
     : buildLoanRequestWordHtml(loan, { settings, reviewerSignatures })
 
   return (

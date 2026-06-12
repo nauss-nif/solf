@@ -1273,21 +1273,24 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
       <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
     </div>
 
-    <table class="form-grid">
-      <thead>
-        <tr>
-          <th style="width:5%;">م</th>
-          <th>أوجه الصرف الفعلية</th>
-          <th style="width:12%;">المبلغ<br />بالريال</th>
-          <th style="width:11%;">نوعه</th>
-          <th style="width:14%;">تاريخه</th>
-          <th style="width:21%;">الجهة المصدرة له</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
+    <div class="loan-table-wrap">
+      <table class="form-grid">
+        <thead>
+          <tr>
+            <th style="width:5%;">م</th>
+            <th>أوجه الصرف الفعلية</th>
+            <th style="width:12%;">المبلغ<br />بالريال</th>
+            <th style="width:11%;">نوعه</th>
+            <th style="width:14%;">تاريخه</th>
+            <th style="width:21%;">الجهة المصدرة له</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      ${buildReviewerSignatureOverlay(options?.reviewerSignatures)}
+    </div>
 
     <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
       <div style="display: grid; gap: 4px;">

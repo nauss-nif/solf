@@ -27,7 +27,7 @@ export default async function LoanPrintPage({
     await syncClosureElementFromPrint('advance_req', loan)
   }
 
-  const reviewerSignatures = await getReviewerSignatures()
+  const reviewerSignatures = loan.reviewStatus === 'REVIEWED' ? await getReviewerSignatures() : undefined
   const html = buildLoanRequestWordHtml(loan, { settings, reviewerSignatures })
 
   return (

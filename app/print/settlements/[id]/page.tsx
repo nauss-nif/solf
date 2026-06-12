@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import PrintActions from '@/app/print/PrintActions'
 import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildSettlementWordHtml } from '@/lib/document-templates'
-import { getAuthorizedLoan } from '@/lib/loan-records'
+import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +27,8 @@ export default async function SettlementPrintPage({
     await syncClosureElementFromPrint('settlement', loan)
   }
 
-  const html = buildSettlementWordHtml(loan, { settings })
+  const reviewerSignatures = loan.settlementStatus === 'APPROVED' ? await getReviewerSignatures() : undefined
+  const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures })
 
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">
