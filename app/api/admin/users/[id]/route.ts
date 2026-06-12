@@ -8,6 +8,7 @@ import {
   normalizeRoles,
 } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
+import { isStoredImageFile } from '@/lib/loan-form-options'
 
 export async function PATCH(
   request: Request,
@@ -43,6 +44,15 @@ export async function PATCH(
       data.roles = roles
       data.role = getPrimaryRole(roles)
     }
+    if ('signatureImage' in body) {
+      if (body.signatureImage === null) {
+        data.signatureImage = null
+      } else if (isStoredImageFile(body.signatureImage)) {
+        data.signatureImage = body.signatureImage
+      } else {
+        return NextResponse.json({ error: 'التوقيع يجب أن يكون صورة فقط.' }, { status: 400 })
+      }
+    }
 
     const user = await prisma.user.update({
       where: { id: params.id },
@@ -56,6 +66,7 @@ export async function PATCH(
         role: true,
         roles: true,
         status: true,
+        signatureImage: true,
       },
     })
 

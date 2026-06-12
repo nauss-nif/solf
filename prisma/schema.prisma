@@ -64,6 +64,9 @@ model User {
   role         String   @default("EMPLOYEE")  // PRIMARY role للعرض
   roles        Json?                           // مصفوفة الأدوار الكاملة
   status       String   @default("ACTIVE")    // ACTIVE | DISABLED
+
+  // التوقيع الإلكتروني — صورة محفوظة (StoredFile) تُستخدم في النماذج المعتمدة
+  signatureImage  Json?
   
   // ربط اختياري بنظام الإقفال
   // نفس email = نفس الشخص في النظامين

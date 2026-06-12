@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { fileToStoredFile } from '@/lib/client-files'
+import { type StoredFile } from '@/lib/loan-form-options'
 
 type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
-type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; createdAt: string }
+type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; signatureImage?: StoredFile | null; createdAt: string }
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string }> = [
   { value: 'EMPLOYEE', label: 'موظف',    color: '#2A6364' },
@@ -16,6 +18,8 @@ export default function AdminUsersClient() {
   const [loadError, setLoadError] = useState('')
   const [isPending, startTransition] = useTransition()
   const [successMsg, setSuccessMsg] = useState('')
+  const [signatureUploadingId, setSignatureUploadingId] = useState<string | null>(null)
+  const [signatureError, setSignatureError] = useState('')
 
   async function loadUsers() {
     const res = await fetch('/api/admin/users', { cache: 'no-store' })
@@ -28,9 +32,26 @@ export default function AdminUsersClient() {
 
   function showSuccess(msg: string) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 2500) }
 
+  async function handleSignatureUpload(userId: string, fileList: FileList | null) {
+    const file = fileList?.[0]; if (!file) return
+    setSignatureUploadingId(userId); setSignatureError('')
+    try {
+      const stored = await fileToStoredFile(file)
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureImage: stored }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setSignatureError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ التوقيع.'); return }
+      await loadUsers(); showSuccess('تم حفظ التوقيع الإلكتروني.')
+    } catch (err) {
+      setSignatureError(err instanceof Error ? err.message : 'تعذر رفع التوقيع.')
+    } finally {
+      setSignatureUploadingId(null)
+    }
+  }
+
   return (
     <div className="space-y-5 animate-fade-up">
       {loadError  && <div className="alert alert-error">{loadError}</div>}
+      {signatureError && <div className="alert alert-error">{signatureError}</div>}
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
       {/* Stats */}
@@ -63,6 +84,7 @@ export default function AdminUsersClient() {
                 <th>الجوال</th>
                 <th>التحويلة</th>
                 <th>الصلاحيات</th>
+                <th>التوقيع الإلكتروني</th>
                 <th>الحالة</th>
                 <th>الإجراءات</th>
               </tr>
@@ -112,6 +134,35 @@ export default function AdminUsersClient() {
                           )
                         })}
                       </div>
+                    </td>
+                    <td>
+                      {user.signatureImage ? (
+                        <div className="flex items-center gap-2">
+                          <img src={user.signatureImage.dataUrl} alt="توقيع" style={{ width: 64, height: 32, objectFit: 'contain', border: '1px solid #DADBD9', borderRadius: 6, background: '#fff' }} />
+                          <label className="btn btn-outline btn-sm cursor-pointer">
+                            تغيير
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => void handleSignatureUpload(user.id, e.target.files)} />
+                          </label>
+                          <button
+                            type="button"
+                            disabled={isPending}
+                            onClick={() => {
+                              startTransition(async () => {
+                                await fetch(`/api/admin/users/${user.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureImage: null }) })
+                                await loadUsers(); showSuccess('تم حذف التوقيع.')
+                              })
+                            }}
+                            className="btn btn-danger btn-sm"
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="btn btn-outline btn-sm cursor-pointer">
+                          {signatureUploadingId === user.id ? 'جاري الرفع...' : 'رفع توقيع'}
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => void handleSignatureUpload(user.id, e.target.files)} />
+                        </label>
+                      )}
                     </td>
                     <td>
                       <select
@@ -168,7 +219,7 @@ export default function AdminUsersClient() {
               })}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12">
+                  <td colSpan={8} className="text-center py-12">
                     <div className="empty-state">
                       <p className="empty-state-icon text-3xl">👥</p>
                       <p className="empty-state-title">لا توجد حسابات مسجلة</p>

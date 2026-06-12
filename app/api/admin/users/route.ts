@@ -23,6 +23,7 @@ export async function GET() {
         role: true,
         roles: true,
         status: true,
+        signatureImage: true,
         createdAt: true,
       },
     })
