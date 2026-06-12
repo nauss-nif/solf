@@ -115,6 +115,11 @@ model Loan {
   reviewNote    String?
   printedAt     DateTime?
 
+  // ─── طلب إعادة فتح المعاملة بعد الاعتماد ─────────────────
+  recallRequested   Boolean   @default(false)
+  recallReason      String?
+  recallRequestedAt DateTime?
+
   // ─── حالة التسوية ───────────────────────────────────────
   isSettled          Boolean         @default(false)
   settlementStatus   SettlementStatus @default(NOT_STARTED)

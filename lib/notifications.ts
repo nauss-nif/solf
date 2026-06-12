@@ -310,6 +310,86 @@ export async function notifyLoanFollowUpRequest(loan: {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// إشعار: طلب إعادة فتح معاملة بعد الاعتماد → للمراجعين
+// ─────────────────────────────────────────────────────────────
+export async function notifyRecallRequested(loan: {
+  id: string
+  refNumber: string
+  employee: string
+  reason: string
+}): Promise<void> {
+  const reviewers = await prisma.$queryRaw<Array<{ id: string; email: string; fullName: string }>>`
+    SELECT id, email, "fullName"
+    FROM "users"
+    WHERE "status" = 'ACTIVE'
+      AND (
+        roles::jsonb ? 'ADMIN'
+        OR roles::jsonb ? 'REVIEWER'
+      )
+  `
+
+  const title = `طلب إعادة فتح معاملة — ${loan.refNumber}`
+  const message = `طلب الموظف ${loan.employee} إعادة فتح المعاملة ${loan.refNumber} للسبب: ${loan.reason}`
+
+  for (const reviewer of reviewers) {
+    await createInternalNotification({
+      userId: reviewer.id,
+      type: 'SYSTEM',
+      title,
+      message,
+      metadata: { loanId: loan.id, refNumber: loan.refNumber },
+    })
+
+    await sendEmail({
+      to: reviewer.email,
+      subject: title,
+      html: emailTemplate({
+        title,
+        body: `<p>${message}</p>`,
+        isUrgent: true,
+      }),
+    })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// إشعار: قرار طلب إعادة الفتح → للموظف
+// ─────────────────────────────────────────────────────────────
+export async function notifyRecallDecision(options: {
+  userId: string
+  userEmail: string
+  refNumber: string
+  loanId: string
+  approved: boolean
+}): Promise<void> {
+  const title = options.approved
+    ? `تمت الموافقة على طلب إعادة فتح المعاملة — ${options.refNumber}`
+    : `تم رفض طلب إعادة فتح المعاملة — ${options.refNumber}`
+
+  const message = options.approved
+    ? `تمت الموافقة على طلب إعادة فتح المعاملة ${options.refNumber}، ويمكنك الآن تعديلها.`
+    : `تم رفض طلب إعادة فتح المعاملة ${options.refNumber}.`
+
+  await createInternalNotification({
+    userId: options.userId,
+    type: 'SYSTEM',
+    title,
+    message,
+    metadata: { loanId: options.loanId, refNumber: options.refNumber },
+  })
+
+  await sendEmail({
+    to: options.userEmail,
+    subject: title,
+    html: emailTemplate({
+      title,
+      body: `<p>${message}</p>`,
+      isUrgent: options.approved,
+    }),
+  })
+}
+
 export async function sendWelcomeEmail(options: {
   to: string
   fullName: string

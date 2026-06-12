@@ -35,6 +35,7 @@ export type LoanDashboardRecord = {
   courseId?: string | null; courseCode?: string | null
   createdAt: string; updatedAt?: string; printedAt: string | null
   files?: LoanRequestFiles | null; isSettled: boolean
+  recallRequested?: boolean; recallReason?: string | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
 }
 
@@ -163,7 +164,7 @@ function generateRef(loans: LoanDashboardRecord[]) {
 }
 
 function normalizeLoanRecord(loan: Omit<LoanDashboardRecord, 'location' | 'budgetApproved' | 'reviewStatus' | 'settlementStatus' | 'reviewNote' | 'printedAt' | 'files'> & { location?: string | null; budgetApproved?: boolean | null; reviewStatus?: string; settlementStatus?: string; reviewNote?: string; printedAt?: string | null; files?: LoanRequestFiles | null }): LoanDashboardRecord {
-  return { ...loan, location: loan.location ?? '', budgetApproved: typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null, reviewStatus: (loan.reviewStatus as LoanDashboardRecord['reviewStatus']) ?? 'PENDING', settlementStatus: (loan.settlementStatus as LoanDashboardRecord['settlementStatus']) ?? 'NOT_STARTED', reviewNote: loan.reviewNote ?? '', printedAt: loan.printedAt ?? null, files: loan.files ?? null }
+  return { ...loan, location: loan.location ?? '', budgetApproved: typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null, reviewStatus: (loan.reviewStatus as LoanDashboardRecord['reviewStatus']) ?? 'PENDING', settlementStatus: (loan.settlementStatus as LoanDashboardRecord['settlementStatus']) ?? 'NOT_STARTED', reviewNote: loan.reviewNote ?? '', printedAt: loan.printedAt ?? null, files: loan.files ?? null, recallRequested: loan.recallRequested ?? false, recallReason: loan.recallReason ?? null }
 }
 
 function createEmptyLoanForm(currentUser: CurrentUser, loans: LoanDashboardRecord[]): LoanFormState {
@@ -702,6 +703,30 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
   }
 
+  async function requestRecall(loanId: string) {
+    const reason = window.prompt('سبب طلب إعادة فتح المعاملة:', '')
+    if (reason === null) return
+    if (!reason.trim()) { showToast('يجب كتابة سبب الطلب.', 'error'); return }
+    startTransition(async () => {
+      const res = await fetch(`/api/loans/${loanId}/recall`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر إرسال طلب إعادة الفتح.', 'error'); return }
+      setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
+      showToast('تم إرسال طلب إعادة الفتح للمراجعين.')
+    })
+  }
+
+  async function decideRecall(loanId: string, approve: boolean) {
+    if (!window.confirm(approve ? 'تأكيد الموافقة على إعادة فتح المعاملة؟' : 'تأكيد رفض طلب إعادة الفتح؟')) return
+    startTransition(async () => {
+      const res = await fetch(`/api/loans/${loanId}/recall`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision: approve ? 'approve' : 'reject' }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر تنفيذ القرار.', 'error'); return }
+      setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
+      showToast(approve ? 'تمت الموافقة على إعادة فتح المعاملة.' : 'تم رفض طلب إعادة الفتح.')
+    })
+  }
+
   async function sendManualLoanAlert(loanId: string) {
     const customMessage = window.prompt('رسالة التنبيه للموظف (اختياري):', '')
     if (customMessage === null) return
@@ -748,6 +773,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
     .sort((a, b) => {
       const priority = (loan: LoanDashboardRecord) => {
+        if (loan.recallRequested) return -1
         if (loan.reviewStatus === 'PENDING') return 0
         if (loan.settlement && loan.settlementStatus !== 'APPROVED') return 1
         if (loan.reviewStatus === 'RETURNED') return 2
@@ -1268,6 +1294,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onApproveSettlement={() => updateReviewState(loan.id, 'REVIEWED', '', 'settlement')}
                         onReturnSettlement={() => { const note = window.prompt('سبب إعادة نموذج ١٩ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'settlement') }}
                         onCancelSettlementApproval={() => { if (!window.confirm('سيعود نموذج ١٩ إلى قائمة مراجعة التسويات. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٩ لإعادة المراجعة.', 'settlement') }}
+                        onRecallDecision={(approve) => decideRecall(loan.id, approve)}
                       />
                     ))}
                   </div>
@@ -1287,7 +1314,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onPrintLoan={() => openPrintDocument('loan', loan.id)}
                         onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
                         onSendManualAlert={() => sendManualLoanAlert(loan.id)}
-                        onSendReviewerReminder={() => sendReviewerReminder(loan.id)} />
+                        onSendReviewerReminder={() => sendReviewerReminder(loan.id)}
+                        onRequestRecall={() => requestRecall(loan.id)} />
                     ))}
                   </div>
                 )}
@@ -1311,7 +1339,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     onPrintLoan={() => openPrintDocument('loan', loan.id)}
                     onPrintSettlement={() => openPrintDocument('settlement', loan.id)}
                     onSendManualAlert={() => sendManualLoanAlert(loan.id)}
-                    onSendReviewerReminder={() => sendReviewerReminder(loan.id)} />
+                    onSendReviewerReminder={() => sendReviewerReminder(loan.id)}
+                    onRequestRecall={() => requestRecall(loan.id)} />
                 ))}
               </div>
             )}
@@ -1883,7 +1912,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval }: {
+function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision }: {
   loan: LoanDashboardRecord
   onEditItems: () => void
   onPreviewLoan: () => void
@@ -1894,6 +1923,7 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
   onApproveSettlement: () => void
   onReturnSettlement: () => void
   onCancelSettlementApproval: () => void
+  onRecallDecision: (approve: boolean) => void
 }) {
   const hasSettlement = Boolean(loan.settlement)
   const isLoanApproved = loan.reviewStatus === 'REVIEWED'
@@ -1921,6 +1951,15 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
             <span>الموازنة: {loan.budgetApproved === true ? 'معتمدة' : loan.budgetApproved === false ? 'غير معتمدة' : 'غير محددة'}</span>
           </div>
           {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
+          {loan.recallRequested && (
+            <div className="alert alert-warning text-xs space-y-2">
+              <div><strong>طلب الموظف إعادة فتح المعاملة:</strong> {loan.recallReason}</div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-sm">✓ قبول إعادة الفتح</button>
+                <button type="button" onClick={() => onRecallDecision(false)} className="btn btn-danger btn-sm">✗ رفض الطلب</button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="reviewer-action-grid">
           <div className="reviewer-action-panel">
@@ -1978,12 +2017,13 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
   )
 }
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder }: {
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean; canDelete?: boolean
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onPrintSettlement: () => void
   onSendManualAlert: () => void; onSendReviewerReminder: () => void
+  onRequestRecall?: () => void; onRecallDecision?: (approve: boolean) => void
 }) {
   const attachCount = Object.values(loan.files ?? {}).reduce((sum: number, v) => sum + toStoredFileArray(v).length, 0)
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
@@ -2018,6 +2058,12 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
               <strong>ملاحظة المراجع:</strong> {loan.reviewNote}
             </div>
           )}
+
+          {loan.recallRequested && (
+            <div className="alert alert-warning text-xs">
+              <strong>طلب إعادة فتح قيد المراجعة:</strong> {loan.recallReason}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -2047,11 +2093,21 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
               <button type="button" onClick={onMarkReviewed} className="btn btn-success btn-sm">✓ اعتماد المراجعة</button>
               <button type="button" onClick={onReturnForReview} className="btn btn-warning btn-sm">↩ إعادة للموظف</button>
               {!loan.isSettled && <button type="button" onClick={onSendManualAlert} className="btn btn-warning btn-sm sm:col-span-2">📣 تنبيه الموظف</button>}
+              {loan.recallRequested && onRecallDecision && (
+                <>
+                  <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-sm">✓ قبول إعادة الفتح</button>
+                  <button type="button" onClick={() => onRecallDecision(false)} className="btn btn-danger btn-sm">✗ رفض الطلب</button>
+                </>
+              )}
             </>
           )}
 
           {!canReview && !loan.isSettled && loan.reviewStatus !== 'REVIEWED' && (
             <button type="button" onClick={onSendReviewerReminder} className="btn btn-outline btn-sm sm:col-span-2">🔔 تذكير المراجعين</button>
+          )}
+
+          {!canReview && (loan.reviewStatus === 'REVIEWED' || loan.isSettled) && !loan.recallRequested && onRequestRecall && (
+            <button type="button" onClick={onRequestRecall} className="btn btn-outline btn-sm sm:col-span-2">↩ طلب إعادة فتح المعاملة</button>
           )}
         </div>
       </div>
