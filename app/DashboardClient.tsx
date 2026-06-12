@@ -1116,15 +1116,20 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       {loans.filter((l) => !l.isSettled).map((loan) => {
                         const countdown = getSettlementCountdown(loan)
                         return (
-                          <div key={loan.id} className="summary-pill">
-                            <p className="summary-pill-label">{loan.refNumber}</p>
-                            <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
+                          <div key={loan.id} className="summary-pill flex items-center gap-3">
                             {countdown && (
-                              <div className={`alert ${countdown.cls} mt-2 text-xs font-semibold flex flex-wrap items-center justify-between gap-2`}>
-                                <span>{countdown.label}</span>
-                                <span style={{ opacity: 0.8 }}>آخر مهلة: {countdown.deadlineLabel}</span>
+                              <div className={`reviewer-counter-box ${countdown.overdue ? 'is-overdue' : ''}`}>
+                                <span className="reviewer-counter-number">{formatEnglishNumber(countdown.days)}</span>
+                                <span className="reviewer-counter-label">{countdown.overdue ? 'يوم تأخير' : 'يوم متبقي'}</span>
                               </div>
                             )}
+                            <div className="min-w-0">
+                              <p className="summary-pill-label">{loan.refNumber}</p>
+                              <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
+                              {countdown && (
+                                <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>آخر مهلة لرفع التسوية: {countdown.deadlineLabel}</p>
+                              )}
+                            </div>
                           </div>
                         )
                       })}
@@ -1967,74 +1972,68 @@ function ReviewerLoanCard({ loan, onEditItems, onPreviewLoan, onApproveLoan, onR
   const isLoanApproved = loan.reviewStatus === 'REVIEWED'
   const isSettlementApproved = loan.settlementStatus === 'APPROVED'
 
-  const countdown = getSettlementCountdown(loan)
-
   return (
-    <div className="reviewer-card-v2">
-      <div className="flex-1 min-w-0 space-y-1.5">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold truncate" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
-            <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>
-              {loan.employee} • {formatDate(loan.startDate)} - {formatDate(loan.endDate)}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {loan.courseId && <span className="badge badge-info">إقفال الدورات</span>}
-            <span className="badge badge-primary">{loan.refNumber}</span>
-          </div>
+    <div className={`reviewer-card ${isLoanApproved ? 'is-approved' : ''}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 className="text-sm font-bold truncate" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
+          <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>
+            {loan.employee} • {loan.refNumber} • {formatDate(loan.startDate)} - {formatDate(loan.endDate)}
+          </p>
         </div>
-
-        {loan.reviewNote && <div className="alert alert-warning text-xs"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
-        {loan.recallRequested && (
-          <div className="alert alert-warning text-xs flex flex-wrap items-center justify-between gap-2">
-            <span><strong>طلب إعادة فتح المعاملة:</strong> {loan.recallReason}</span>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-xs">✓ قبول</button>
-              <button type="button" onClick={() => onRecallDecision(false)} className="btn btn-danger btn-xs">✗ رفض</button>
-            </div>
-          </div>
-        )}
-
-        <div className="reviewer-icon-row">
-          <span className="reviewer-icon-row-label">نموذج ١٨</span>
-          <button type="button" onClick={onPreviewLoan} className="reviewer-icon-btn is-primary" title="معاينة نموذج ١٨">👁️</button>
-          <button type="button" onClick={onApproveLoan} disabled={isLoanApproved} className="reviewer-icon-btn is-success" title={isLoanApproved ? 'معتمد' : 'اعتماد نموذج ١٨'}>✅</button>
-          {!isLoanApproved && (
-            <button type="button" onClick={onEditItems} className="reviewer-icon-btn" title="تعديل بنود الصرف">✏️</button>
-          )}
-          <button type="button" onClick={onReturnLoan} className="reviewer-icon-btn is-warning" title="إعادة نموذج ١٨ للموظف">↩️</button>
-          {isLoanApproved && (
-            <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="reviewer-icon-btn is-danger" title={isSettlementApproved ? 'ألغ اعتماد نموذج ١٩ أولًا' : 'إلغاء اعتماد نموذج ١٨'}>⛔</button>
-          )}
-
-          <span className="reviewer-icon-row-label">نموذج ١٩</span>
-          {hasSettlement ? (
-            <>
-              <button type="button" onClick={onPreviewSettlement} className="reviewer-icon-btn is-primary" title="معاينة نموذج ١٩">👁️</button>
-              <button type="button" onClick={onApproveSettlement} disabled={isSettlementApproved} className="reviewer-icon-btn is-success" title={isSettlementApproved ? 'معتمد' : 'اعتماد نموذج ١٩'}>✅</button>
-              <button type="button" onClick={onReturnSettlement} className="reviewer-icon-btn is-warning" title="إعادة نموذج ١٩ للموظف">↩️</button>
-              {isSettlementApproved && (
-                <button type="button" onClick={onCancelSettlementApproval} className="reviewer-icon-btn is-danger" title="إلغاء اعتماد نموذج ١٩">⛔</button>
-              )}
-            </>
-          ) : (
-            <span className="reviewer-action-note">لم يُرفع بعد</span>
-          )}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {loan.courseId && <span className="badge badge-info">إقفال الدورات</span>}
+          {isLoanApproved && <span className="badge badge-success">✓ طلب معتمد</span>}
         </div>
       </div>
 
-      <div className={`reviewer-counter-box ${countdown ? (countdown.overdue ? 'is-overdue' : '') : 'is-settled'}`} title={countdown ? `آخر مهلة لرفع التسوية: ${countdown.deadlineLabel}` : 'تمت التسوية'}>
-        {countdown ? (
+      {loan.reviewNote && <div className="alert alert-warning text-xs mt-2"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
+      {loan.recallRequested && (
+        <div className="alert alert-warning text-xs mt-2 flex flex-wrap items-center justify-between gap-2">
+          <span><strong>طلب إعادة فتح المعاملة:</strong> {loan.recallReason}</span>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-sm">✓ قبول</button>
+            <button type="button" onClick={() => onRecallDecision(false)} className="btn btn-danger btn-sm">✗ رفض</button>
+          </div>
+        </div>
+      )}
+
+      <div className="reviewer-action-row mt-2">
+        <span className="reviewer-action-row-label">نموذج ١٨:</span>
+        <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة</button>
+        {!isLoanApproved && (
+          <button type="button" onClick={onEditItems} className="btn btn-outline btn-sm" title="إضافة أو حذف أو تعديل بنود الصرف قبل الاعتماد">
+            ✏️ تعديل البنود
+          </button>
+        )}
+        <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-sm">إعادة للموظف</button>
+        {isLoanApproved ? (
+          <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-sm">
+            إلغاء الاعتماد
+          </button>
+        ) : (
+          <button type="button" onClick={onApproveLoan} className="btn btn-success btn-sm">اعتماد</button>
+        )}
+        {isLoanApproved && isSettlementApproved && <span className="text-xs" style={{ color: '#73384B' }}>ألغ اعتماد ١٩ أولًا</span>}
+      </div>
+
+      <div className="reviewer-action-row">
+        <span className="reviewer-action-row-label">نموذج ١٩:</span>
+        {hasSettlement ? (
           <>
-            <span className="reviewer-counter-number">{formatEnglishNumber(countdown.days)}</span>
-            <span className="reviewer-counter-label">{countdown.overdue ? 'يوم تأخير' : 'يوم متبقي'}</span>
+            <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة</button>
+            <button type="button" onClick={onReturnSettlement} className="btn btn-warning btn-sm">إعادة للموظف</button>
+            {isSettlementApproved ? (
+              <>
+                <span className="badge badge-success">✓ تسوية معتمدة</span>
+                <button type="button" onClick={onCancelSettlementApproval} className="btn btn-danger btn-sm">إلغاء الاعتماد</button>
+              </>
+            ) : (
+              <button type="button" onClick={onApproveSettlement} className="btn btn-success btn-sm">اعتماد</button>
+            )}
           </>
         ) : (
-          <>
-            <span style={{ fontSize: '1.5rem' }}>✓</span>
-            <span className="reviewer-counter-label">مسوّاة</span>
-          </>
+          <span className="reviewer-action-note">لم يرفع الموظف التسوية بعد</span>
         )}
       </div>
     </div>
