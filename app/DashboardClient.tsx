@@ -34,6 +34,7 @@ export type LoanDashboardRecord = {
   reviewNote?: string; startDate: string; endDate: string
   courseId?: string | null; courseCode?: string | null
   createdAt: string; updatedAt?: string; printedAt: string | null
+  settlementDeadline?: string | null
   files?: LoanRequestFiles | null; isSettled: boolean
   recallRequested?: boolean; recallReason?: string | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
@@ -66,19 +67,21 @@ function workDaysSince(endDate: string) {
   return count
 }
 
-// عداد التسوية للموظف: المهلة ١٠ أيام عمل بعد انتهاء البرنامج
-function getSettlementCountdown(loan: { endDate: string; isSettled: boolean }) {
-  if (loan.isSettled) return null
-  if (new Date(loan.endDate) > new Date()) {
-    return { label: '⏳ البرنامج لم ينتهِ بعد — تبدأ مهلة التسوية (١٠ أيام عمل) بعد انتهائه', cls: 'alert-info' }
+// عدادات التسوية لكل سلفة: الأيام الكلية من الطلب، مهلة ما بعد الدورة، وأيام التأخير
+function getSettlementCounters(loan: { createdAt: string; endDate: string; settlementDeadline?: string | null }) {
+  if (!loan.settlementDeadline) return null
+  const dayMs = 1000 * 60 * 60 * 24
+  const created = new Date(loan.createdAt)
+  const end = new Date(loan.endDate)
+  const deadline = new Date(loan.settlementDeadline)
+  const today = new Date()
+
+  return {
+    totalDaysFromRequest: Math.round((deadline.getTime() - created.getTime()) / dayMs),
+    graceDaysAfterEnd: Math.round((deadline.getTime() - end.getTime()) / dayMs),
+    overdueDays: Math.max(0, Math.round((today.getTime() - deadline.getTime()) / dayMs)),
+    deadlineLabel: formatDate(loan.settlementDeadline),
   }
-  const daysSince = workDaysSince(loan.endDate)
-  const remaining = SETTLEMENT_GRACE_WORKDAYS - daysSince
-  if (remaining > 0) {
-    return { label: `⏳ متبقي ${formatEnglishNumber(remaining)} يوم عمل لرفع تسوية هذه السلفة (نموذج ١٩)`, cls: remaining <= 3 ? 'alert-warning' : 'alert-info' }
-  }
-  const overdue = daysSince - SETTLEMENT_GRACE_WORKDAYS
-  return { label: `🚨 متأخر ${formatEnglishNumber(overdue)} يوم عمل عن رفع تسوية هذه السلفة (نموذج ١٩)!`, cls: 'alert-error' }
 }
 
 function workDaysBetween(startDate: string, endDate: string) {
@@ -1098,15 +1101,31 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       <p className="text-sm" style={{ color: '#5A5A5A' }}>لا توجد سلف مفتوحة بانتظار التسوية حالياً</p>
                     </div>
                   ) : (
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {loans.filter((l) => !l.isSettled).map((loan) => {
-                        const countdown = getSettlementCountdown(loan)
+                        const counters = getSettlementCounters(loan)
                         return (
                           <div key={loan.id} className="summary-pill">
                             <p className="summary-pill-label">{loan.refNumber}</p>
                             <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
-                            {countdown && (
-                              <p className={`alert ${countdown.cls} mt-2 text-xs font-semibold`}>{countdown.label}</p>
+                            {counters && (
+                              <>
+                                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                                  <div>
+                                    <p className="text-lg font-bold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>{formatEnglishNumber(counters.totalDaysFromRequest)}</p>
+                                    <p className="text-[11px]" style={{ color: '#5A5A5A' }}>يوم من تاريخ الطلب حتى آخر مهلة</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-lg font-bold" style={{ color: '#2E6F8E', fontFamily: 'IBM Plex Mono, monospace' }}>{formatEnglishNumber(counters.graceDaysAfterEnd)}</p>
+                                    <p className="text-[11px]" style={{ color: '#5A5A5A' }}>يوم مهلة بعد انتهاء البرنامج</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-lg font-bold" style={{ color: counters.overdueDays > 0 ? '#73384B' : '#4F8F7A', fontFamily: 'IBM Plex Mono, monospace' }}>{formatEnglishNumber(counters.overdueDays)}</p>
+                                    <p className="text-[11px]" style={{ color: '#5A5A5A' }}>يوم تأخير عن التسوية</p>
+                                  </div>
+                                </div>
+                                <p className="mt-2 text-xs font-semibold text-center" style={{ color: '#6B5A4A' }}>آخر مهلة لرفع التسوية: {counters.deadlineLabel}</p>
+                              </>
                             )}
                           </div>
                         )
@@ -2074,8 +2093,15 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             <span className="font-semibold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>💰 {formatCurrencySar(loan.amount)}</span>
           </div>
 
-          {(() => { const countdown = getSettlementCountdown(loan); return countdown && (
-            <div className={`alert ${countdown.cls} text-xs font-semibold`}>{countdown.label}</div>
+          {!loan.isSettled && (() => { const counters = getSettlementCounters(loan); return counters && (
+            <div className="alert alert-info text-xs font-semibold space-y-1">
+              <div className="flex flex-wrap gap-3">
+                <span>📆 {formatEnglishNumber(counters.totalDaysFromRequest)} يوم من تاريخ الطلب حتى آخر مهلة</span>
+                <span>🏁 {formatEnglishNumber(counters.graceDaysAfterEnd)} يوم مهلة بعد انتهاء البرنامج</span>
+                <span style={{ color: counters.overdueDays > 0 ? '#73384B' : 'inherit' }}>⏰ {formatEnglishNumber(counters.overdueDays)} يوم تأخير عن التسوية</span>
+              </div>
+              <div>آخر مهلة لرفع التسوية (نموذج ١٩): {counters.deadlineLabel}</div>
+            </div>
           ) })()}
 
           {loan.reviewNote && (
