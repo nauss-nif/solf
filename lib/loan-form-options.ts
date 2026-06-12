@@ -96,6 +96,11 @@ export const LOAN_ATTACHMENT_DEFINITIONS = [
     label: 'موافقة الوكيل على تعديل المرشح',
     required: false,
   },
+  {
+    key: 'otherAttachments',
+    label: 'مرفقات أخرى',
+    required: false,
+  },
 ] as const
 
 export const GUIDE_SECTIONS = [
@@ -140,7 +145,7 @@ export type StoredFile = {
   dataUrl: string
 }
 
-export type LoanRequestFiles = Partial<Record<LoanAttachmentKey, StoredFile | null>>
+export type LoanRequestFiles = Partial<Record<LoanAttachmentKey, StoredFile[]>>
 
 export function isStoredImageFile(value: unknown): value is StoredFile {
   if (!value || typeof value !== 'object') return false
@@ -155,15 +160,25 @@ export function isStoredImageFile(value: unknown): value is StoredFile {
   )
 }
 
+// يدعم القيمة القديمة (صورة واحدة) والقيمة الجديدة (مصفوفة صور) لنفس مفتاح المرفق
+export function toStoredFileArray(value: unknown): StoredFile[] {
+  if (value == null) return []
+  if (Array.isArray(value)) return value.filter(isStoredImageFile)
+  return isStoredImageFile(value) ? [value] : []
+}
+
 export function validateLoanRequestFiles(files: unknown) {
   if (files == null) return null
   if (typeof files !== 'object' || Array.isArray(files)) return 'صيغة مرفقات الطلب غير صحيحة.'
 
   const source = files as Record<string, unknown>
   for (const attachment of LOAN_ATTACHMENT_DEFINITIONS) {
-    const file = source[attachment.key]
-    if (file == null) continue
-    if (!isStoredImageFile(file)) return `${attachment.label} يجب أن يكون صورة فقط.`
+    const value = source[attachment.key]
+    if (value == null) continue
+    if (!Array.isArray(value)) return `${attachment.label} يجب أن يكون قائمة صور.`
+    for (const file of value) {
+      if (!isStoredImageFile(file)) return `${attachment.label} يجب أن تكون جميع المرفقات صورًا فقط.`
+    }
   }
 
   return null

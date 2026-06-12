@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
-import { type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
+import { LOAN_ATTACHMENT_DEFINITIONS, toStoredFileArray, type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
 import { DEFAULT_SYSTEM_SETTINGS, type SystemSettings } from '@/lib/system-settings'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
@@ -664,6 +664,22 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
     .join('')
 }
 
+function buildLoanAttachmentPages(loan: LoanDocumentRecord) {
+  const files = (loan.files ?? {}) as Record<string, unknown>
+
+  return LOAN_ATTACHMENT_DEFINITIONS.flatMap((attachment) =>
+    toStoredFileArray(files[attachment.key]).map((file, index, arr) => `
+      <section class="attachment-page">
+        <div class="attachment-header">
+          <h2>${escapeHtml(attachment.label)}${arr.length > 1 ? ` (${index + 1}/${arr.length})` : ''}</h2>
+          <span>رقم المرجع: ${escapeHtml(loan.refNumber)}</span>
+        </div>
+        <div class="attachment-preview"><img src="${file.dataUrl}" alt="${escapeHtml(file.name)}" /></div>
+      </section>
+    `),
+  ).join('')
+}
+
 function joinPlainValues(values: Array<string | undefined>, separator = '\n') {
   return values
     .map((value) => value?.trim() ?? '')
@@ -1165,6 +1181,8 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
         <span>التاريخ:</span>
       </div>
     </div>
+
+    ${buildLoanAttachmentPages(loan)}
   `
 
   return printShell(body, {

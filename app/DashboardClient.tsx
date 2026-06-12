@@ -16,6 +16,7 @@ import {
   IMAGE_TARGET_MAX_BYTES,
   LOAN_ATTACHMENT_DEFINITIONS,
   SETTLEMENT_DOCUMENT_TYPES,
+  toStoredFileArray,
   type CurrencyCode,
   type LoanRequestFiles,
   type SettlementCurrencyRate,
@@ -100,8 +101,8 @@ function createSettlementItem(category: string, budget: number, options?: { isAd
   return { id: createDraftId('si'), category, budget, invoices: [createEmptyInvoice()], isAdditional: options?.isAdditional ?? false }
 }
 
-function createEmptyAttachments(): Record<string, StoredFile | null> {
-  return Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((a) => [a.key, null])) as Record<string, StoredFile | null>
+function createEmptyAttachments(): Record<string, StoredFile[]> {
+  return Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((a) => [a.key, []])) as Record<string, StoredFile[]>
 }
 
 function getCurrencyLabel(code: CurrencyCode) { return CURRENCY_OPTIONS.find((c) => c.code === code)?.label ?? code }
@@ -142,8 +143,8 @@ function cloneStoredFile(file: StoredFile | null | undefined) {
   return file ? { name: file.name, type: file.type, size: file.size, dataUrl: file.dataUrl } : null
 }
 
-function toLoanRequestFiles(input: Record<string, StoredFile | null>): LoanRequestFiles {
-  return Object.fromEntries(Object.entries(input).map(([k, v]) => [k, v ? cloneStoredFile(v) : null]))
+function toLoanRequestFiles(input: Record<string, StoredFile[]>): LoanRequestFiles {
+  return Object.fromEntries(Object.entries(input).map(([k, v]) => [k, v.map((f) => cloneStoredFile(f) as StoredFile)]))
 }
 
 function buildRateMap(rates: SettlementCurrencyRate[]) {
@@ -201,7 +202,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [loanForm, setLoanForm] = useState<LoanFormState>(() => createEmptyLoanForm(currentUser, initialLoans.map(normalizeLoanRecord)))
   const [expenses, setExpenses] = useState<ExpenseDraft[]>([{ category: '', amount: '' }])
-  const [loanAttachments, setLoanAttachments] = useState<Record<string, StoredFile | null>>(createEmptyAttachments)
+  const [loanAttachments, setLoanAttachments] = useState<Record<string, StoredFile[]>>(createEmptyAttachments)
   const [currencyRates, setCurrencyRates] = useState<SettlementCurrencyRate[]>([])
   const [settlementItems, setSettlementItems] = useState<SettlementDraft[]>([])
   const [settlementMeta, setSettlementMeta] = useState<SettlementMetaState>({ receiptNumber: '', receiptDate: '', overageReason: '' })
@@ -451,7 +452,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     setLoanError(''); setEditingLoanId(loan.id)
     setLoanForm({ requestDate: loan.createdAt.slice(0, 10), refNumber: loan.refNumber, agencyCode: AGENCY_CODE, employee: loan.employee, activity: loan.activity, location: loan.location, startDate: loan.startDate.slice(0, 10), endDate: loan.endDate.slice(0, 10), budgetApproved: loan.budgetApproved })
     setExpenses(loan.items.length > 0 ? loan.items.map((i) => ({ category: i.category, amount: String(i.amount) })) : [{ category: '', amount: '' }])
-    setLoanAttachments({ grandApproval: cloneStoredFile(loan.files?.grandApproval), nomineeAdjustment: cloneStoredFile(loan.files?.nomineeAdjustment) })
+    setLoanAttachments(Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((att) => [att.key, toStoredFileArray(loan.files?.[att.key]).map((f) => cloneStoredFile(f) as StoredFile)])))
     setLoanModalOpen(true)
   }
 
@@ -469,9 +470,16 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }
 
   async function handleLoanAttachmentUpload(key: string, fileList: FileList | null) {
-    const file = fileList?.[0]; if (!file) return
-    try { const stored = await fileToStoredFile(file); setLoanAttachments((curr) => ({ ...curr, [key]: stored })); setLoanError('') }
-    catch (err) { setLoanError(err instanceof Error ? err.message : 'تعذر رفع الملف.') }
+    const files = Array.from(fileList ?? []); if (files.length === 0) return
+    try {
+      const stored = await Promise.all(files.map((file) => fileToStoredFile(file)))
+      setLoanAttachments((curr) => ({ ...curr, [key]: [...(curr[key] ?? []), ...stored] }))
+      setLoanError('')
+    } catch (err) { setLoanError(err instanceof Error ? err.message : 'تعذر رفع الملف.') }
+  }
+
+  function removeLoanAttachment(key: string, index: number) {
+    setLoanAttachments((curr) => ({ ...curr, [key]: (curr[key] ?? []).filter((_, i) => i !== index) }))
   }
 
   async function submitLoan() {
@@ -480,7 +488,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     if (!loanForm.startDate || !loanForm.endDate) { setLoanError('حدد تاريخ البداية والنهاية.'); return }
     if (loanForm.budgetApproved === null) { setLoanError('حدد حالة اعتماد الموازنة.'); return }
     if (cleanExpenses.length === 0) { setLoanError('أضف بند صرف واحد على الأقل.'); return }
-    for (const att of LOAN_ATTACHMENT_DEFINITIONS) { if (att.required && !loanAttachments[att.key]) { setLoanError(`أرفق ${att.label} قبل إرسال الطلب.`); return } }
+    for (const att of LOAN_ATTACHMENT_DEFINITIONS) { if (att.required && (loanAttachments[att.key]?.length ?? 0) === 0) { setLoanError(`أرفق ${att.label} قبل إرسال الطلب.`); return } }
     const total = cleanExpenses.reduce((s, i) => s + i.amount, 0)
     const payload = { activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses, courseId: linkedCourse?.id, courseCode: linkedCourse?.code, ...(editingLoanId ? { refNumber: loanForm.refNumber } : {}) }
     startTransition(async () => {
@@ -1544,30 +1552,33 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 </div>
                 <div className="space-y-3">
                   {LOAN_ATTACHMENT_DEFINITIONS.map((att) => {
-                    const currentFile = loanAttachments[att.key]
+                    const currentFiles = loanAttachments[att.key] ?? []
                     return (
-                      <div key={att.key} className={`attachment-card ${currentFile ? 'has-file' : att.required ? 'required-missing' : ''}`}>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate" style={{ color: att.required ? '#73384B' : '#1F3F40' }}>
-                            {att.label} {att.required ? '(إلزامي)' : '(اختياري)'}
-                          </p>
-                          {currentFile ? (
-                            <p className="text-xs mt-0.5 truncate" style={{ color: '#4F8F7A' }}>
-                              ✓ {currentFile.name} — {Math.round(currentFile.size / 1024)} KB
+                      <div key={att.key} className={`attachment-card flex-col items-stretch ${currentFiles.length > 0 ? 'has-file' : att.required ? 'required-missing' : ''}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate" style={{ color: att.required ? '#73384B' : '#1F3F40' }}>
+                              {att.label} {att.required ? '(إلزامي)' : '(اختياري)'}
                             </p>
-                          ) : (
-                            <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>لم يتم اختيار ملف</p>
-                          )}
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                          <label className="btn btn-primary btn-sm cursor-pointer">
-                            {currentFile ? 'تغيير' : 'رفع ملف'}
-                            <input type="file" className="hidden" accept="image/*" onChange={(e) => void handleLoanAttachmentUpload(att.key, e.target.files)} />
+                            <p className="text-xs mt-0.5" style={{ color: currentFiles.length > 0 ? '#4F8F7A' : '#5A5A5A' }}>
+                              {currentFiles.length > 0 ? `✓ ${currentFiles.length} صورة مرفقة` : 'لم يتم اختيار صور'}
+                            </p>
+                          </div>
+                          <label className="btn btn-primary btn-sm cursor-pointer flex-shrink-0">
+                            إضافة صور
+                            <input type="file" multiple className="hidden" accept="image/*" onChange={(e) => { void handleLoanAttachmentUpload(att.key, e.target.files); e.target.value = '' }} />
                           </label>
-                          {currentFile && (
-                            <button type="button" onClick={() => setLoanAttachments((c) => ({ ...c, [att.key]: null }))} className="btn btn-danger btn-sm">إزالة</button>
-                          )}
                         </div>
+                        {currentFiles.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {currentFiles.map((file, index) => (
+                              <div key={index} className="relative group" style={{ width: 64, height: 64 }}>
+                                <img src={file.dataUrl} alt={file.name} className="w-full h-full object-cover rounded-lg" style={{ border: '1px solid #C8D9D0' }} />
+                                <button type="button" onClick={() => removeLoanAttachment(att.key, index)} className="absolute -top-2 -left-2 flex items-center justify-center rounded-full text-white text-xs" style={{ width: 20, height: 20, background: '#73384B' }} title="إزالة الصورة">×</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -1899,7 +1910,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   onPrintLoan: () => void; onPrintSettlement: () => void
   onSendManualAlert: () => void; onSendReviewerReminder: () => void
 }) {
-  const attachCount = Object.values(loan.files ?? {}).filter(Boolean).length
+  const attachCount = Object.values(loan.files ?? {}).reduce((sum: number, v) => sum + toStoredFileArray(v).length, 0)
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
 
   return (
