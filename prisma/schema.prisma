@@ -48,6 +48,7 @@ enum NotificationType {
   SETTLEMENT_REMINDER   // تذكير بالتسوية
   SETTLEMENT_OVERDUE    // تأخر التسوية
   SETTLEMENT_APPROVED   // اعتمدت التسوية
+  EXCEPTION_GRANTED     // منح استثناء (أثر من نسخة سابقة، غير مستخدم حالياً)
   SYSTEM                // إشعار عام
 }
 
@@ -67,7 +68,10 @@ model User {
 
   // التوقيع الإلكتروني — صورة محفوظة (StoredFile) تُستخدم في النماذج المعتمدة
   signatureImage  Json?
-  
+
+  // الصورة الشخصية — صورة محفوظة (StoredFile) تُعرض في الملف الشخصي
+  profileImage  Json?
+
   // ربط اختياري بنظام الإقفال
   // نفس email = نفس الشخص في النظامين
   closureSystemUserId  String?  // User.id من نظام الإقفال (اختياري)
@@ -78,6 +82,8 @@ model User {
   loans              Loan[]           @relation("UserLoans")
   notifications      LoanNotification[]
   sentAlerts         LoanAlert[]      @relation("AlertSender")
+  reviewedLoans          Loan[]       @relation("LoanReviewedBy")
+  settlementReviewedLoans Loan[]      @relation("LoanSettlementReviewedBy")
 
   @@map("users")
 }
@@ -115,6 +121,12 @@ model Loan {
   reviewNote    String?
   printedAt     DateTime?
 
+  // المراجع الذي يُعتمد توقيعه على نموذج ١٨ (قد يكون المدير اعتمد بالنيابة عنه)
+  reviewedById  String?
+
+  // المراجع الذي يُعتمد توقيعه على نموذج ١٩ (قد يكون المدير اعتمد بالنيابة عنه)
+  settlementReviewedById  String?
+
   // ─── طلب إعادة فتح المعاملة بعد الاعتماد ─────────────────
   recallRequested   Boolean   @default(false)
   recallReason      String?
@@ -135,6 +147,8 @@ model Loan {
 
   // العلاقات
   user              User?       @relation("UserLoans", fields: [userId], references: [id], onDelete: SetNull)
+  reviewedBy            User?   @relation("LoanReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  settlementReviewedBy  User?   @relation("LoanSettlementReviewedBy", fields: [settlementReviewedById], references: [id], onDelete: SetNull)
   settlement        Settlement?
   items             LoanItem[]
   alerts            LoanAlert[]
@@ -145,6 +159,8 @@ model Loan {
   @@index([settlementStatus])
   @@index([settlementDeadline])
   @@index([courseId])
+  @@index([reviewedById])
+  @@index([settlementReviewedById])
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -234,4 +250,19 @@ model LoanSequence {
   lastNumber  Int    @default(0)
 
   @@map("loan_sequence")
+}
+
+// ─────────────────────────────────────────────────────────────
+// PasswordResetCode — أثر من نسخة سابقة (ميزة نسيت كلمة المرور)
+// غير مستخدم حالياً في الكود، أُضيف فقط لمطابقة قاعدة البيانات
+// ─────────────────────────────────────────────────────────────
+model PasswordResetCode {
+  id        String    @id @default(uuid())
+  userId    String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("password_reset_codes")
 }

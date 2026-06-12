@@ -489,7 +489,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
       const dest = getDestinationLabel(loan.location)
       let label: string
-      if (dest && (destinationCounts.get(dest) ?? 0) > 1) {
+      if (isReviewerMode) {
+        label = getFirstName(loan.employee)
+      } else if (dest && (destinationCounts.get(dest) ?? 0) > 1) {
         const seen = (destinationSeen.get(dest) ?? 0) + 1
         destinationSeen.set(dest, seen)
         label = `${dest} ${seen}`
@@ -501,7 +503,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
       return { label, indicator, days, overdue }
     })
-  }, [loans])
+  }, [loans, isReviewerMode])
 
   const dashboardInsights = useMemo(() => {
     const requesters = new Map<string, { employee: string; count: number; active: number; settled: number; overdue: number; totalAmount: number }>()
