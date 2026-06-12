@@ -1091,22 +1091,28 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="summary-pill">
-                    <p className="summary-pill-label">طالبو السلف</p>
-                    <p className="summary-pill-value" style={{ color: '#2A6364' }}>{formatEnglishNumber(dashboardInsights.requesterCount)}</p>
-                    <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>أعلى الموظفين حسب إجمالي مبالغ الطلبات</p>
-                  </div>
-                  <div className="summary-pill">
-                    <p className="summary-pill-label">متوسط مدة التسوية</p>
-                    <p className="summary-pill-value" style={{ color: '#2E6F8E' }}>{formatEnglishNumber(Math.round(dashboardInsights.averageSettleDays))} يوم عمل</p>
-                    <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>من نهاية البرنامج حتى حفظ التسوية</p>
-                  </div>
-                  <div className="summary-pill">
-                    <p className="summary-pill-label">مبالغ متأخرة عن التسوية</p>
-                    <p className="summary-pill-value" style={{ color: '#73384B' }}>{formatCurrencySar(dashboardInsights.overdueAmount)}</p>
-                    <p className="mt-1 text-xs" style={{ color: '#5A5A5A' }}>بعد {formatEnglishNumber(SETTLEMENT_GRACE_WORKDAYS)} أيام عمل من نهاية البرنامج</p>
-                  </div>
+                <div>
+                  <h3 className="text-sm font-semibold mb-3" style={{ color: '#2D4D40' }}>عدادات تسوية السلف المفتوحة</h3>
+                  {loans.filter((l) => !l.isSettled).length === 0 ? (
+                    <div className="summary-pill">
+                      <p className="text-sm" style={{ color: '#5A5A5A' }}>لا توجد سلف مفتوحة بانتظار التسوية حالياً</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {loans.filter((l) => !l.isSettled).map((loan) => {
+                        const countdown = getSettlementCountdown(loan)
+                        return (
+                          <div key={loan.id} className="summary-pill">
+                            <p className="summary-pill-label">{loan.refNumber}</p>
+                            <p className="mt-1 text-xs font-semibold" style={{ color: '#5A5A5A' }}>{loan.employee} • {loan.activity}</p>
+                            {countdown && (
+                              <p className={`alert ${countdown.cls} mt-2 text-xs font-semibold`}>{countdown.label}</p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
