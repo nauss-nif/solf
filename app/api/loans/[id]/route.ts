@@ -225,7 +225,7 @@ export async function PATCH(
         data: updateData,
         include: dashboardLoanInclude,
       })
-    })
+    }, { timeout: 20000 })
 
     return NextResponse.json(updatedLoan)
   } catch (error) {
