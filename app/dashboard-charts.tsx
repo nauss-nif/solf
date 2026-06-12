@@ -99,7 +99,7 @@ export function ItemUsageInsights({ data }: { data: ItemUsageStat[] }) {
   )
 }
 
-type SettlementUrgencyEntry = { employee: string; indicator: number; days: number; overdue: boolean }
+type SettlementUrgencyEntry = { label: string; indicator: number; days: number; overdue: boolean }
 
 export function SettlementUrgencyRadarChart({ data, height = 280 }: { data: SettlementUrgencyEntry[]; height?: number }) {
   if (data.length === 0) {
@@ -110,12 +110,12 @@ export function SettlementUrgencyRadarChart({ data, height = 280 }: { data: Sett
     <ResponsiveContainer width="100%" height={height}>
       <RadarChart data={data} outerRadius="70%">
         <PolarGrid gridType="circle" stroke="#DADBD9" />
-        <PolarAngleAxis dataKey="employee" tick={{ fontSize: 11, fill: '#2D4D40' }} />
+        <PolarAngleAxis dataKey="label" tick={{ fontSize: 11, fill: '#2D4D40' }} />
         <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
         <Tooltip
           formatter={(_v, _n, item) => {
             const p = item.payload as SettlementUrgencyEntry
-            return [p.overdue ? `متأخر ${formatEnglishNumber(p.days)} يوم` : `متبقي ${formatEnglishNumber(p.days)} يوم`, p.employee]
+            return [p.overdue ? `متأخر ${formatEnglishNumber(p.days)} يوم` : `متبقي ${formatEnglishNumber(p.days)} يوم`, p.label]
           }}
           contentStyle={tooltipStyle}
         />

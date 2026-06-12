@@ -61,6 +61,10 @@ const SETTLEMENT_GRACE_WORKDAYS = 10
 
 function formatDate(value: string) { return new Date(value).toLocaleDateString('en-GB') }
 
+function getFirstName(fullName: string) { return fullName.trim().split(/\s+/)[0] || fullName }
+
+function getDestinationLabel(location: string) { return location ? location.split(/[,،]/)[0].trim() : '' }
+
 function workDaysSince(endDate: string) {
   const end = new Date(endDate); const today = new Date(); const current = new Date(end); let count = 0
   while (current < today) { current.setDate(current.getDate() + 1); const day = current.getDay(); if (day !== 5 && day !== 6) count++ }
@@ -462,16 +466,41 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   ].filter((d) => d.value > 0), [stats])
 
   const settlementUrgencyData = useMemo(() => {
-    const URGENCY_WINDOW_DAYS = 14
-    return loans
+    const URGENCY_DECAY_DAYS = 15
+
+    const openLoans = [...loans]
       .filter((l) => !l.isSettled)
-      .map((loan) => {
-        const countdown = getSettlementCountdown(loan)
-        const days = countdown?.days ?? 0
-        const overdue = countdown?.overdue ?? false
-        const indicator = overdue ? 100 : Math.max(0, Math.min(100, Math.round(100 - (days / URGENCY_WINDOW_DAYS) * 100)))
-        return { employee: loan.employee, indicator, days, overdue }
-      })
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
+    const destinationCounts = new Map<string, number>()
+    for (const loan of openLoans) {
+      const dest = getDestinationLabel(loan.location)
+      if (dest) destinationCounts.set(dest, (destinationCounts.get(dest) ?? 0) + 1)
+    }
+
+    const destinationSeen = new Map<string, number>()
+
+    return openLoans.map((loan) => {
+      const countdown = getSettlementCountdown(loan)
+      const days = countdown?.days ?? 0
+      const overdue = countdown?.overdue ?? false
+      // كل ما اقترب موعد التسوية (قلّ عدد الأيام المتبقية) ارتفع المؤشر نحو 100
+      const indicator = overdue ? 100 : Math.round(100 * Math.exp(-days / URGENCY_DECAY_DAYS))
+
+      const dest = getDestinationLabel(loan.location)
+      let label: string
+      if (dest && (destinationCounts.get(dest) ?? 0) > 1) {
+        const seen = (destinationSeen.get(dest) ?? 0) + 1
+        destinationSeen.set(dest, seen)
+        label = `${dest} ${seen}`
+      } else if (dest) {
+        label = dest
+      } else {
+        label = getFirstName(loan.employee)
+      }
+
+      return { label, indicator, days, overdue }
+    })
   }, [loans])
 
   const dashboardInsights = useMemo(() => {
