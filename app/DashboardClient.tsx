@@ -66,6 +66,21 @@ function workDaysSince(endDate: string) {
   return count
 }
 
+// عداد التسوية للموظف: المهلة ١٠ أيام عمل بعد انتهاء البرنامج
+function getSettlementCountdown(loan: { endDate: string; isSettled: boolean }) {
+  if (loan.isSettled) return null
+  if (new Date(loan.endDate) > new Date()) {
+    return { label: '⏳ البرنامج لم ينتهِ بعد — تبدأ مهلة التسوية (١٠ أيام عمل) بعد انتهائه', cls: 'alert-info' }
+  }
+  const daysSince = workDaysSince(loan.endDate)
+  const remaining = SETTLEMENT_GRACE_WORKDAYS - daysSince
+  if (remaining > 0) {
+    return { label: `⏳ متبقي ${formatEnglishNumber(remaining)} يوم عمل لرفع تسوية هذه السلفة (نموذج ١٩)`, cls: remaining <= 3 ? 'alert-warning' : 'alert-info' }
+  }
+  const overdue = daysSince - SETTLEMENT_GRACE_WORKDAYS
+  return { label: `🚨 متأخر ${formatEnglishNumber(overdue)} يوم عمل عن رفع تسوية هذه السلفة (نموذج ١٩)!`, cls: 'alert-error' }
+}
+
 function workDaysBetween(startDate: string, endDate: string) {
   const start = new Date(startDate); const end = new Date(endDate); const current = new Date(start); let count = 0
   while (current < end) { current.setDate(current.getDate() + 1); const day = current.getDay(); if (day !== 5 && day !== 6) count++ }
@@ -2052,6 +2067,10 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             <span>الموازنة: {loan.budgetApproved === true ? '✓ معتمدة' : loan.budgetApproved === false ? '✗ غير معتمدة' : '—'}</span>
             <span className="font-semibold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>💰 {formatCurrencySar(loan.amount)}</span>
           </div>
+
+          {(() => { const countdown = getSettlementCountdown(loan); return countdown && (
+            <div className={`alert ${countdown.cls} text-xs font-semibold`}>{countdown.label}</div>
+          ) })()}
 
           {loan.reviewNote && (
             <div className="alert alert-warning text-xs">
