@@ -7,10 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { workingDaysUntilDeadline } from '@/lib/settlement-deadline'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ''
-const FROM_EMAIL = process.env.FROM_EMAIL
-  ?? (process.env.RESEND_FROM_EMAIL
-    ? `منصة إدارة السلف <${process.env.RESEND_FROM_EMAIL}>`
-    : 'منصة إدارة السلف <noreply@od-nauss.win>')
+const FROM_EMAIL = `منصة إدارة السلف <${process.env.RESEND_FROM_EMAIL || 'noreply@od-nauss.win'}>`
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@nauss.edu.sa'
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL ?? '').replace(/\/$/, '')
 const LOGO_URL = SITE_URL
