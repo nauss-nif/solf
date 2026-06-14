@@ -300,9 +300,9 @@ function printShell(body: string, options: PrintShellOptions) {
       pointer-events: none;
       z-index: 2;
     }
-    .reviewer-signature-1 { top: 8mm; right: -12mm; }
-    .reviewer-signature-2 { top: 31mm; right: -12mm; }
-    .reviewer-signature-3 { bottom: 8mm; right: -12mm; }
+    .reviewer-signature-1 { top: 10mm; right: -7mm; }
+    .reviewer-signature-2 { top: 22mm; right: -7mm; }
+    .reviewer-signature-3 { bottom: 8mm; right: -7mm; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
