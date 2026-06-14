@@ -294,15 +294,15 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature {
       position: absolute;
-      width: 12mm;
-      max-height: 7mm;
+      width: 11mm;
+      max-height: 6mm;
       object-fit: contain;
       pointer-events: none;
       z-index: 2;
     }
-    .reviewer-signature-1 { top: 12mm; right: -14mm; }
-    .reviewer-signature-2 { top: 20mm; right: -14mm; }
-    .reviewer-signature-3 { bottom: 10mm; right: -14mm; }
+    .reviewer-signature-1 { top: 13mm; right: 1mm; }
+    .reviewer-signature-2 { top: 21mm; right: 1mm; }
+    .reviewer-signature-3 { bottom: 11mm; right: 1mm; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
@@ -482,6 +482,13 @@ function printShell(body: string, options: PrintShellOptions) {
     @media print {
       html, body { background: #fff; }
       .print-sheet { width: 100%; min-height: auto; }
+      .loan-table-wrap {
+        overflow: visible;
+      }
+      .reviewer-signature {
+        opacity: 1 !important;
+        visibility: visible !important;
+      }
       .official-inline,
       .official-panel,
       .signature-line {
