@@ -294,15 +294,15 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature {
       position: absolute;
-      width: 10mm;
-      max-height: 6mm;
+      width: 16mm;
+      max-height: 9mm;
       object-fit: contain;
       pointer-events: none;
       z-index: 2;
     }
-    .reviewer-signature-1 { top: 11mm; right: 0; }
-    .reviewer-signature-2 { top: 20mm; right: 0; }
-    .reviewer-signature-3 { bottom: 10mm; right: 0; }
+    .reviewer-signature-1 { top: 10mm; right: 0; }
+    .reviewer-signature-2 { top: 21mm; right: 0; }
+    .reviewer-signature-3 { bottom: 9mm; right: 0; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
