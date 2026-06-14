@@ -295,19 +295,21 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signatures-layer {
       position: absolute;
-      left: 0;
-      bottom: -8mm;
+      right: 0;
+      left: auto;
+      bottom: 3mm;
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 6mm;
+      flex-direction: row-reverse;
+      gap: 5mm;
       pointer-events: none;
       z-index: 2;
     }
     .reviewer-signature {
       display: block;
-      width: 24mm;
-      max-height: 10mm;
+      width: 22mm;
+      max-height: 9mm;
       object-fit: contain;
     }
     .text-right { text-align: right !important; }
