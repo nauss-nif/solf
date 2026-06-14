@@ -22,6 +22,8 @@ export async function GET() {
         extension: true,
         role: true,
         roles: true,
+        profileImage: true,
+        signatureImage: true,
       },
     })
 
@@ -53,6 +55,26 @@ export async function PATCH(request: Request) {
     if (body.mobile) data.mobile = String(body.mobile).trim()
     if (body.extension) data.extension = String(body.extension).trim()
 
+    if ('profileImage' in body) {
+      if (body.profileImage === null) {
+        data.profileImage = null
+      } else if (isStoredImageFile(body.profileImage)) {
+        data.profileImage = body.profileImage
+      } else {
+        return NextResponse.json({ error: 'الصورة الشخصية يجب أن تكون صورة فقط.' }, { status: 400 })
+      }
+    }
+
+    if ('signatureImage' in body) {
+      if (body.signatureImage === null) {
+        data.signatureImage = null
+      } else if (isStoredImageFile(body.signatureImage)) {
+        data.signatureImage = body.signatureImage
+      } else {
+        return NextResponse.json({ error: 'التوقيع يجب أن يكون صورة فقط.' }, { status: 400 })
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: currentUser.userId },
       data,
@@ -64,6 +86,8 @@ export async function PATCH(request: Request) {
         extension: true,
         role: true,
         roles: true,
+        profileImage: true,
+        signatureImage: true,
       },
     })
 
@@ -83,4 +107,3 @@ export async function PATCH(request: Request) {
     )
   }
 }
-

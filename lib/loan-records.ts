@@ -39,11 +39,29 @@ export async function getAuthorizedLoan(
   return loan
 }
 
-// طھط£ط´ظٹط±ط§طھ ط§ظ„ظ…ط±ط§ط¬ط¹ظٹظ†: طھظˆظ‚ظٹط¹ط§طھ ط£ظˆظ„ 3 ظ…ط³طھط®ط¯ظ…ظٹظ† ط¨ط¯ظˆط± "ظ…ط±ط§ط¬ط¹" ظ„ط¯ظٹظ‡ظ… طھظˆظ‚ظٹط¹ ظ…ط­ظپظˆط¸
-// ط¥ظ† ط£ظڈط¹ط·ظٹ preferredReviewerId (ط§ط¹طھظ…ط§ط¯ ط§ظ„ظ…ط¯ظٹط± ط¨ط§ظ„ظ†ظٹط§ط¨ط© ط¹ظ† ظ…ط±ط§ط¬ط¹ ظ…ط­ط¯ط¯)طŒ ظٹظڈظ‚ط¯ظژظ‘ظ… طھظˆظ‚ظٹط¹ ط°ظ„ظƒ ط§ظ„ظ…ط±ط§ط¬ط¹ ط£ظˆظ„ط§ظ‹
+// تأشيرات المراجعين: توقيعات أول 3 مستخدمين بدور "مراجع" لديهم توقيع محفوظ
+// إن أُعطي preferredReviewerId (اعتماد المدير بالنيابة عن مراجع محدد)، يُقدَّم توقيع ذلك المراجع أولاً
 export async function getReviewerSignatures(preferredReviewerId?: string | null): Promise<StoredFile[]> {
   await ensureDatabaseSetup()
-  void preferredReviewerId
-  return []
-}
 
+  const users = await prisma.user.findMany({
+    where: { signatureImage: { not: Prisma.DbNull } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, role: true, roles: true, signatureImage: true },
+  })
+
+  const reviewers = users.filter((user) => {
+    const role = user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+    return hasRole({ role, roles: normalizeRoles(user.roles, role) }, 'REVIEWER') && isStoredImageFile(user.signatureImage)
+  })
+
+  if (preferredReviewerId) {
+    const preferredIndex = reviewers.findIndex((user) => user.id === preferredReviewerId)
+    if (preferredIndex > 0) {
+      const [preferred] = reviewers.splice(preferredIndex, 1)
+      reviewers.unshift(preferred)
+    }
+  }
+
+  return reviewers.slice(0, 3).map((user) => user.signatureImage as StoredFile)
+}

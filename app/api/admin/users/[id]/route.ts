@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import {
   getPrimaryRole,
@@ -8,6 +8,7 @@ import {
   normalizeRoles,
 } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
+import { isStoredImageFile } from '@/lib/loan-form-options'
 
 export async function PATCH(
   request: Request,
@@ -34,7 +35,7 @@ export async function PATCH(
     if (body.password) {
       const password = String(body.password)
       if (password.length < 10) {
-        return NextResponse.json({ error: 'ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ظٹط¬ط¨ ط£ظ† طھظƒظˆظ† 10 ط£ط­ط±ظپ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„' }, { status: 400 })
+        return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 10 أحرف على الأقل' }, { status: 400 })
       }
       data.passwordHash = hashPassword(password)
     }
@@ -43,6 +44,16 @@ export async function PATCH(
       data.roles = roles
       data.role = getPrimaryRole(roles)
     }
+    if ('signatureImage' in body) {
+      if (body.signatureImage === null) {
+        data.signatureImage = null
+      } else if (isStoredImageFile(body.signatureImage)) {
+        data.signatureImage = body.signatureImage
+      } else {
+        return NextResponse.json({ error: 'التوقيع يجب أن يكون صورة فقط.' }, { status: 400 })
+      }
+    }
+
     const user = await prisma.user.update({
       where: { id: params.id },
       data,
@@ -55,6 +66,7 @@ export async function PATCH(
         role: true,
         roles: true,
         status: true,
+        signatureImage: true,
       },
     })
 
@@ -97,4 +109,3 @@ export async function DELETE(
     )
   }
 }
-
