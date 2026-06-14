@@ -292,17 +292,20 @@ function printShell(body: string, options: PrintShellOptions) {
     .loan-table-wrap {
       position: relative;
     }
-    .reviewer-signature {
-      position: absolute;
-      width: 14mm;
-      max-height: 8mm;
-      object-fit: contain;
-      pointer-events: none;
-      z-index: 2;
+    .reviewer-signatures-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      padding-top: 4px;
+      flex-wrap: nowrap;
     }
-    .reviewer-signature-1 { top: 11mm; right: -10mm; }
-    .reviewer-signature-2 { top: 22mm; right: -10mm; }
-    .reviewer-signature-3 { bottom: 10mm; right: -10mm; }
+    .reviewer-signature {
+      display: block;
+      width: 22mm;
+      max-height: 10mm;
+      object-fit: contain;
+    }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
@@ -482,10 +485,6 @@ function printShell(body: string, options: PrintShellOptions) {
     @media print {
       html, body { background: #fff; }
       .print-sheet { width: 100%; min-height: auto; }
-      .reviewer-signature {
-        opacity: 1 !important;
-        visibility: visible !important;
-      }
       .official-inline,
       .official-panel,
       .signature-line {
@@ -1192,6 +1191,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
   const budgetApproved = loan.budgetApproved === true
   const budgetRejected = loan.budgetApproved === false
   const attachmentPages = buildLoanAttachmentPages(loan)
+  const reviewerSignatures = (options?.reviewerSignatures ?? []).slice(0, 2)
 
   const body = `
     <div class="print-title">
@@ -1240,9 +1240,17 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
           <tr>
             <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
           </tr>
+          <tr>
+            <td colspan="4">
+              <div class="reviewer-signatures-row">
+                ${reviewerSignatures
+                  .map((file) => `<img class="reviewer-signature" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
+                  .join('')}
+              </div>
+            </td>
+          </tr>
         </tfoot>
       </table>
-      ${buildReviewerSignatureOverlay(options?.reviewerSignatures)}
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1fr 1fr 1.2fr 1fr;">
