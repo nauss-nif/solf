@@ -1299,7 +1299,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '12.8pt',
     lineHeight: '1.26',
-    sheetWidth: '182mm',
+    sheetWidth: '100%',
     sheetMinHeight: '215mm',
     fontFaceCss: `
       @font-face {
