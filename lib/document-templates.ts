@@ -291,18 +291,22 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .loan-table-wrap {
       position: relative;
+      overflow: visible;
     }
-    .reviewer-signatures-row {
+    .reviewer-signatures-layer {
+      position: absolute;
+      left: 0;
+      bottom: -8mm;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      gap: 14px;
-      padding-top: 4px;
-      flex-wrap: nowrap;
+      justify-content: flex-start;
+      gap: 6mm;
+      pointer-events: none;
+      z-index: 2;
     }
     .reviewer-signature {
       display: block;
-      width: 22mm;
+      width: 24mm;
       max-height: 10mm;
       object-fit: contain;
     }
@@ -1240,17 +1244,13 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
           <tr>
             <td colspan="4"><strong>الإجمالي:</strong> ${formatNumber(loan.amount)} ريال</td>
           </tr>
-          <tr>
-            <td colspan="4">
-              <div class="reviewer-signatures-row">
-                ${reviewerSignatures
-                  .map((file) => `<img class="reviewer-signature" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
-                  .join('')}
-              </div>
-            </td>
-          </tr>
         </tfoot>
       </table>
+      <div class="reviewer-signatures-layer">
+        ${reviewerSignatures
+          .map((file) => `<img class="reviewer-signature" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
+          .join('')}
+      </div>
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1fr 1fr 1.2fr 1fr;">
