@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     const loan = await prisma.loan.findUnique({
       where: { id: body.loanId },
-      select: { id: true, userId: true },
+      select: { id: true, userId: true, reviewStatus: true },
     })
 
     if (!loan) {
@@ -28,6 +28,13 @@ export async function POST(request: Request) {
 
     if (!canManageAllLoans(currentUser) && loan.userId !== currentUser.userId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (loan.reviewStatus !== 'REVIEWED') {
+      return NextResponse.json(
+        { error: 'لا يمكن رفع تسوية السلفة قبل اعتماد نموذج ١٨.' },
+        { status: 409 },
+      )
     }
 
     const receiptNumber = String(body.receiptNumber ?? '').trim()

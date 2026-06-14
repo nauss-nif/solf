@@ -107,9 +107,6 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const filesError = validateLoanRequestFiles(body.files)
-    if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
-
     if (
       typeof body.reviewStatus === 'string' &&
       !('activity' in body) &&
@@ -134,7 +131,6 @@ export async function PATCH(
             data: {
               settlementStatus: 'SUBMITTED',
               reviewNote: String(body.reviewNote ?? '').trim() || null,
-              settlementReviewedById: null,
             },
             include: dashboardLoanInclude,
           })
@@ -154,7 +150,6 @@ export async function PATCH(
           data: {
             reviewStatus: 'PENDING',
             reviewNote: String(body.reviewNote ?? '').trim() || null,
-            reviewedById: null,
           },
           include: dashboardLoanInclude,
         })
@@ -173,7 +168,6 @@ export async function PATCH(
             isSettled: false,
             settlementStatus: 'IN_PROGRESS',
             reviewNote: String(body.reviewNote ?? '').trim() || null,
-            settlementReviewedById: null,
           },
           include: dashboardLoanInclude,
         })
@@ -212,8 +206,6 @@ export async function PATCH(
           reviewStatus: nextStatus,
           reviewNote: String(body.reviewNote ?? '').trim() || null,
           settlementStatus: nextStatus === 'REVIEWED' && closureType === 'settlement' ? 'APPROVED' : undefined,
-          reviewedById: closureType === 'advance_req' ? (nextStatus === 'REVIEWED' ? reviewerId : null) : undefined,
-          settlementReviewedById: closureType === 'settlement' && nextStatus === 'REVIEWED' ? reviewerId : undefined,
         },
         include: dashboardLoanInclude,
       })
@@ -250,6 +242,8 @@ export async function PATCH(
     }
 
     const items = Array.isArray(body.items) ? body.items : []
+    const filesError = validateLoanRequestFiles(body.files ?? {})
+    if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
 
     const updateData: Record<string, unknown> = {
       activity: String(body.activity ?? '').trim(),

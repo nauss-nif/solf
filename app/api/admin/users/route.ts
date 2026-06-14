@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureDefaultAdmin, getSessionUser, isSuperAdmin, normalizeRoles } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
@@ -23,7 +23,6 @@ export async function GET() {
         role: true,
         roles: true,
         status: true,
-        signatureImage: true,
         createdAt: true,
       },
     })
@@ -41,3 +40,4 @@ export async function GET() {
     )
   }
 }
+

@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const filesError = validateLoanRequestFiles(body.files)
+    const filesError = validateLoanRequestFiles(body.files ?? {})
     if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
 
     const activeLoansCount = await prisma.loan.count({

@@ -1,4 +1,4 @@
-export const EXPENSE_CATEGORIES = [
+﻿export const EXPENSE_CATEGORIES = [
   'مواصلات متدربين',
   'مواصلات مدربين',
   'مواصلات منسقين',
