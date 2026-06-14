@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
+<<<<<<< HEAD
 import { LOAN_ATTACHMENT_DEFINITIONS, toStoredFileArray, type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
+=======
+import { LOAN_ATTACHMENT_DEFINITIONS, toStoredFileArray, type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
+>>>>>>> 32f7fff (Tighten print signature spacing)
 import { DEFAULT_SYSTEM_SETTINGS, type SystemSettings } from '@/lib/system-settings'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
@@ -306,16 +310,17 @@ function printShell(body: string, options: PrintShellOptions) {
     .text-top { vertical-align: top !important; }
     .official-inline {
       display: grid;
-      gap: 8px;
-      margin: 8px 0 10px;
+      gap: 6px;
+      margin: 6px 0 8px;
       align-items: center;
       font-size: 13px;
       font-weight: 700;
     }
     .signature-line {
       display: inline-block;
-      min-width: 140px;
-      height: 18px;
+      min-width: 108px;
+      height: 20px;
+      border-bottom: 1px solid #111827;
       vertical-align: middle;
     }
     .official-panel {
@@ -346,6 +351,16 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .official-panel .row.nowrap {
       flex-wrap: nowrap;
+    }
+    .signature-stamp,
+    .signature-image,
+    .signature-mark {
+      display: inline-block;
+      max-width: 100%;
+      max-height: 24px;
+      object-fit: contain;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
     .loan-financial-panel,
     .loan-approval-panel {
@@ -470,6 +485,21 @@ function printShell(body: string, options: PrintShellOptions) {
     @media print {
       html, body { background: #fff; }
       .print-sheet { width: 100%; min-height: auto; }
+      .official-inline,
+      .official-panel,
+      .signature-line {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      .signature-line {
+        border-bottom-color: #000;
+      }
+      .signature-stamp,
+      .signature-image,
+      .signature-mark {
+        visibility: visible !important;
+        display: inline-block !important;
+      }
     }
   </style>
   <div class="print-sheet">${body}</div>`
@@ -503,6 +533,64 @@ function normalizeStoredFile(value: unknown): StoredFile | null {
     dataUrl: candidate.dataUrl,
     size: typeof candidate.size === 'number' ? candidate.size : 0,
   }
+}
+
+function normalizeStoredFiles(value: unknown): StoredFile[] {
+  const files = Array.isArray(value) ? value : value ? [value] : []
+  return files.map((file) => normalizeStoredFile(file)).filter(Boolean) as StoredFile[]
+}
+
+function buildLoanAttachmentPages(loan: LoanDocumentRecord) {
+  const source = loan.files && typeof loan.files === 'object'
+    ? loan.files as Record<string, unknown>
+    : {}
+
+  const attachments = LOAN_ATTACHMENT_DEFINITIONS.flatMap((definition) =>
+    normalizeStoredFiles(source[definition.key]).map((attachment, index) => ({
+      label: definition.label,
+      required: definition.required,
+      pageNumber: index + 1,
+      attachment,
+    })),
+  )
+
+  return attachments
+    .map(({ label, required, pageNumber, attachment }, index) => {
+      const preview = attachment.type.startsWith('image/')
+        ? `<div class="attachment-preview">
+          <img src="${attachment.dataUrl}" alt="${escapeHtml(`${label} ${index + 1}`)}" />
+        </div>`
+        : `<div class="attachment-note">تم إرفاق الملف: ${escapeHtml(
+            attachment.name,
+          )}<br />نوع الملف غير قابل للمعاينة المباشرة. الرجاء إعادة رفعه كصور.</div>`
+
+      return `
+      <section class="attachment-page">
+        <div class="attachment-header">
+          <h2>مرفقات نموذج 18</h2>
+          <span>رقم المرجع: ${escapeHtml(loan.refNumber)}</span>
+        </div>
+        <table class="attachment-meta">
+          <tbody>
+            <tr>
+              <th>نوع المرفق</th>
+              <td>${escapeHtml(label)}</td>
+              <th>الحالة</th>
+              <td>${required ? 'إلزامي' : 'اختياري'}</td>
+            </tr>
+            <tr>
+              <th>رقم الصفحة</th>
+              <td>${formatEnglishNumber(pageNumber)}</td>
+              <th>اسم الملف</th>
+              <td>${escapeHtml(attachment.name)}</td>
+            </tr>
+          </tbody>
+        </table>
+        ${preview}
+      </section>
+    `
+    })
+    .join('')
 }
 
 function normalizeSettlementDetails(raw: unknown): SettlementDetailLike[] {
@@ -1118,6 +1206,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
 
   const budgetApproved = loan.budgetApproved === true
   const budgetRejected = loan.budgetApproved === false
+  const attachmentPages = buildLoanAttachmentPages(loan)
 
   const body = `
     <div class="print-title">
@@ -1171,7 +1260,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       ${buildReviewerSignatureOverlay(options?.reviewerSignatures)}
     </div>
 
-    <div class="official-inline" style="grid-template-columns: 0.9fr 1fr 1.55fr 1fr;">
+    <div class="official-inline" style="grid-template-columns: 1fr 1fr 1.2fr 1fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: ${escapeHtml(settings.trainingVicePresidentName)}</span>
@@ -1186,7 +1275,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <div style="text-align: right; margin-bottom: 9px;">
         <span class="approval-choice" style="margin: 0;"><span class="box"></span>غير مستوفي للآتي:</span>
       </div>
-      <div style="display: grid; grid-template-columns: 1.7fr 0.8fr 1.1fr; gap: 18px; align-items: center; text-align: right;">
+      <div style="display: grid; grid-template-columns: 1.55fr 0.9fr 0.95fr; gap: 12px; align-items: center; text-align: right;">
         <span>الاسم: ${escapeHtml(settings.financialControllerName)}</span>
         <span>التوقيع:</span>
         <span>التاريخ:</span>
@@ -1200,14 +1289,18 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
         <span class="approval-choice" style="margin: 0;"><span class="box"></span>لا نوافق</span>
       </div>
       <p style="text-align: right; margin: 0 0 10px;">وعلى كل فيما يخصه إكمال اللازم وفق الضوابط المحددة.</p>
-      <div style="display: grid; grid-template-columns: 1.2fr 0.8fr 1.1fr; gap: 18px; align-items: center; text-align: right;">
+      <div style="display: grid; grid-template-columns: 1.35fr 0.9fr 0.95fr; gap: 12px; align-items: center; text-align: right;">
         <span>رئيس الجامعة:</span>
         <span>التوقيع:</span>
         <span>التاريخ:</span>
       </div>
     </div>
+<<<<<<< HEAD
 
     ${buildLoanAttachmentPages(loan)}
+=======
+    ${attachmentPages}
+>>>>>>> 32f7fff (Tighten print signature spacing)
   `
 
   return printShell(body, {
