@@ -297,7 +297,7 @@ function printShell(body: string, options: PrintShellOptions) {
       position: absolute;
       right: 0;
       left: auto;
-      bottom: 3mm;
+      bottom: -1mm;
       display: flex;
       align-items: center;
       justify-content: flex-start;
