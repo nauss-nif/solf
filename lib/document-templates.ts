@@ -1295,7 +1295,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
   `
 
   return printShell(body, {
-    pageMargins: '30mm 14mm 16mm 14mm',
+    pageMargins: '45mm 14mm 16mm 14.5mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '12.8pt',
     lineHeight: '1.26',
