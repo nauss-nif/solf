@@ -291,19 +291,18 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .loan-table-wrap {
       position: relative;
-      padding-inline-end: 14mm;
     }
     .reviewer-signature {
       position: absolute;
-      width: 12mm;
-      max-height: 7mm;
+      width: 14mm;
+      max-height: 8mm;
       object-fit: contain;
       pointer-events: none;
       z-index: 2;
     }
-    .reviewer-signature-1 { top: 10mm; right: 2mm; }
-    .reviewer-signature-2 { top: 35mm; right: 2mm; }
-    .reviewer-signature-3 { bottom: 10mm; right: 2mm; }
+    .reviewer-signature-1 { top: 8mm; right: -12mm; }
+    .reviewer-signature-2 { top: 31mm; right: -12mm; }
+    .reviewer-signature-3 { bottom: 8mm; right: -12mm; }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
