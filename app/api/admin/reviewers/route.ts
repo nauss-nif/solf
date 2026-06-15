@@ -8,7 +8,7 @@ export async function GET() {
   try {
     await ensureDatabaseSetup()
     const currentUser = getSessionUser()
-    if (!currentUser || !hasRole(currentUser, 'ADMIN')) {
+    if (!currentUser || !hasRole(currentUser, 'ADMIN') || currentUser.email.toLowerCase() !== 'od@nauss.edu.sa') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

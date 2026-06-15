@@ -35,7 +35,7 @@ async function resolveReviewerOnBehalf(
   currentUser: NonNullable<ReturnType<typeof getSessionUser>>,
   onBehalfOfUserId: unknown,
 ): Promise<{ reviewerId: string } | { error: NextResponse }> {
-  if (hasRole(currentUser, 'ADMIN') && typeof onBehalfOfUserId === 'string' && onBehalfOfUserId) {
+  if (isSuperAdmin(currentUser) && typeof onBehalfOfUserId === 'string' && onBehalfOfUserId) {
     const targetReviewer = await prisma.user.findUnique({
       where: { id: onBehalfOfUserId },
       select: { id: true, role: true, roles: true },
@@ -323,3 +323,4 @@ export async function DELETE(
     )
   }
 }
+

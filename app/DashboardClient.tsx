@@ -1432,6 +1432,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         key={loan.id}
                         loan={loan}
                         isAdmin={isAdmin}
+                        isSuperAdmin={isSuperAdmin}
                         reviewersList={reviewersList}
                         onBehalfUserId={onBehalfSelections[loan.id] || ''}
                         onChangeOnBehalf={(userId) => setOnBehalfSelections((curr) => ({ ...curr, [loan.id]: userId }))}
@@ -2062,9 +2063,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, isAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision }: {
+function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision }: {
   loan: LoanDashboardRecord
   isAdmin: boolean
+  isSuperAdmin: boolean
   reviewersList: Array<{ id: string; fullName: string }>
   onBehalfUserId: string
   onChangeOnBehalf: (userId: string) => void
@@ -2099,7 +2101,7 @@ function ReviewerLoanCard({ loan, isAdmin, reviewersList, onBehalfUserId, onChan
         </div>
       </div>
 
-      {isAdmin && reviewersList.length > 0 && canActAsReviewer && (
+      {isSuperAdmin && reviewersList.length > 0 && canActAsReviewer && (
         <div className="flex items-center gap-2 mt-2 text-xs">
           <label style={{ color: '#5A5A5A' }}>اعتماد بالنيابة عن:</label>
           <select value={onBehalfUserId} onChange={(e) => onChangeOnBehalf(e.target.value)} className="input-shell" style={{ maxWidth: 200, padding: '0.25rem 0.5rem', height: 'auto' }}>
