@@ -61,6 +61,8 @@ export async function getReviewerSignatures(preferredReviewerId?: string | null)
       const [preferred] = reviewers.splice(preferredIndex, 1)
       reviewers.unshift(preferred)
     }
+
+    return reviewers.slice(0, 1).map((user) => user.signatureImage as StoredFile)
   }
 
   return reviewers.slice(0, 3).map((user) => user.signatureImage as StoredFile)
