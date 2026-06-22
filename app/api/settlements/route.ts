@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { canManageAllLoans, getSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
       receiptDate,
       overageReason: String(body.overageReason ?? '').trim(),
       pettyCashApproval: body.pettyCashApproval ?? null,
+      receiptAttachment: body.receiptAttachment ?? null,
     }
 
     await prisma.$transaction(async (tx) => {
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
 
       await tx.loan.update({
         where: { id: body.loanId },
-        data: { isSettled: true, settlementStatus: 'SUBMITTED' },
+        data: { isSettled: true, settlementStatus: 'SUBMITTED', settlementDraft: Prisma.JsonNull },
       })
     }, { timeout: 20000 })
 

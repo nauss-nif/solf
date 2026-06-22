@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { canManageAllLoans, getSessionUser, hasRole, isSuperAdmin, normalizeRoles } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude, fullLoanInclude } from '@/lib/loan-selects'
-import { notifyLoanReviewed } from '@/lib/notifications'
+import { notifyLoanReviewed, notifyNewLoan } from '@/lib/notifications'
 import { validateLoanRequestFiles } from '@/lib/loan-form-options'
 import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 
@@ -241,9 +241,18 @@ export async function PATCH(
       return NextResponse.json(reviewedLoan)
     }
 
+    const isDraft = typeof body.isDraft === 'boolean' ? body.isDraft : loan.isDraft
+    const wasDraft = loan.isDraft
     const items = Array.isArray(body.items) ? body.items : []
-    const filesError = validateLoanRequestFiles(body.files ?? {})
+    const filesError = isDraft ? null : validateLoanRequestFiles(body.files ?? {})
     if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
+
+    if (isDraft && (!body.activity || !body.startDate || !body.endDate)) {
+      return NextResponse.json(
+        { error: 'أدخل النشاط وتاريخ البداية والنهاية على الأقل قبل حفظ المسودة.' },
+        { status: 400 },
+      )
+    }
 
     const updateData: Record<string, unknown> = {
       activity: String(body.activity ?? '').trim(),
@@ -251,6 +260,7 @@ export async function PATCH(
       amount: Number(body.amount ?? 0),
       budgetApproved:
         typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
+      isDraft,
       reviewStatus: canManageAllLoans(currentUser)
         ? ((body.reviewStatus ?? loan.reviewStatus) as 'PENDING' | 'REVIEWED' | 'RETURNED')
         : 'PENDING',
@@ -284,6 +294,16 @@ export async function PATCH(
         include: dashboardLoanInclude,
       })
     }, { timeout: 20000 })
+
+    if (wasDraft && !isDraft) {
+      void notifyNewLoan({
+        id: updatedLoan.id,
+        refNumber: updatedLoan.refNumber,
+        employee: updatedLoan.employee,
+        amount: updatedLoan.amount,
+        activity: updatedLoan.activity,
+      }).catch(() => {})
+    }
 
     return NextResponse.json(updatedLoan)
   } catch (error) {

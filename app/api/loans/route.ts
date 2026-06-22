@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     const scope = new URL(request.url).searchParams.get('scope')
     const loans = await prisma.loan.findMany({
       where: canManageAllLoans(currentUser) && scope !== 'own'
-        ? undefined
+        ? { isDraft: false }
         : { userId: currentUser.userId },
       orderBy: { createdAt: 'desc' },
       include: dashboardLoanInclude,
@@ -88,23 +88,34 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const filesError = validateLoanRequestFiles(body.files ?? {})
+    const isDraft = body.isDraft === true
+    const filesError = isDraft ? null : validateLoanRequestFiles(body.files ?? {})
     if (filesError) return NextResponse.json({ error: filesError }, { status: 400 })
 
-    const activeLoansCount = await prisma.loan.count({
-      where: {
-        userId: currentUser.userId,
-        isSettled: false,
-      },
-    })
-
-    if (activeLoansCount >= 3) {
-      return NextResponse.json(
-        {
-          error: 'لديك 3 سلف نشطة غير مسواة. يجب تسوية إحدى السلف قبل رفع طلب جديد.',
-          code: 'MAX_ACTIVE_LOANS_REACHED',
+    if (!isDraft) {
+      const activeLoansCount = await prisma.loan.count({
+        where: {
+          userId: currentUser.userId,
+          isSettled: false,
+          isDraft: false,
         },
-        { status: 409 },
+      })
+
+      if (activeLoansCount >= 3) {
+        return NextResponse.json(
+          {
+            error: 'لديك 3 سلف نشطة غير مسواة. يجب تسوية إحدى السلف قبل رفع طلب جديد.',
+            code: 'MAX_ACTIVE_LOANS_REACHED',
+          },
+          { status: 409 },
+        )
+      }
+    }
+
+    if (isDraft && (!body.activity || !body.startDate || !body.endDate)) {
+      return NextResponse.json(
+        { error: 'أدخل النشاط وتاريخ البداية والنهاية على الأقل قبل حفظ المسودة.' },
+        { status: 400 },
       )
     }
 
@@ -136,6 +147,7 @@ export async function POST(request: Request) {
           files: body.files ?? undefined,
           startDate: new Date(body.startDate),
           endDate,
+          isDraft,
           courseId: body.courseId ?? null,
           courseCode: body.courseCode ?? null,
           items: {
@@ -150,13 +162,15 @@ export async function POST(request: Request) {
     }, { timeout: 20000 })
 
     // ─── إشعار المراجعين ──────────────────────────────────────
-    void notifyNewLoan({
-      id: loan.id,
-      refNumber: loan.refNumber,
-      employee: loan.employee,
-      amount: loan.amount,
-      activity: loan.activity,
-    }).catch(console.error)
+    if (!isDraft) {
+      void notifyNewLoan({
+        id: loan.id,
+        refNumber: loan.refNumber,
+        employee: loan.employee,
+        amount: loan.amount,
+        activity: loan.activity,
+      }).catch(console.error)
+    }
 
     return NextResponse.json(loan)
   } catch (error) {

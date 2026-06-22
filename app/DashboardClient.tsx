@@ -36,6 +36,7 @@ export type LoanDashboardRecord = {
   createdAt: string; updatedAt?: string; printedAt: string | null
   settlementDeadline?: string | null
   files?: LoanRequestFiles | null; isSettled: boolean
+  isDraft?: boolean; settlementDraft?: { settlementItems?: SettlementDraft[]; currencyRates?: SettlementCurrencyRate[]; settlementMeta?: SettlementMetaState } | null
   recallRequested?: boolean; recallReason?: string | null
   reviewedById?: string | null; settlementReviewedById?: string | null
   reviewedBy?: { id: string; fullName: string } | null
@@ -47,7 +48,7 @@ type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMP
 type ExpenseDraft = { category: string; amount: string }
 type InvoiceDraft = { amount: string; currencyCode: CurrencyCode; exchangeRate: string; sarAmount: number; documentType: SettlementDocumentType; invoiceDate: string; issuer: string; attachment: StoredFile | null }
 type SettlementDraft = { id: string; category: string; budget: number; invoices: InvoiceDraft[]; isAdditional?: boolean }
-type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string }
+type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string; receiptAttachment?: StoredFile | null }
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
@@ -199,7 +200,7 @@ function generateRef(loans: LoanDashboardRecord[]) {
 }
 
 function normalizeLoanRecord(loan: Omit<LoanDashboardRecord, 'location' | 'budgetApproved' | 'reviewStatus' | 'settlementStatus' | 'reviewNote' | 'printedAt' | 'files'> & { location?: string | null; budgetApproved?: boolean | null; reviewStatus?: string; settlementStatus?: string; reviewNote?: string; printedAt?: string | null; files?: LoanRequestFiles | null }): LoanDashboardRecord {
-  return { ...loan, location: loan.location ?? '', budgetApproved: typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null, reviewStatus: (loan.reviewStatus as LoanDashboardRecord['reviewStatus']) ?? 'PENDING', settlementStatus: (loan.settlementStatus as LoanDashboardRecord['settlementStatus']) ?? 'NOT_STARTED', reviewNote: loan.reviewNote ?? '', printedAt: loan.printedAt ?? null, files: loan.files ?? null, recallRequested: loan.recallRequested ?? false, recallReason: loan.recallReason ?? null }
+  return { ...loan, location: loan.location ?? '', budgetApproved: typeof loan.budgetApproved === 'boolean' ? loan.budgetApproved : null, reviewStatus: (loan.reviewStatus as LoanDashboardRecord['reviewStatus']) ?? 'PENDING', settlementStatus: (loan.settlementStatus as LoanDashboardRecord['settlementStatus']) ?? 'NOT_STARTED', reviewNote: loan.reviewNote ?? '', printedAt: loan.printedAt ?? null, files: loan.files ?? null, recallRequested: loan.recallRequested ?? false, recallReason: loan.recallReason ?? null, isDraft: loan.isDraft ?? false, settlementDraft: loan.settlementDraft ?? null }
 }
 
 function createEmptyLoanForm(currentUser: CurrentUser, loans: LoanDashboardRecord[]): LoanFormState {
@@ -650,10 +651,26 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   function openSettlementModal(loanId: string) {
     const loan = loans.find((l) => l.id === loanId); if (!loan) return
     setSelectedLoanId(loanId); setSettlementError('')
-    setCurrencyRates([{ currencyCode: 'USD', rate: 3.75 }])
-    setSettlementItems(sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount))))
-    setSettlementMeta({ receiptNumber: '', receiptDate: '', overageReason: '' })
+    const draft = loan.settlementDraft
+    setCurrencyRates(draft?.currencyRates?.length ? draft.currencyRates : [{ currencyCode: 'USD', rate: 3.75 }])
+    setSettlementItems(draft?.settlementItems?.length ? draft.settlementItems : sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount))))
+    setSettlementMeta(draft?.settlementMeta ?? { receiptNumber: '', receiptDate: '', overageReason: '' })
     setSettlementModalOpen(true)
+  }
+
+  async function saveSettlementDraft() {
+    if (!settlementLoan) return
+    startTransition(async () => {
+      const res = await fetch(`/api/loans/${settlementLoan.id}/settlement-draft`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settlementDraft: { settlementItems, currencyRates, settlementMeta } }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setSettlementError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ المسودة.'); return }
+      setLoans((curr) => curr.map((l) => l.id === settlementLoan.id ? { ...l, settlementDraft: data.settlementDraft, settlementStatus: data.settlementStatus } : l))
+      setSettlementModalOpen(false); setSettlementError(''); showToast('تم حفظ التسوية كمسودة، يمكنك إكمالها لاحقاً.')
+    })
   }
 
   function updateExpense(index: number, field: keyof ExpenseDraft, value: string) {
@@ -673,15 +690,17 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     setLoanAttachments((curr) => ({ ...curr, [key]: (curr[key] ?? []).filter((_, i) => i !== index) }))
   }
 
-  async function submitLoan() {
+  async function submitLoan(isDraft = false) {
     const cleanExpenses = expenses.map((i) => ({ category: i.category.trim(), amount: Number.parseFloat(i.amount || '0') || 0 })).filter((i) => i.category && i.amount > 0)
-    if (!loanForm.activity || !loanForm.location || !loanForm.employee) { setLoanError('أكمل الحقول الأساسية قبل حفظ الطلب.'); return }
-    if (!loanForm.startDate || !loanForm.endDate) { setLoanError('حدد تاريخ البداية والنهاية.'); return }
-    if (loanForm.budgetApproved === null) { setLoanError('حدد حالة اعتماد الموازنة.'); return }
-    if (cleanExpenses.length === 0) { setLoanError('أضف بند صرف واحد على الأقل.'); return }
-    for (const att of LOAN_ATTACHMENT_DEFINITIONS) { if (att.required && (loanAttachments[att.key]?.length ?? 0) === 0) { setLoanError(`أرفق ${att.label} قبل إرسال الطلب.`); return } }
+    if (!loanForm.activity || !loanForm.startDate || !loanForm.endDate) { setLoanError('أدخل النشاط وتاريخ البداية والنهاية على الأقل قبل حفظ المسودة.'); return }
+    if (!isDraft) {
+      if (!loanForm.location || !loanForm.employee) { setLoanError('أكمل الحقول الأساسية قبل إرسال الطلب.'); return }
+      if (loanForm.budgetApproved === null) { setLoanError('حدد حالة اعتماد الموازنة.'); return }
+      if (cleanExpenses.length === 0) { setLoanError('أضف بند صرف واحد على الأقل.'); return }
+      for (const att of LOAN_ATTACHMENT_DEFINITIONS) { if (att.required && (loanAttachments[att.key]?.length ?? 0) === 0) { setLoanError(`أرفق ${att.label} قبل إرسال الطلب.`); return } }
+    }
     const total = cleanExpenses.reduce((s, i) => s + i.amount, 0)
-    const payload = { activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses, courseId: linkedCourse?.id, courseCode: linkedCourse?.code, ...(editingLoanId ? { refNumber: loanForm.refNumber } : {}) }
+    const payload = { activity: loanForm.activity.trim(), location: loanForm.location.trim(), amount: total, budgetApproved: loanForm.budgetApproved, startDate: loanForm.startDate, endDate: loanForm.endDate, files: toLoanRequestFiles(loanAttachments), items: cleanExpenses, courseId: linkedCourse?.id, courseCode: linkedCourse?.code, isDraft, ...(editingLoanId ? { refNumber: loanForm.refNumber } : {}) }
     startTransition(async () => {
       const isEditing = Boolean(editingLoanId)
       const res = await fetch(isEditing ? `/api/loans/${editingLoanId}` : '/api/loans', { method: isEditing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
@@ -689,7 +708,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (!res.ok) { setLoanError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ طلب السلفة.'); return }
       const savedLoan = normalizeLoanRecord(data)
       setLoans((curr) => isEditing ? curr.map((l) => l.id === savedLoan.id ? savedLoan : l) : [savedLoan, ...curr])
-      setLoanModalOpen(false); setLoanError(''); showToast(isEditing ? 'تم تحديث طلب السلفة.' : 'تم حفظ طلب السلفة بنجاح.')
+      setLoanModalOpen(false); setLoanError('')
+      showToast(isDraft ? 'تم حفظ الطلب كمسودة. أكمله متى أحببت.' : isEditing ? 'تم تحديث طلب السلفة.' : 'تم حفظ طلب السلفة بنجاح.')
     })
   }
 
@@ -754,7 +774,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (!settlementMeta.receiptDate) { setSettlementError('أدخل تاريخ سند القبض.'); return }
     }
     startTransition(async () => {
-      const res = await fetch('/api/settlements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ loanId: settlementLoan.id, supported: settlementSummary.supported, unsupported: settlementSummary.unsupported, total: settlementSummary.total, savings: settlementSummary.savings, overage: settlementSummary.overage, currencyRates, details, receiptNumber: settlementMeta.receiptNumber.trim(), receiptDate: settlementMeta.receiptDate, overageReason: settlementMeta.overageReason.trim(), pettyCashApproval: cloneStoredFile(pettyCashApproval) }) })
+      const res = await fetch('/api/settlements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ loanId: settlementLoan.id, supported: settlementSummary.supported, unsupported: settlementSummary.unsupported, total: settlementSummary.total, savings: settlementSummary.savings, overage: settlementSummary.overage, currencyRates, details, receiptNumber: settlementMeta.receiptNumber.trim(), receiptDate: settlementMeta.receiptDate, overageReason: settlementMeta.overageReason.trim(), pettyCashApproval: cloneStoredFile(pettyCashApproval), receiptAttachment: cloneStoredFile(settlementMeta.receiptAttachment) }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setSettlementError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ التسوية.'); return }
       setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
@@ -1838,7 +1858,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
               <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid #DADBD9' }}>
                 <button type="button" onClick={() => setLoanModalOpen(false)} className="btn btn-outline">إلغاء</button>
-                <button type="button" onClick={submitLoan} disabled={isPending} className="btn btn-primary">
+                <button type="button" onClick={() => submitLoan(true)} disabled={isPending} className="btn btn-outline">
+                  {isPending ? 'جاري الحفظ...' : 'حفظ كمسودة'}
+                </button>
+                <button type="button" onClick={() => submitLoan(false)} disabled={isPending} className="btn btn-primary">
                   {isPending ? 'جاري الحفظ...' : editingLoanId ? 'تحديث الطلب' : 'حفظ وإرسال الطلب'}
                 </button>
               </div>
@@ -1860,21 +1883,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </div>
 
             <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
-              {/* Summary */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { label: 'مبلغ السلفة', value: formatCurrencySar(settlementLoan.amount), color: '#2A6364' },
-                  { label: 'إجمالي المصروفات', value: formatCurrencySar(settlementSummary.total), color: '#1F3F40' },
-                  { label: 'المبلغ بالزيادة', value: formatCurrencySar(settlementSummary.overage), color: settlementSummary.overage > 0 ? '#73384B' : '#5A5A5A' },
-                  { label: 'وفر السلفة', value: formatCurrencySar(Math.max(0, settlementSummary.savings)), color: settlementSummary.savings > 0 ? '#4F8F7A' : '#5A5A5A' },
-                ].map((pill) => (
-                  <div key={pill.label} className="summary-pill">
-                    <p className="summary-pill-label">{pill.label}</p>
-                    <p className="summary-pill-value" style={{ color: pill.color }}>{pill.value}</p>
-                  </div>
-                ))}
-              </div>
-
               {/* Currency rates */}
               <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
                 <div className="flex items-center justify-between mb-3">
@@ -2007,6 +2015,21 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 })}
               </div>
 
+              {/* Summary — تُعرض بعد تعبئة البنود لتلخيص النتيجة النهائية */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { label: 'مبلغ السلفة', value: formatCurrencySar(settlementLoan.amount), color: '#2A6364' },
+                  { label: 'إجمالي المصروفات', value: formatCurrencySar(settlementSummary.total), color: '#1F3F40' },
+                  { label: 'المبلغ بالزيادة', value: formatCurrencySar(settlementSummary.overage), color: settlementSummary.overage > 0 ? '#73384B' : '#5A5A5A' },
+                  { label: 'وفر السلفة', value: formatCurrencySar(Math.max(0, settlementSummary.savings)), color: settlementSummary.savings > 0 ? '#4F8F7A' : '#5A5A5A' },
+                ].map((pill) => (
+                  <div key={pill.label} className="summary-pill">
+                    <p className="summary-pill-label">{pill.label}</p>
+                    <p className="summary-pill-value" style={{ color: pill.color }}>{pill.value}</p>
+                  </div>
+                ))}
+              </div>
+
               {/* Receipt / overage meta */}
               {(settlementSummary.savings > 0 || settlementSummary.overage > 0) && (
                 <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
@@ -2021,6 +2044,30 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       </Field>
                     </div>
                   )}
+                  {settlementSummary.savings > 0 && (
+                    <div className="mb-4">
+                      <p className="text-sm font-semibold mb-1.5" style={{ color: '#1F3F40' }}>إيصال السداد (اختياري)</p>
+                      <div className="flex items-center gap-3">
+                        <label className="btn btn-outline btn-sm cursor-pointer">
+                          📎 {settlementMeta.receiptAttachment ? 'تغيير الصورة' : 'رفع صورة الإيصال'}
+                          <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                            const file = e.target.files?.[0]; e.target.value = ''
+                            if (!file) return
+                            try {
+                              const stored = await fileToStoredFile(file)
+                              setSettlementMeta((c) => ({ ...c, receiptAttachment: stored }))
+                            } catch (err) { setSettlementError(err instanceof Error ? err.message : 'تعذر رفع صورة الإيصال.') }
+                          }} />
+                        </label>
+                        {settlementMeta.receiptAttachment && (
+                          <>
+                            <img src={settlementMeta.receiptAttachment.dataUrl} alt="إيصال السداد" className="h-12 w-12 object-cover rounded-lg" style={{ border: '1px solid #C8D9D0' }} />
+                            <button type="button" onClick={() => setSettlementMeta((c) => ({ ...c, receiptAttachment: null }))} className="btn btn-danger btn-sm">إزالة</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {settlementSummary.overage > 0 && (
                     <Field label="مبرر الزيادة على مبلغ السلفة *">
                       <textarea value={settlementMeta.overageReason} onChange={(e) => setSettlementMeta((c) => ({ ...c, overageReason: e.target.value }))} rows={3} className="input-shell" placeholder="يرجى توضيح سبب تجاوز مبلغ السلفة الأصلي..." />
@@ -2033,6 +2080,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
               <div className="flex justify-end gap-3 pt-2" style={{ borderTop: '1px solid #DADBD9' }}>
                 <button type="button" onClick={() => setSettlementModalOpen(false)} className="btn btn-outline">إلغاء</button>
+                <button type="button" onClick={saveSettlementDraft} disabled={isPending} className="btn btn-outline">
+                  {isPending ? 'جاري الحفظ...' : 'حفظ كمسودة'}
+                </button>
                 <button type="button" onClick={submitSettlement} disabled={isPending} className="btn btn-gold">
                   {isPending ? 'جاري الحفظ...' : 'حفظ التسوية'}
                 </button>
@@ -2194,7 +2244,8 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             </span>
             {loan.printedAt && <span className="badge badge-gold">🖨️ مطبوع / مُصدَّر</span>}
             {attachCount > 0 && <span className="badge badge-neutral">📎 {attachCount} مرفق</span>}
-            <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>
+            {loan.isDraft ? <span className="badge badge-warning">✏️ مسودة</span> : <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>}
+            {!loan.isDraft && loan.settlementDraft && !loan.isSettled && <span className="badge badge-warning">✏️ تسوية بمسودة محفوظة</span>}
           </div>
 
           <div>

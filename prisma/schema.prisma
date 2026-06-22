@@ -136,6 +136,12 @@ model Loan {
   isSettled          Boolean         @default(false)
   settlementStatus   SettlementStatus @default(NOT_STARTED)
 
+  // ─── مسودات ─────────────────────────────────────────────
+  // طلب السلفة كمسودة (لم يُقدَّم للمراجعة بعد)
+  isDraft            Boolean   @default(false)
+  // مسودة تسوية السلفة (بنود/فواتير/عملات لم تُقدَّم بعد)
+  settlementDraft    Json?
+
   // ─── ربط نظام الإقفال (اختياري) ─────────────────────────
   // عندما تكون السلفة مرتبطة بدورة تدريبية
   courseId    String?   // Course.id من نظام الإقفال
