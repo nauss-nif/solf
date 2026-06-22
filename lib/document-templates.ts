@@ -314,14 +314,14 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature-side-layer {
       position: absolute;
-      top: 0;
+      bottom: 0;
       left: 100%;
-      margin-left: 4mm;
+      margin-left: 1mm;
       width: 20mm;
       display: flex;
-      flex-direction: column;
+      flex-direction: column-reverse;
       align-items: center;
-      gap: 6mm;
+      gap: 4mm;
       pointer-events: none;
       z-index: 2;
     }
