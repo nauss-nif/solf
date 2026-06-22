@@ -93,6 +93,7 @@ type PrintShellOptions = {
   lineHeight?: string
   sheetWidth?: string
   sheetMinHeight?: string
+  sheetMargin?: string
 }
 
 type TemplateReplacement = {
@@ -176,6 +177,7 @@ function printShell(body: string, options: PrintShellOptions) {
   const lineHeight = options.lineHeight ?? '1.7'
   const sheetWidth = options.sheetWidth ?? '100%'
   const sheetMinHeight = options.sheetMinHeight ?? 'auto'
+  const sheetMargin = options.sheetMargin ?? '0 auto'
 
   return `
   <style>
@@ -199,7 +201,7 @@ function printShell(body: string, options: PrintShellOptions) {
     .print-sheet {
       width: ${sheetWidth};
       min-height: ${sheetMinHeight};
-      margin: 0 auto;
+      margin: ${sheetMargin};
       background: #fff;
       color: #111827;
     }
@@ -1467,11 +1469,12 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
   `
 
   return printShell(body, {
-    pageMargins: '32mm 33mm 16mm 15mm',
+    pageMargins: '32mm 18mm 16mm 15mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '13.4pt',
     lineHeight: '1.24',
-    sheetWidth: '160mm',
+    sheetWidth: '155mm',
+    sheetMargin: '0 auto 0 0',
     sheetMinHeight: '218mm',
     fontFaceCss: `
       @font-face {
