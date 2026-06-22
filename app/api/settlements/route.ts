@@ -20,7 +20,7 @@ export async function POST(request: Request) {
 
     const loan = await prisma.loan.findUnique({
       where: { id: body.loanId },
-      select: { id: true, userId: true, reviewStatus: true },
+      select: { id: true, userId: true, reviewStatus: true, settlementStatus: true },
     })
 
     if (!loan) {
@@ -34,6 +34,13 @@ export async function POST(request: Request) {
     if (loan.reviewStatus !== 'REVIEWED') {
       return NextResponse.json(
         { error: 'لا يمكن رفع تسوية السلفة قبل اعتماد نموذج ١٨.' },
+        { status: 409 },
+      )
+    }
+
+    if (loan.settlementStatus === 'APPROVED') {
+      return NextResponse.json(
+        { error: 'لا يمكن تعديل التسوية بعد اعتمادها.' },
         { status: 409 },
       )
     }

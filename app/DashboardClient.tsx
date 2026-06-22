@@ -235,6 +235,30 @@ function settlementItemHasUserContent(item: SettlementDraft) {
   return item.invoices.some((inv) => Boolean(inv.amount) || Boolean(inv.attachment) || Boolean(inv.invoiceDate) || Boolean(inv.issuer.trim()))
 }
 
+// إعادة بناء بنود التسوية القابلة للتعديل من التفاصيل المحفوظة (لإعادة فتح تسوية مُقدَّمة قبل اعتمادها)
+function rebuildSettlementItemsFromDetails(
+  details: Array<{ category: string; budget?: number; invoices: Array<{ amount: number; currencyCode: CurrencyCode; exchangeRate: number; sar: number; documentType: SettlementDocumentType; invoiceDate: string; issuer: string; attachment: StoredFile | null }> }>,
+  loanItems: LoanItemRecord[],
+): SettlementDraft[] {
+  const originalCategories = new Set(loanItems.map((i) => i.category))
+  return details.map((d) => ({
+    id: createDraftId('si'),
+    category: d.category,
+    budget: typeof d.budget === 'number' ? d.budget : (loanItems.find((i) => i.category === d.category)?.amount ?? 0),
+    isAdditional: !originalCategories.has(d.category),
+    invoices: d.invoices.length > 0 ? d.invoices.map((inv) => ({
+      amount: String(inv.amount ?? ''),
+      currencyCode: inv.currencyCode ?? 'SAR',
+      exchangeRate: String(inv.exchangeRate ?? '1'),
+      sarAmount: inv.sar ?? 0,
+      documentType: inv.documentType ?? SETTLEMENT_DOCUMENT_TYPES[0],
+      invoiceDate: inv.invoiceDate ?? '',
+      issuer: inv.issuer ?? '',
+      attachment: inv.attachment ?? null,
+    })) : [createEmptyInvoice('SAR')],
+  }))
+}
+
 function cloneStoredFile(file: StoredFile | null | undefined) {
   return file ? { name: file.name, type: file.type, size: file.size, dataUrl: file.dataUrl } : null
 }
@@ -648,14 +672,46 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     }
   }
 
-  function openSettlementModal(loanId: string) {
+  async function openSettlementModal(loanId: string) {
     const loan = loans.find((l) => l.id === loanId); if (!loan) return
     setSelectedLoanId(loanId); setSettlementError('')
+
+    // تعديل تسوية مُقدَّمة مسبقاً (قبل اعتمادها) — جلب التفاصيل الكاملة المحفوظة
+    if (loan.isSettled && loan.settlementStatus !== 'APPROVED') {
+      try {
+        const res = await fetch(`/api/loans/${loanId}`)
+        if (res.ok) {
+          const full = await res.json()
+          const invoicesData = full.settlement?.invoices ?? null
+          if (invoicesData) {
+            setCurrencyRates(invoicesData.currencyRates?.length ? invoicesData.currencyRates : [{ currencyCode: 'USD', rate: 3.75 }])
+            setSettlementItems(rebuildSettlementItemsFromDetails(invoicesData.details ?? [], loan.items))
+            setSettlementMeta({ receiptNumber: invoicesData.receiptNumber ?? '', receiptDate: invoicesData.receiptDate ?? '', overageReason: invoicesData.overageReason ?? '', receiptAttachment: invoicesData.receiptAttachment ?? null })
+            setSettlementModalOpen(true)
+            return
+          }
+        }
+      } catch {
+        // عند الفشل: استمر بالمسار الافتراضي أدناه
+      }
+    }
+
     const draft = loan.settlementDraft
     setCurrencyRates(draft?.currencyRates?.length ? draft.currencyRates : [{ currencyCode: 'USD', rate: 3.75 }])
     setSettlementItems(draft?.settlementItems?.length ? draft.settlementItems : sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount))))
     setSettlementMeta(draft?.settlementMeta ?? { receiptNumber: '', receiptDate: '', overageReason: '' })
     setSettlementModalOpen(true)
+  }
+
+  async function deleteSettlement(loanId: string) {
+    if (!window.confirm('سيتم حذف تسوية السلفة الحالية بالكامل والسماح بإعادة تقديمها من جديد. هل تريد المتابعة؟')) return
+    startTransition(async () => {
+      const res = await fetch(`/api/loans/${loanId}/settlement`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر حذف التسوية.', 'error'); return }
+      setLoans((curr) => curr.map((l) => l.id === loanId ? normalizeLoanRecord(data) : l))
+      showToast('تم حذف تسوية السلفة. يمكنك تقديمها من جديد.')
+    })
   }
 
   async function saveSettlementDraft() {
@@ -1479,7 +1535,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-3">
                     {requestLoans.map((loan) => (
                       <LoanCard key={loan.id} loan={loan} canReview={false} canModify={loan.reviewStatus !== 'REVIEWED'}
-                        onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
+                        onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
                         onPrintLoan={() => openPrintDocument('loan', loan.id)}
@@ -1504,7 +1560,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 ) : settledLoans.map((loan) => (
                   <LoanCard key={loan.id} loan={loan} archived canReview={false} canModify={false} canDelete={isSuperAdmin}
-                    onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal}
+                    onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
                     onPrintLoan={() => openPrintDocument('loan', loan.id)}
@@ -2223,9 +2279,9 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   )
 }
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, onEdit, onDelete, onSettle, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, onEdit, onDelete, onSettle, onDeleteSettlement, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean; canDelete?: boolean
-  onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void
+  onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void; onDeleteSettlement: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onPrintSettlement: () => void
   onSendManualAlert: () => void; onSendReviewerReminder: () => void
@@ -2287,18 +2343,24 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
           {loan.isSettled ? (
             <>
               <button type="button" onClick={onPrintSettlement} className="btn btn-outline btn-sm">🖨️ طباعة نموذج ١٩</button>
+              {loan.settlementStatus !== 'APPROVED' && (
+                <>
+                  <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-success btn-sm">✏️ تعديل التسوية</button>
+                  <button type="button" onClick={() => onDeleteSettlement(loan.id)} className="btn btn-danger btn-sm">🗑️ حذف التسوية</button>
+                </>
+              )}
             </>
           ) : (
             <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-gold btn-sm sm:col-span-2">📝 بدء تسوية السلفة</button>
           )}
 
-          {!archived && canModify && !loan.isSettled && (
+          {!archived && canModify && !loan.isSettled && loan.reviewStatus !== 'REVIEWED' && (
             <>
               <button type="button" onClick={() => onEdit(loan.id)} className="btn btn-success btn-sm">✏️ تعديل</button>
             </>
           )}
 
-          {((!archived && canModify && !loan.isSettled) || canDelete) && (
+          {((!archived && canModify && !loan.isSettled && loan.reviewStatus !== 'REVIEWED') || canDelete) && (
             <button type="button" onClick={() => onDelete(loan.id)} className="btn btn-danger btn-sm">🗑️ حذف</button>
           )}
 

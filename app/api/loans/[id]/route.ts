@@ -72,7 +72,7 @@ export async function GET(
 
     const loan = await prisma.loan.findUnique({
       where: { id: params.id },
-      include: dashboardLoanInclude,
+      include: fullLoanInclude,
     })
 
     if (!loan) {
