@@ -34,7 +34,7 @@ export default async function LoanPrintPage({
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">
       <div className="mx-auto max-w-[210mm]">
-        <PrintActions />
+        <PrintActions pdfHref={`/api/print/loans/${params.id}`} />
         <div className="bg-white p-2 print:p-0" dangerouslySetInnerHTML={{ __html: html }} />
       </div>
     </main>
