@@ -312,6 +312,24 @@ function printShell(body: string, options: PrintShellOptions) {
       max-height: 9mm;
       object-fit: contain;
     }
+    .reviewer-signature-col-head,
+    .reviewer-signature-col {
+      width: 20mm;
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+    }
+    .reviewer-signature-col {
+      vertical-align: middle;
+      text-align: center;
+    }
+    .reviewer-signature-col-img {
+      display: block;
+      width: 18mm;
+      max-height: 9mm;
+      object-fit: contain;
+      margin: 2mm auto;
+    }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
@@ -1169,12 +1187,15 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: Do
   return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
 
-function buildReviewerSignatureOverlay(signatures?: StoredFile[]) {
-  const list = (signatures ?? []).slice(0, 3)
-  if (list.length === 0) return ''
-  return list
-    .map((file, index) => `<img class="reviewer-signature reviewer-signature-${index + 1}" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
+// خلية تأشيرة المراجع — عمود إضافي شفّاف بدون حدود، يمتد بطول الجدول (rowspan)
+// بجانب عمود "الجهة المصدرة له"، فلا يتأثر بعدد صفوف الفواتير ولا يُشوّه شكل النموذج المعتمد
+function buildReviewerSignatureColumnCell(signatures: StoredFile[] | undefined, rowCount: number) {
+  const list = (signatures ?? []).slice(0, 2)
+  if (list.length === 0 || rowCount === 0) return ''
+  const images = list
+    .map((file) => `<img class="reviewer-signature-col-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
     .join('')
+  return `<td rowspan="${rowCount}" class="reviewer-signature-col">${images}</td>`
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
@@ -1316,9 +1337,11 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
   const settings = resolveSettings(options)
   const settlement = loan.settlement
   const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
-  const rows = normalizeSettlementTemplateRows(loan)
+  const settlementTemplateRows = normalizeSettlementTemplateRows(loan)
+  const reviewerSignatureCell = buildReviewerSignatureColumnCell(options?.reviewerSignatures, settlementTemplateRows.length)
+  const rows = settlementTemplateRows
     .map(
-      (row) => `
+      (row, index) => `
         <tr>
           <td style="width:5%;">${row.index}.</td>
           <td class="text-right text-top">${escapeHtml(row.category)}</td>
@@ -1326,6 +1349,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
           <td style="width:11%;" class="text-top">${row.documentType}</td>
           <td style="width:14%;" class="text-top">${row.documentDate}</td>
           <td style="width:21%;" class="text-top">${row.issuer}</td>
+          ${index === 0 ? reviewerSignatureCell : ''}
         </tr>
       `,
     )
@@ -1367,13 +1391,13 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
             <th style="width:11%;">نوعه</th>
             <th style="width:14%;">تاريخه</th>
             <th style="width:21%;">الجهة المصدرة له</th>
+            <th class="reviewer-signature-col-head"></th>
           </tr>
         </thead>
         <tbody>
           ${rows}
         </tbody>
       </table>
-      ${buildReviewerSignatureOverlay(options?.reviewerSignatures)}
     </div>
 
     <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
