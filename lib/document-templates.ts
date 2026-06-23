@@ -45,6 +45,7 @@ type SettlementMetaLike = {
   receiptDate?: string
   overageReason?: string
   pettyCashApproval?: StoredFile | null
+  receiptAttachment?: StoredFile | null
 }
 
 export type LoanDocumentRecord = {
@@ -643,6 +644,7 @@ function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
     receiptDate: typeof source.receiptDate === 'string' ? source.receiptDate : '',
     overageReason: typeof source.overageReason === 'string' ? source.overageReason : '',
     pettyCashApproval: normalizeStoredFile(source.pettyCashApproval),
+    receiptAttachment: normalizeStoredFile(source.receiptAttachment),
   }
 }
 
@@ -725,6 +727,17 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
       documentType: 'موافقة المعالي',
       issuer: 'اعتماد النثريات',
       attachment: meta.pettyCashApproval,
+    })
+  }
+
+  if (meta.receiptAttachment) {
+    attachments.push({
+      category: 'إيصال السداد',
+      amount: 0,
+      date: formatDateOrBlank(meta.receiptDate ?? ''),
+      documentType: 'إيصال سداد الوفر',
+      issuer: meta.receiptNumber ? `رقم السند: ${meta.receiptNumber}` : '',
+      attachment: meta.receiptAttachment,
     })
   }
 
