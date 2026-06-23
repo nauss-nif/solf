@@ -698,7 +698,9 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
 function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
   const meta = normalizeSettlementMeta(loan.settlement?.invoices)
-  const attachments = details.flatMap((detail) =>
+  const attachments = details
+    .filter((detail) => !detail.category?.includes('نثريات'))
+    .flatMap((detail) =>
     (detail.invoices ?? [])
       .map((invoice) => ({
         ...invoice,
