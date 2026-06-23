@@ -20,7 +20,7 @@ export async function PATCH(
 
     const loan = await prisma.loan.findUnique({
       where: { id: params.id },
-      select: { id: true, userId: true, reviewStatus: true, isSettled: true },
+      select: { id: true, userId: true, reviewStatus: true, isSettled: true, settlementStatus: true },
     })
 
     if (!loan) {
@@ -31,8 +31,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (loan.isSettled) {
-      return NextResponse.json({ error: 'السلفة مسوّاة بالفعل.' }, { status: 409 })
+    // يُسمح بحفظ مسودة تسوية معاد فتحها بعد قبول طلب الإعادة (isSettled تبقى true لذلك)،
+    // يُمنع فقط إن كانت التسوية معتمدة فعلاً
+    if (loan.settlementStatus === 'APPROVED') {
+      return NextResponse.json({ error: 'السلفة مسوّاة ومعتمدة بالفعل.' }, { status: 409 })
     }
 
     const body = await request.json()
