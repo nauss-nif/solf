@@ -26,7 +26,10 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    if (loan.reviewStatus !== 'REVIEWED' && !loan.isSettled) {
+    // مؤهلة لإعادة الفتح فقط إن كانت بحالة "مغلقة فعلياً": نموذج ١٨ معتمد ولم يُسوَّ بعد،
+    // أو نموذج ١٩ مُعتمد (وليس مجرد مُقدَّم/قيد التعديل، فتلك حالات قابلة للتعديل أصلاً)
+    const isLocked = (loan.reviewStatus === 'REVIEWED' && !loan.isSettled) || loan.settlementStatus === 'APPROVED'
+    if (!isLocked) {
       return NextResponse.json({ error: 'لا يمكن طلب إعادة فتح معاملة لم تُعتمد بعد.' }, { status: 409 })
     }
 

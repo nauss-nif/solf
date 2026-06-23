@@ -931,7 +931,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING').length,
     settlementPending: loans.filter((loan) => loan.settlement && loan.settlementStatus !== 'APPROVED').length,
     approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')).length,
-    returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED').length,
+    returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested).length,
     linkedCourses: loans.filter((loan) => loan.courseId).length,
   }), [loans])
   const reviewerQueue = filteredLoans
@@ -939,9 +939,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (reviewerFilter === 'advance') return loan.reviewStatus === 'PENDING'
       if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && loan.settlementStatus !== 'APPROVED'
       if (reviewerFilter === 'approved') return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
-      if (reviewerFilter === 'returned') return loan.reviewStatus === 'RETURNED'
-      // كل المعاملات النشطة: تستبعد السلف المؤرشفة (المُسوّاة)، فهي موجودة في تبويب الأرشيف
-      return !loan.isSettled
+      // المعادة: إرجاع المراجع التقليدي للموظف، أو طلب إعادة فتح معاملة معتمدة سابقاً (سواء كان معلّقاً أو تمت الموافقة عليه وأصبح قيد التعديل من جديد)
+      if (reviewerFilter === 'returned') return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.settlement && loan.settlementStatus === 'IN_PROGRESS')
+      // كل المعاملات النشطة: تستبعد السلف المؤرشفة (المُسوّاة) إلا إن أُعيد فتحها أو كان عليها طلب إعادة فتح معلّق
+      return !loan.isSettled || loan.recallRequested || loan.settlementStatus !== 'APPROVED'
     })
     .sort((a, b) => {
       const priority = (loan: LoanDashboardRecord) => {
@@ -2382,7 +2383,10 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             <button type="button" onClick={onSendReviewerReminder} className="btn btn-outline btn-sm sm:col-span-2">🔔 تذكير المراجعين</button>
           )}
 
-          {!canReview && (loan.reviewStatus === 'REVIEWED' || loan.isSettled) && !loan.recallRequested && onRequestRecall && (
+          {!canReview
+            && ((loan.reviewStatus === 'REVIEWED' && !loan.isSettled) || loan.settlementStatus === 'APPROVED')
+            && !loan.recallRequested
+            && onRequestRecall && (
             <button type="button" onClick={onRequestRecall} className="btn btn-outline btn-sm sm:col-span-2">↩ طلب إعادة فتح المعاملة</button>
           )}
         </div>
