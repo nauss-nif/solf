@@ -93,7 +93,6 @@ type PrintShellOptions = {
   lineHeight?: string
   sheetWidth?: string
   sheetMinHeight?: string
-  sheetMargin?: string
 }
 
 type TemplateReplacement = {
@@ -177,7 +176,6 @@ function printShell(body: string, options: PrintShellOptions) {
   const lineHeight = options.lineHeight ?? '1.7'
   const sheetWidth = options.sheetWidth ?? '100%'
   const sheetMinHeight = options.sheetMinHeight ?? 'auto'
-  const sheetMargin = options.sheetMargin ?? '0 auto'
 
   return `
   <style>
@@ -201,7 +199,7 @@ function printShell(body: string, options: PrintShellOptions) {
     .print-sheet {
       width: ${sheetWidth};
       min-height: ${sheetMinHeight};
-      margin: ${sheetMargin};
+      margin: 0 auto;
       background: #fff;
       color: #111827;
     }
@@ -311,25 +309,6 @@ function printShell(body: string, options: PrintShellOptions) {
     .reviewer-signature {
       display: block;
       width: 22mm;
-      max-height: 9mm;
-      object-fit: contain;
-    }
-    .reviewer-signature-side-layer {
-      position: absolute;
-      bottom: 0;
-      left: 100%;
-      margin-left: 1mm;
-      width: 20mm;
-      display: flex;
-      flex-direction: column-reverse;
-      align-items: center;
-      gap: 4mm;
-      pointer-events: none;
-      z-index: 2;
-    }
-    .reviewer-signature-side-img {
-      display: block;
-      width: 20mm;
       max-height: 9mm;
       object-fit: contain;
     }
@@ -1190,17 +1169,6 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: Do
   return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
 
-// طبقة تأشيرة المراجع — حرّة خارج حافة الجدول اليمنى وخارج هامش الصفحة
-// لا تلمس الجدول أو أي عمود فيه إطلاقاً، فلا تتأثر به ولا تُشوّه شكله
-function buildReviewerSignatureSideLayer(signatures?: StoredFile[]) {
-  const list = (signatures ?? []).slice(0, 3)
-  if (list.length === 0) return ''
-  const images = list
-    .map((file) => `<img class="reviewer-signature-side-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
-    .join('')
-  return `<div class="reviewer-signature-side-layer">${images}</div>`
-}
-
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   const settings = resolveSettings(options)
   const tableFontSize =
@@ -1397,7 +1365,6 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
           ${rows}
         </tbody>
       </table>
-      ${buildReviewerSignatureSideLayer(options?.reviewerSignatures)}
     </div>
 
     <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
@@ -1469,12 +1436,11 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
   `
 
   return printShell(body, {
-    pageMargins: '32mm 18mm 16mm 15mm',
+    pageMargins: '32mm 15mm 16mm 15mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '13.4pt',
     lineHeight: '1.24',
-    sheetWidth: '155mm',
-    sheetMargin: '0 auto 0 0',
+    sheetWidth: '178mm',
     sheetMinHeight: '218mm',
     fontFaceCss: `
       @font-face {
