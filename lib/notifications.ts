@@ -315,6 +315,7 @@ export async function notifyRecallRequested(loan: {
   refNumber: string
   employee: string
   reason: string
+  targetLabel: string
 }): Promise<void> {
   const reviewers = await prisma.$queryRaw<Array<{ id: string; email: string; fullName: string }>>`
     SELECT id, email, "fullName"
@@ -326,8 +327,8 @@ export async function notifyRecallRequested(loan: {
       )
   `
 
-  const title = `طلب إعادة فتح معاملة — ${loan.refNumber}`
-  const message = `طلب الموظف ${loan.employee} إعادة فتح المعاملة ${loan.refNumber} للسبب: ${loan.reason}`
+  const title = `طلب إعادة فتح ${loan.targetLabel} — ${loan.refNumber}`
+  const message = `طلب الموظف ${loan.employee} إعادة فتح ${loan.targetLabel} للمعاملة ${loan.refNumber} للسبب: ${loan.reason}`
 
   for (const reviewer of reviewers) {
     await createInternalNotification({

@@ -54,6 +54,7 @@ export async function POST(
       refNumber: loan.refNumber,
       employee: loan.employee,
       reason,
+      targetLabel: loan.isSettled ? 'نموذج ١٩ (تسوية السلفة)' : 'نموذج ١٨ (طلب السلفة)',
     }).catch(console.error)
 
     return NextResponse.json(updatedLoan)
@@ -100,9 +101,11 @@ export async function PATCH(
         recallRequested: false,
         recallReason: null,
         recallRequestedAt: null,
+        // القبول لا يحذف بيانات التسوية ولا يفرّغها — فقط يُنزّل حالتها من "معتمدة" إلى
+        // "قيد التسوية" لتبقى نفس البيانات السابقة قابلة للتعديل (وليست مسودة فارغة جديدة)
         ...(approved
           ? loan.isSettled
-            ? { isSettled: false, settlementStatus: 'IN_PROGRESS' as const }
+            ? { settlementStatus: 'IN_PROGRESS' as const }
             : { reviewStatus: 'PENDING' as const }
           : {}),
       },
