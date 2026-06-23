@@ -1192,6 +1192,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
   const reviewerSignatures = (options?.reviewerSignatures ?? []).slice(0, 2)
 
   const body = `
+    <div class="letterhead-spacer" style="height: 32mm;"></div>
     <div class="print-title">
       <h2>نموذج رقم 18</h2>
       <h1>طلب صرف سلفة مؤقتة للعمل</h1>
@@ -1287,7 +1288,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
   `
 
   return printShell(body, {
-    pageMargins: '45mm 14.5mm 16mm 14mm',
+    pageMargins: '14mm 14.5mm 16mm 14mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '12.8pt',
     lineHeight: '1.26',
@@ -1326,6 +1327,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
   const attachmentPages = buildSettlementAttachmentPages(loan)
 
   const body = `
+    <div class="letterhead-spacer" style="height: 31mm;"></div>
     <div class="print-title">
       <h2>نموذج رقم 19</h2>
       <h1>طلب تسوية سلفة مؤقتة</h1>
@@ -1436,7 +1438,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
   `
 
   return printShell(body, {
-    pageMargins: '32mm 15mm 16mm 15mm',
+    pageMargins: '15mm 15mm 16mm 15mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '13.4pt',
     lineHeight: '1.24',

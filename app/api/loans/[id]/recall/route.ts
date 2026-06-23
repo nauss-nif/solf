@@ -30,13 +30,22 @@ export async function POST(
       return NextResponse.json({ error: 'لا يمكن طلب إعادة فتح معاملة لم تُعتمد بعد.' }, { status: 409 })
     }
 
+    if (loan.recallRequested) {
+      return NextResponse.json({ error: 'يوجد طلب إعادة فتح معلّق بالفعل لهذه المعاملة.' }, { status: 409 })
+    }
+
     const reason = String((await request.json()).reason ?? '').trim()
     if (!reason) {
       return NextResponse.json({ error: 'يجب كتابة سبب طلب إعادة الفتح.' }, { status: 400 })
     }
 
-    const updatedLoan = await prisma.loan.findUnique({
+    const updatedLoan = await prisma.loan.update({
       where: { id: loan.id },
+      data: {
+        recallRequested: true,
+        recallReason: reason,
+        recallRequestedAt: new Date(),
+      },
       include: dashboardLoanInclude,
     })
 
@@ -57,6 +66,7 @@ export async function POST(
 }
 
 // قرار المراجع بشأن طلب إعادة الفتح: قبول أو رفض
+// القبول يعيد فتح نموذج ١٩ (إن كانت مُسوّاة) أو نموذج ١٨ (إن لم تكن) للتعديل من جديد
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
@@ -77,11 +87,25 @@ export async function PATCH(
       return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
     }
 
+    if (!loan.recallRequested) {
+      return NextResponse.json({ error: 'لا يوجد طلب إعادة فتح معلّق لهذه المعاملة.' }, { status: 409 })
+    }
+
     const body = await request.json()
     const approved = body.decision === 'approve'
 
-    const updatedLoan = await prisma.loan.findUnique({
+    const updatedLoan = await prisma.loan.update({
       where: { id: loan.id },
+      data: {
+        recallRequested: false,
+        recallReason: null,
+        recallRequestedAt: null,
+        ...(approved
+          ? loan.isSettled
+            ? { isSettled: false, settlementStatus: 'IN_PROGRESS' as const }
+            : { reviewStatus: 'PENDING' as const }
+          : {}),
+      },
       include: dashboardLoanInclude,
     })
 
