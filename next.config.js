@@ -21,6 +21,7 @@ const nextConfig = {
     outputFileTracingIncludes: {
       '/*': ['./templates/**/*'],
     },
+    serverComponentsExternalPackages: ['@sparticuz/chromium', 'puppeteer-core'],
   },
 }
 module.exports = nextConfig
