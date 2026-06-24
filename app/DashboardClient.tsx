@@ -45,7 +45,7 @@ export type LoanDashboardRecord = {
 }
 
 type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER'> }
-type ExpenseDraft = { category: string; amount: string }
+type ExpenseDraft = { category: string; amount: string; customLabel?: string }
 type InvoiceDraft = { amount: string; currencyCode: CurrencyCode; exchangeRate: string; sarAmount: number; documentType: SettlementDocumentType; invoiceDate: string; issuer: string; attachment: StoredFile | null }
 type SettlementDraft = { id: string; category: string; budget: number; invoices: InvoiceDraft[]; isAdditional?: boolean }
 type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string; receiptAttachment?: StoredFile | null }
@@ -747,7 +747,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }
 
   async function submitLoan(isDraft = false) {
-    const cleanExpenses = expenses.map((i) => ({ category: i.category.trim(), amount: Number.parseFloat(i.amount || '0') || 0 })).filter((i) => i.category && i.amount > 0)
+    if (!isDraft && expenses.some((i) => i.category === 'أخرى' && !(i.customLabel ?? '').trim())) {
+      setLoanError('حدد اسم بند "أخرى" قبل إرسال الطلب.'); return
+    }
+    const cleanExpenses = expenses
+      .map((i) => ({ category: (i.category === 'أخرى' ? (i.customLabel ?? '').trim() : i.category).trim() || i.category.trim(), amount: Number.parseFloat(i.amount || '0') || 0 }))
+      .filter((i) => i.category && i.amount > 0)
     if (!loanForm.activity || !loanForm.startDate || !loanForm.endDate) { setLoanError('أدخل النشاط وتاريخ البداية والنهاية على الأقل قبل حفظ المسودة.'); return }
     if (!isDraft) {
       if (!loanForm.location || !loanForm.employee) { setLoanError('أكمل الحقول الأساسية قبل إرسال الطلب.'); return }
@@ -1850,15 +1855,21 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 </div>
                 <div className="space-y-2">
                   {expenses.map((expense, index) => (
-                    <div key={index} className="grid gap-2 md:grid-cols-[1fr_160px_40px]">
-                      <select value={expense.category} onChange={(e) => updateExpense(index, 'category', e.target.value)} className="input-shell">
-                        <option value="">اختر البند...</option>
-                        {EXPENSE_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-                      </select>
-                      <input type="number" min="0" step="0.01" value={expense.amount} onChange={(e) => updateExpense(index, 'amount', e.target.value)} className="input-shell" placeholder="0.00" />
-                      <button type="button" onClick={() => setExpenses((c) => c.filter((_, i) => i !== index))}
-                        className="h-[42px] w-10 flex items-center justify-center rounded-lg text-lg font-bold transition"
-                        style={{ color: '#73384B', border: '1.5px solid #D9B8C4', background: 'transparent' }}>×</button>
+                    <div key={index} className="space-y-1.5">
+                      <div className="grid gap-2 md:grid-cols-[1fr_160px_40px]">
+                        <select value={expense.category} onChange={(e) => updateExpense(index, 'category', e.target.value)} className="input-shell">
+                          <option value="">اختر البند...</option>
+                          {EXPENSE_CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                        <input type="number" min="0" step="0.01" value={expense.amount} onChange={(e) => updateExpense(index, 'amount', e.target.value)} className="input-shell" placeholder="0.00" />
+                        <button type="button" onClick={() => setExpenses((c) => c.filter((_, i) => i !== index))}
+                          className="h-[42px] w-10 flex items-center justify-center rounded-lg text-lg font-bold transition"
+                          style={{ color: '#73384B', border: '1.5px solid #D9B8C4', background: 'transparent' }}>×</button>
+                      </div>
+                      {expense.category === 'أخرى' && (
+                        <input value={expense.customLabel ?? ''} onChange={(e) => updateExpense(index, 'customLabel', e.target.value)}
+                          className="input-shell" placeholder="حدد البند (مثال: احتياجات تدريبية)" />
+                      )}
                     </div>
                   ))}
                 </div>

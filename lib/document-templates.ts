@@ -680,17 +680,18 @@ function normalizeLoanTemplateRows(loan: LoanDocumentRecord): LoanTemplateRow[] 
 
 function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTemplateRow[] {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
+    // استبعاد البنود التي لم تُستخدم فعلياً (لا فواتير ولا مبلغ مصروف) — لا تظهر في النموذج المطبوع
+    .filter((detail) => (detail.invoices ?? []).some((invoice) => Number(invoice.sar ?? invoice.amount ?? 0) > 0))
 
   const rows = details.map((detail, index) => {
     const invoices = detail.invoices ?? []
     const totalSar = invoices.reduce((sum, invoice) => sum + Number(invoice.sar ?? 0), 0)
-    const amount = totalSar > 0 ? totalSar : Number(detail.budget ?? 0)
     const isPettyCash = (detail.category ?? '').includes('نثريات')
 
     return {
       index: index + 1,
       category: detail.category?.trim() || 'بند صرف',
-      amount: formatNumber(amount),
+      amount: formatNumber(totalSar),
       documentType: isPettyCash
         ? 'موافقة المعالي'
         : joinValues(invoices.map((invoice) => invoice.type), '<br />'),
