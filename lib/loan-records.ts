@@ -1,5 +1,4 @@
 ﻿import { notFound } from 'next/navigation'
-import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { canManageAllLoans, hasRole, normalizeRoles, requireSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
@@ -39,31 +38,20 @@ export async function getAuthorizedLoan(
   return loan
 }
 
-// تأشيرات المراجعين: توقيعات أول 3 مستخدمين بدور "مراجع" لديهم توقيع محفوظ
-// إن أُعطي preferredReviewerId (اعتماد المدير بالنيابة عن مراجع محدد)، يُقدَّم توقيع ذلك المراجع أولاً
-export async function getReviewerSignatures(preferredReviewerId?: string | null): Promise<StoredFile[]> {
+// تأشيرة المراجع الذي اعتمد المعاملة فعلياً فقط — لا تُعرض أي توقيعات لمراجعين آخرين لم يعتمدوها
+export async function getReviewerSignatures(approverId?: string | null): Promise<StoredFile[]> {
+  if (!approverId) return []
   await ensureDatabaseSetup()
 
-  const users = await prisma.user.findMany({
-    where: { signatureImage: { not: Prisma.DbNull } },
-    orderBy: { createdAt: 'asc' },
+  const approver = await prisma.user.findUnique({
+    where: { id: approverId },
     select: { id: true, role: true, roles: true, signatureImage: true },
   })
 
-  const reviewers = users.filter((user) => {
-    const role = user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
-    return hasRole({ role, roles: normalizeRoles(user.roles, role) }, 'REVIEWER') && isStoredImageFile(user.signatureImage)
-  })
+  if (!approver || !isStoredImageFile(approver.signatureImage)) return []
 
-  if (preferredReviewerId) {
-    const preferredIndex = reviewers.findIndex((user) => user.id === preferredReviewerId)
-    if (preferredIndex > 0) {
-      const [preferred] = reviewers.splice(preferredIndex, 1)
-      reviewers.unshift(preferred)
-    }
+  const role = approver.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+  if (!hasRole({ role, roles: normalizeRoles(approver.roles, role) }, 'REVIEWER')) return []
 
-    return reviewers.slice(0, 1).map((user) => user.signatureImage as StoredFile)
-  }
-
-  return reviewers.slice(0, 3).map((user) => user.signatureImage as StoredFile)
+  return [approver.signatureImage as StoredFile]
 }

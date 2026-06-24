@@ -206,6 +206,9 @@ export async function PATCH(
           reviewStatus: nextStatus,
           reviewNote: String(body.reviewNote ?? '').trim() || null,
           settlementStatus: nextStatus === 'REVIEWED' && closureType === 'settlement' ? 'APPROVED' : undefined,
+          // يجب حفظ هوية المراجع الذي اعتمد فعلياً، فهي ما يحدد توقيع من يظهر في النموذج المطبوع
+          ...(nextStatus === 'REVIEWED' && closureType === 'settlement' ? { settlementReviewedById: reviewerId } : {}),
+          ...(nextStatus === 'REVIEWED' && closureType !== 'settlement' ? { reviewedById: reviewerId } : {}),
         },
         include: dashboardLoanInclude,
       })
