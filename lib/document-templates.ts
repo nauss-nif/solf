@@ -313,6 +313,22 @@ function printShell(body: string, options: PrintShellOptions) {
       max-height: 9mm;
       object-fit: contain;
     }
+    .reviewer-signature-row {
+      width: 21%;
+      margin: 2mm 0 2mm auto;
+      direction: ltr;
+      display: flex;
+      flex-direction: row-reverse;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 3mm;
+    }
+    .reviewer-signature-row-img {
+      display: block;
+      width: 18mm;
+      max-height: 9mm;
+      object-fit: contain;
+    }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
@@ -1184,6 +1200,17 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: Do
   return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
 
+// صف تأشيرات المراجعين — يُضاف بعد الجدول مباشرة دون لمس أي عمود فيه،
+// محاذٍ لعمود "الجهة المصدرة له" (آخر عمود في الجدول)
+function buildReviewerSignatureRow(signatures?: StoredFile[]) {
+  const list = (signatures ?? []).slice(0, 3)
+  if (list.length === 0) return ''
+  const images = list
+    .map((file) => `<img class="reviewer-signature-row-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
+    .join('')
+  return `<div class="reviewer-signature-row">${images}</div>`
+}
+
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   const settings = resolveSettings(options)
   const tableFontSize =
@@ -1383,6 +1410,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
         </tbody>
       </table>
     </div>
+    ${buildReviewerSignatureRow(options?.reviewerSignatures)}
 
     <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
       <div style="display: grid; gap: 4px;">
