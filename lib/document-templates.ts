@@ -313,20 +313,23 @@ function printShell(body: string, options: PrintShellOptions) {
       max-height: 9mm;
       object-fit: contain;
     }
-    .reviewer-signature-row {
-      width: 21%;
-      margin: 2mm 0 2mm auto;
-      direction: ltr;
-      display: flex;
-      flex-direction: row-reverse;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 3mm;
+    .settlement-totals-zone {
+      position: relative;
     }
-    .reviewer-signature-row-img {
+    .reviewer-signature-left-layer {
+      position: absolute;
+      top: 10px;
+      left: 0;
+      width: 20mm;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      pointer-events: none;
+    }
+    .reviewer-signature-left-img {
       display: block;
       width: 18mm;
-      max-height: 9mm;
+      height: 22px;
       object-fit: contain;
     }
     .text-right { text-align: right !important; }
@@ -1200,15 +1203,15 @@ export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: Do
   return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
 
-// صف تأشيرات المراجعين — يُضاف بعد الجدول مباشرة دون لمس أي عمود فيه،
-// محاذٍ لعمود "الجهة المصدرة له" (آخر عمود في الجدول)
-function buildReviewerSignatureRow(signatures?: StoredFile[]) {
-  const list = (signatures ?? []).slice(0, 3)
+// تأشيرات المراجعين — طبقة فوق النموذج في الفراغ الموجود يسار صندوقي
+// "المصروفات المؤيدة بمستندات" و"المصروفات غير المؤيدة بمستندات"، دون لمس أي شيء في النموذج نفسه
+function buildReviewerSignatureLeftLayer(signatures?: StoredFile[]) {
+  const list = (signatures ?? []).slice(0, 2)
   if (list.length === 0) return ''
   const images = list
-    .map((file) => `<img class="reviewer-signature-row-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
+    .map((file) => `<img class="reviewer-signature-left-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
     .join('')
-  return `<div class="reviewer-signature-row">${images}</div>`
+  return `<div class="reviewer-signature-left-layer">${images}</div>`
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
@@ -1410,23 +1413,25 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
         </tbody>
       </table>
     </div>
-    ${buildReviewerSignatureRow(options?.reviewerSignatures)}
 
-    <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
-      <div style="display: grid; gap: 4px;">
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.supported ?? 0))} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.unsupported ?? 0))} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.total ?? 0))} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(loan.amount)} ريال</div>
-        <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.overage ?? 0))} ريال</div>
+    <div class="settlement-totals-zone">
+      <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
+        <div style="display: grid; gap: 4px;">
+          <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.supported ?? 0))} ريال</div>
+          <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.unsupported ?? 0))} ريال</div>
+          <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.total ?? 0))} ريال</div>
+          <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(loan.amount)} ريال</div>
+          <div style="height: 22px; border: 1px solid #000; background: #D9D9D9; text-align: center; font-weight: 700; padding-top: 2px; direction: rtl; unicode-bidi: isolate;">${formatNumber(Number(settlement?.overage ?? 0))} ريال</div>
+        </div>
+        <div style="display: grid; gap: 4px; direction: rtl; text-align: right; align-content: start;">
+          <div style="height: 22px; padding-top: 2px;">المصروفات المؤيدة بمستندات</div>
+          <div style="height: 22px; padding-top: 2px;">المصروفات غير المؤيدة بمستندات</div>
+          <div style="height: 22px; padding-top: 2px;">إجمالي المصروفات من السلفة</div>
+          <div style="height: 22px; padding-top: 2px;">مبلغ السلفة</div>
+          <div style="height: 22px; padding-top: 2px;">المبلغ المصروف بالزيادة المطلوبة صرفه</div>
+        </div>
       </div>
-      <div style="display: grid; gap: 4px; direction: rtl; text-align: right; align-content: start;">
-        <div style="height: 22px; padding-top: 2px;">المصروفات المؤيدة بمستندات</div>
-        <div style="height: 22px; padding-top: 2px;">المصروفات غير المؤيدة بمستندات</div>
-        <div style="height: 22px; padding-top: 2px;">إجمالي المصروفات من السلفة</div>
-        <div style="height: 22px; padding-top: 2px;">مبلغ السلفة</div>
-        <div style="height: 22px; padding-top: 2px;">المبلغ المصروف بالزيادة المطلوبة صرفه</div>
-      </div>
+      ${buildReviewerSignatureLeftLayer(options?.reviewerSignatures)}
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
