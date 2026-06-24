@@ -313,24 +313,6 @@ function printShell(body: string, options: PrintShellOptions) {
       max-height: 9mm;
       object-fit: contain;
     }
-    .reviewer-signature-side-layer {
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      width: 20mm;
-      display: flex;
-      flex-direction: column-reverse;
-      align-items: center;
-      gap: 4mm;
-      pointer-events: none;
-      z-index: 2;
-    }
-    .reviewer-signature-side-img {
-      display: block;
-      width: 20mm;
-      max-height: 9mm;
-      object-fit: contain;
-    }
     .text-right { text-align: right !important; }
     .text-top { vertical-align: top !important; }
     .official-inline {
@@ -1198,16 +1180,6 @@ export async function buildLoanRequestDocx(loan: LoanDocumentRecord, options?: D
   return createWordCompatibleDocument(buildLoanRequestWordHtml(loan, options))
 }
 
-// طبقة تأشيرة المراجع — حرّة بجانب حافة الجدول اليمنى، أول توقيع يُحاذي آخر صف في الجدول
-function buildReviewerSignatureSideLayer(signatures?: StoredFile[]) {
-  const list = (signatures ?? []).slice(0, 3)
-  if (list.length === 0) return ''
-  const images = list
-    .map((file) => `<img class="reviewer-signature-side-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
-    .join('')
-  return `<div class="reviewer-signature-side-layer">${images}</div>`
-}
-
 export async function buildSettlementDocx(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   return createWordCompatibleDocument(buildSettlementWordHtml(loan, options))
 }
@@ -1395,7 +1367,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
     </div>
 
     <div class="loan-table-wrap">
-      <table class="form-grid" style="width: calc(100% - 22mm); margin-right: 22mm;">
+      <table class="form-grid">
         <thead>
           <tr>
             <th style="width:5%;">م</th>
@@ -1410,7 +1382,6 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
           ${rows}
         </tbody>
       </table>
-      ${buildReviewerSignatureSideLayer(options?.reviewerSignatures)}
     </div>
 
     <div style="display: grid; grid-template-columns: 42mm 1fr; column-gap: 10mm; width: 76%; margin: 10px 0 4px auto; direction: ltr; font-size: 13px;">
