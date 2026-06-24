@@ -94,7 +94,6 @@ type PrintShellOptions = {
   lineHeight?: string
   sheetWidth?: string
   sheetMinHeight?: string
-  sheetMargin?: string
 }
 
 type TemplateReplacement = {
@@ -178,7 +177,6 @@ function printShell(body: string, options: PrintShellOptions) {
   const lineHeight = options.lineHeight ?? '1.7'
   const sheetWidth = options.sheetWidth ?? '100%'
   const sheetMinHeight = options.sheetMinHeight ?? 'auto'
-  const sheetMargin = options.sheetMargin ?? '0 auto'
 
   return `
   <style>
@@ -202,7 +200,7 @@ function printShell(body: string, options: PrintShellOptions) {
     .print-sheet {
       width: ${sheetWidth};
       min-height: ${sheetMinHeight};
-      margin: ${sheetMargin};
+      margin: 0 auto;
       background: #fff;
       color: #111827;
     }
@@ -318,8 +316,7 @@ function printShell(body: string, options: PrintShellOptions) {
     .reviewer-signature-side-layer {
       position: absolute;
       bottom: 0;
-      left: 100%;
-      margin-left: 1mm;
+      right: 0;
       width: 20mm;
       display: flex;
       flex-direction: column-reverse;
@@ -1398,7 +1395,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
     </div>
 
     <div class="loan-table-wrap">
-      <table class="form-grid">
+      <table class="form-grid" style="width: calc(100% - 22mm); margin-right: 22mm;">
         <thead>
           <tr>
             <th style="width:5%;">م</th>
@@ -1485,12 +1482,11 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
   `
 
   return printShell(body, {
-    pageMargins: '15mm 18mm 16mm 15mm',
+    pageMargins: '15mm 15mm 16mm 15mm',
     fontFamily: '"BoutrosJazirahTextLight", Tahoma, Arial, sans-serif',
     fontSize: '13.4pt',
     lineHeight: '1.24',
-    sheetWidth: '155mm',
-    sheetMargin: '0 auto 0 0',
+    sheetWidth: '178mm',
     sheetMinHeight: '218mm',
     fontFaceCss: `
       @font-face {
