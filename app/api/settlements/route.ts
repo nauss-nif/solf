@@ -57,6 +57,8 @@ export async function POST(request: Request) {
       overageReason: String(body.overageReason ?? '').trim(),
       pettyCashApproval: body.pettyCashApproval ?? null,
       receiptAttachment: body.receiptAttachment ?? null,
+      exchangeRateProof: body.exchangeRateProof ?? null,
+      exchangeRateProofDate: String(body.exchangeRateProofDate ?? '').trim(),
     }
 
     await prisma.$transaction(async (tx) => {

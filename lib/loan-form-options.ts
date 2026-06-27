@@ -83,6 +83,7 @@ export const CURRENCY_OPTIONS = [
   // أخرى
   { code: 'ZAR', label: 'راند جنوب أفريقي',   symbol: 'ZAR'  },
   { code: 'RUB', label: 'روبل روسي',           symbol: 'RUB'  },
+  { code: 'OTHER', label: 'أخرى (تحديد)',     symbol: ''     },
 ] as const
 
 export const LOAN_ATTACHMENT_DEFINITIONS = [
@@ -223,6 +224,7 @@ export function validateSettlementAttachments(details: unknown, pettyCashApprova
 export type SettlementCurrencyRate = {
   currencyCode: CurrencyCode
   rate: number
+  customLabel?: string
 }
 
 export type SettlementInvoiceRecord = {

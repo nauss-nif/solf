@@ -48,7 +48,7 @@ type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMP
 type ExpenseDraft = { category: string; amount: string; customLabel?: string }
 type InvoiceDraft = { amount: string; currencyCode: CurrencyCode; exchangeRate: string; sarAmount: number; documentType: SettlementDocumentType; invoiceDate: string; issuer: string; attachment: StoredFile | null }
 type SettlementDraft = { id: string; category: string; budget: number; invoices: InvoiceDraft[]; isAdditional?: boolean }
-type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string; receiptAttachment?: StoredFile | null }
+type SettlementMetaState = { receiptNumber: string; receiptDate: string; overageReason: string; receiptAttachment?: StoredFile | null; exchangeRateProof?: StoredFile | null; exchangeRateProofDate?: string }
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
@@ -225,6 +225,7 @@ function createEmptyAttachments(): Record<string, StoredFile[]> {
 }
 
 function getCurrencyLabel(code: CurrencyCode) { return CURRENCY_OPTIONS.find((c) => c.code === code)?.label ?? code }
+function getRateLabel(rate: SettlementCurrencyRate) { return rate.currencyCode === 'OTHER' ? (rate.customLabel?.trim() || 'أخرى') : getCurrencyLabel(rate.currencyCode) }
 function isPettyCashCategory(category: string) { return category.includes('نثريات') }
 
 function sortSettlementItems(items: SettlementDraft[]) {
@@ -686,7 +687,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
           if (invoicesData) {
             setCurrencyRates(invoicesData.currencyRates?.length ? invoicesData.currencyRates : [{ currencyCode: 'USD', rate: 3.75 }])
             setSettlementItems(rebuildSettlementItemsFromDetails(invoicesData.details ?? [], loan.items))
-            setSettlementMeta({ receiptNumber: invoicesData.receiptNumber ?? '', receiptDate: invoicesData.receiptDate ?? '', overageReason: invoicesData.overageReason ?? '', receiptAttachment: invoicesData.receiptAttachment ?? null })
+            setSettlementMeta({ receiptNumber: invoicesData.receiptNumber ?? '', receiptDate: invoicesData.receiptDate ?? '', overageReason: invoicesData.overageReason ?? '', receiptAttachment: invoicesData.receiptAttachment ?? null, exchangeRateProof: invoicesData.exchangeRateProof ?? null, exchangeRateProofDate: invoicesData.exchangeRateProofDate ?? '' })
             setSettlementModalOpen(true)
             return
           }
@@ -698,15 +699,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
     const draft = loan.settlementDraft
     setCurrencyRates(draft?.currencyRates?.length ? draft.currencyRates : [{ currencyCode: 'USD', rate: 3.75 }])
-    const freshItems = sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount)))
-    // موافقة المعالي على النثريات تُجلب تلقائياً من مرفقات نموذج ١٨ نفسها، دون إرفاقها مرة أخرى
-    const pettyCashSource = toStoredFileArray(loan.files?.grandApproval)[0] ?? toStoredFileArray(loan.files?.nomineeAdjustment)[0]
-    const itemsWithPettyCashAttachment = !draft?.settlementItems?.length && pettyCashSource
-      ? freshItems.map((item) => isPettyCashCategory(item.category) && !item.invoices[0]?.attachment
-          ? { ...item, invoices: item.invoices.map((inv, idx) => idx === 0 ? { ...inv, attachment: cloneStoredFile(pettyCashSource) } : inv) }
-          : item)
-      : freshItems
-    setSettlementItems(draft?.settlementItems?.length ? draft.settlementItems : itemsWithPettyCashAttachment)
+    setSettlementItems(draft?.settlementItems?.length ? draft.settlementItems : sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount))))
     setSettlementMeta(draft?.settlementMeta ?? { receiptNumber: '', receiptDate: '', overageReason: '' })
     setSettlementModalOpen(true)
   }
@@ -837,6 +830,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     const allInvoices = details.flatMap((item) => item.invoices.map((inv) => ({ ...inv, category: item.category })))
     if (currencyRates.some((r) => r.currencyCode !== 'SAR' && r.rate <= 0)) { setSettlementError('أكمل أسعار الصرف لجميع العملات المضافة.'); return }
     if (allInvoices.length === 0) { setSettlementError('أضف فاتورة واحدة على الأقل قبل حفظ التسوية.'); return }
+    if (currencyRates.length > 0) {
+      if (!settlementMeta.exchangeRateProof) { setSettlementError('أرفق إثبات سعر الصرف (أول يوم صرف) قبل حفظ التسوية.'); return }
+      if (!settlementMeta.exchangeRateProofDate) { setSettlementError('حدد تاريخ سعر الصرف.'); return }
+    }
     const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
     const pettyCashApproval = details.find((item) => isPettyCashCategory(item.category))?.invoices.find((inv) => inv.attachment)?.attachment ?? null
     if (hasPettyCash && !pettyCashApproval) { setSettlementError('أرفق موافقة المعالي عند وجود نثريات ضمن التسوية.'); return }
@@ -852,7 +849,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (!settlementMeta.receiptDate) { setSettlementError('أدخل تاريخ سند القبض.'); return }
     }
     startTransition(async () => {
-      const res = await fetch('/api/settlements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ loanId: settlementLoan.id, supported: settlementSummary.supported, unsupported: settlementSummary.unsupported, total: settlementSummary.total, savings: settlementSummary.savings, overage: settlementSummary.overage, currencyRates, details, receiptNumber: settlementMeta.receiptNumber.trim(), receiptDate: settlementMeta.receiptDate, overageReason: settlementMeta.overageReason.trim(), pettyCashApproval: cloneStoredFile(pettyCashApproval), receiptAttachment: cloneStoredFile(settlementMeta.receiptAttachment) }) })
+      const res = await fetch('/api/settlements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ loanId: settlementLoan.id, supported: settlementSummary.supported, unsupported: settlementSummary.unsupported, total: settlementSummary.total, savings: settlementSummary.savings, overage: settlementSummary.overage, currencyRates, details, receiptNumber: settlementMeta.receiptNumber.trim(), receiptDate: settlementMeta.receiptDate, overageReason: settlementMeta.overageReason.trim(), pettyCashApproval: cloneStoredFile(pettyCashApproval), receiptAttachment: cloneStoredFile(settlementMeta.receiptAttachment), exchangeRateProof: cloneStoredFile(settlementMeta.exchangeRateProof), exchangeRateProofDate: settlementMeta.exchangeRateProofDate ?? '' }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setSettlementError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ التسوية.'); return }
       setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
@@ -1968,6 +1965,34 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </div>
 
             <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+              {/* إثبات سعر الصرف ليوم الصرف الأول */}
+              <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
+                <p className="text-sm font-semibold mb-2" style={{ color: '#1F3F40' }}>إثبات سعر الصرف (أول يوم صرف)</p>
+                <p className="text-xs mb-3" style={{ color: '#5A5A5A' }}>إيصال من بنك، أو سعر البنك المركزي السعودي، أو إيصال من مركز صرافة، يثبت سعر الصرف المستخدم في الفواتير</p>
+                <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+                  <div className="flex items-center gap-3">
+                    <label className="btn btn-outline btn-sm cursor-pointer">
+                      📎 {settlementMeta.exchangeRateProof ? 'تغيير المرفق' : 'رفع المرفق'}
+                      <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
+                        const file = e.target.files?.[0]; e.target.value = ''
+                        if (!file) return
+                        try {
+                          const stored = await fileToStoredFile(file)
+                          setSettlementMeta((c) => ({ ...c, exchangeRateProof: stored }))
+                        } catch (err) { setSettlementError(err instanceof Error ? err.message : 'تعذر رفع المرفق.') }
+                      }} />
+                    </label>
+                    {settlementMeta.exchangeRateProof && (
+                      <>
+                        <img src={settlementMeta.exchangeRateProof.dataUrl} alt="إثبات سعر الصرف" className="h-12 w-12 object-cover rounded-lg" style={{ border: '1px solid #C8D9D0' }} />
+                        <button type="button" onClick={() => setSettlementMeta((c) => ({ ...c, exchangeRateProof: null }))} className="btn btn-danger btn-sm">إزالة</button>
+                      </>
+                    )}
+                  </div>
+                  <input type="date" value={settlementMeta.exchangeRateProofDate ?? ''} onChange={(e) => setSettlementMeta((c) => ({ ...c, exchangeRateProofDate: e.target.value }))} className="input-shell" placeholder="تاريخ سعر الصرف" />
+                </div>
+              </div>
+
               {/* Currency rates */}
               <div className="rounded-xl p-4" style={{ border: '1px solid #C8D9D0' }}>
                 <div className="flex items-center justify-between mb-3">
@@ -1979,16 +2004,22 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 ) : (
                   <div className="space-y-2">
                     {currencyRates.map((rate, index) => (
-                      <div key={`${rate.currencyCode}-${index}`} className="grid gap-2 md:grid-cols-[220px_1fr_40px]">
-                        <select value={rate.currencyCode} onChange={(e) => updateRateRow(index, 'currencyCode', e.target.value)} className="input-shell">
-                          {CURRENCY_OPTIONS.filter((c) => c.code !== 'SAR').map((c) => (
-                            <option key={c.code} value={c.code}>{c.label} ({c.symbol})</option>
-                          ))}
-                        </select>
-                        <input type="number" step="0.0001" value={rate.rate || ''} onChange={(e) => updateRateRow(index, 'rate', e.target.value)} className="input-shell" placeholder="سعر الصرف مقابل الريال السعودي" />
-                        <button type="button" onClick={() => setCurrencyRates((c) => c.filter((_, i) => i !== index))}
-                          className="h-[42px] w-10 flex items-center justify-center rounded-lg text-lg font-bold"
-                          style={{ color: '#73384B', border: '1.5px solid #D9B8C4', background: 'transparent' }}>×</button>
+                      <div key={`${rate.currencyCode}-${index}`} className="space-y-1.5">
+                        <div className="grid gap-2 md:grid-cols-[220px_1fr_40px]">
+                          <select value={rate.currencyCode} onChange={(e) => updateRateRow(index, 'currencyCode', e.target.value)} className="input-shell">
+                            {CURRENCY_OPTIONS.filter((c) => c.code !== 'SAR').map((c) => (
+                              <option key={c.code} value={c.code}>{c.label} {c.symbol ? `(${c.symbol})` : ''}</option>
+                            ))}
+                          </select>
+                          <input type="number" step="0.0001" value={rate.rate || ''} onChange={(e) => updateRateRow(index, 'rate', e.target.value)} className="input-shell" placeholder="سعر الصرف مقابل الريال السعودي" />
+                          <button type="button" onClick={() => setCurrencyRates((c) => c.filter((_, i) => i !== index))}
+                            className="h-[42px] w-10 flex items-center justify-center rounded-lg text-lg font-bold"
+                            style={{ color: '#73384B', border: '1.5px solid #D9B8C4', background: 'transparent' }}>×</button>
+                        </div>
+                        {rate.currencyCode === 'OTHER' && (
+                          <input value={rate.customLabel ?? ''} onChange={(e) => updateRateRow(index, 'customLabel', e.target.value)}
+                            className="input-shell" placeholder="اكتب اسم العملة" />
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2041,7 +2072,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                               <Field label="العملة">
                                 <select value={invoice.currencyCode} onChange={(e) => updateInvoice(itemIndex, invoiceIndex, 'currencyCode', e.target.value)} className="input-shell">
                                   <option value="SAR">ريال سعودي</option>
-                                  {currencyRates.map((r, ri) => <option key={`${r.currencyCode}-${ri}`} value={r.currencyCode}>{getCurrencyLabel(r.currencyCode)}</option>)}
+                                  {currencyRates.map((r, ri) => <option key={`${r.currencyCode}-${ri}`} value={r.currencyCode}>{getRateLabel(r)}</option>)}
                                 </select>
                               </Field>
                               <Field label="المبلغ بالريال السعودي">

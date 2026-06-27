@@ -46,6 +46,8 @@ type SettlementMetaLike = {
   overageReason?: string
   pettyCashApproval?: StoredFile | null
   receiptAttachment?: StoredFile | null
+  exchangeRateProof?: StoredFile | null
+  exchangeRateProofDate?: string
 }
 
 export type LoanDocumentRecord = {
@@ -664,6 +666,8 @@ function normalizeSettlementMeta(raw: unknown): SettlementMetaLike {
     overageReason: typeof source.overageReason === 'string' ? source.overageReason : '',
     pettyCashApproval: normalizeStoredFile(source.pettyCashApproval),
     receiptAttachment: normalizeStoredFile(source.receiptAttachment),
+    exchangeRateProof: normalizeStoredFile(source.exchangeRateProof),
+    exchangeRateProofDate: typeof source.exchangeRateProofDate === 'string' ? source.exchangeRateProofDate : '',
   }
 }
 
@@ -720,6 +724,19 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
 function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
   const details = normalizeSettlementDetails(loan.settlement?.invoices)
   const meta = normalizeSettlementMeta(loan.settlement?.invoices)
+
+  // إثبات سعر الصرف يجب أن يظهر كأول مرفق دائماً، فهو يوثّق الأساس المستخدم لتحويل كل الفواتير الأجنبية
+  const exchangeRateAttachment = meta.exchangeRateProof
+    ? [{
+        category: 'إثبات سعر الصرف',
+        amount: 0,
+        date: formatDateOrBlank(meta.exchangeRateProofDate ?? ''),
+        documentType: 'إثبات سعر الصرف (أول يوم صرف)',
+        issuer: '',
+        attachment: meta.exchangeRateProof,
+      }]
+    : []
+
   const attachments = details
     .filter((detail) => !detail.category?.includes('نثريات'))
     .flatMap((detail) =>
@@ -761,7 +778,7 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
     })
   }
 
-  return attachments
+  return [...exchangeRateAttachment, ...attachments]
     .map(({ category, amount, date, documentType, issuer, attachment }, index) => {
       const attachmentNumber = index + 1
       const preview = attachment.type.startsWith('image/')
