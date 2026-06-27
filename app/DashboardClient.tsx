@@ -698,7 +698,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
     const draft = loan.settlementDraft
     setCurrencyRates(draft?.currencyRates?.length ? draft.currencyRates : [{ currencyCode: 'USD', rate: 3.75 }])
-    setSettlementItems(draft?.settlementItems?.length ? draft.settlementItems : sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount))))
+    const freshItems = sortSettlementItems(loan.items.map((i) => createSettlementItem(i.category, i.amount)))
+    // موافقة المعالي على النثريات تُجلب تلقائياً من مرفقات نموذج ١٨ نفسها، دون إرفاقها مرة أخرى
+    const pettyCashSource = toStoredFileArray(loan.files?.grandApproval)[0] ?? toStoredFileArray(loan.files?.nomineeAdjustment)[0]
+    const itemsWithPettyCashAttachment = !draft?.settlementItems?.length && pettyCashSource
+      ? freshItems.map((item) => isPettyCashCategory(item.category) && !item.invoices[0]?.attachment
+          ? { ...item, invoices: item.invoices.map((inv, idx) => idx === 0 ? { ...inv, attachment: cloneStoredFile(pettyCashSource) } : inv) }
+          : item)
+      : freshItems
+    setSettlementItems(draft?.settlementItems?.length ? draft.settlementItems : itemsWithPettyCashAttachment)
     setSettlementMeta(draft?.settlementMeta ?? { receiptNumber: '', receiptDate: '', overageReason: '' })
     setSettlementModalOpen(true)
   }
@@ -775,7 +783,16 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }
 
   function updateRateRow(index: number, field: keyof SettlementCurrencyRate, value: string) {
-    setCurrencyRates((curr) => curr.map((r, i) => i === index ? { ...r, [field]: field === 'rate' ? Number.parseFloat(value || '0') || 0 : (value as CurrencyCode) } : r))
+    setCurrencyRates((curr) => {
+      const updated = curr.map((r, i) => i === index ? { ...r, [field]: field === 'rate' ? Number.parseFloat(value || '0') || 0 : (value as CurrencyCode) } : r)
+      const newRateMap = buildRateMap(updated)
+      // إعادة حساب المبلغ بالريال السعودي لكل الفواتير فوراً عند تعديل سعر الصرف، دون انتظار تعديل كل فاتورة يدوياً
+      setSettlementItems((items) => items.map((item) => ({
+        ...item,
+        invoices: item.invoices.map((inv) => recalculateInvoice(inv, newRateMap)),
+      })))
+      return updated
+    })
   }
 
   function updateSettlementItem(itemIndex: number, field: 'category', value: string) {
