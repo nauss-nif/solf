@@ -13,6 +13,7 @@ export const dashboardLoanInclude = {
   },
   reviewedBy: { select: { id: true, fullName: true } },
   settlementReviewedBy: { select: { id: true, fullName: true } },
+  user: { select: { email: true, fullName: true } },
 } as const
 
 export const fullLoanInclude = {

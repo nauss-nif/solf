@@ -42,6 +42,7 @@ export type LoanDashboardRecord = {
   reviewedBy?: { id: string; fullName: string } | null
   settlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
+  user?: { email: string; fullName: string } | null
 }
 
 type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER'> }
@@ -2293,6 +2294,9 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
           <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>
             {loan.employee} • {loan.refNumber} • {formatDate(loan.startDate)} - {formatDate(loan.endDate)}
           </p>
+          <p className="text-xs mt-0.5" style={{ color: '#8A8A8A' }}>
+            صاحب الحساب: {loan.user?.email || 'بلا حساب (تعذّر تحديد المالك)'}
+          </p>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {loan.courseId && <span className="badge badge-info">إقفال الدورات</span>}
@@ -2495,6 +2499,11 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
           <div>
             <h3 className="font-bold text-base" style={{ color: '#1F3F40' }}>{loan.refNumber}</h3>
             <p className="text-sm mt-0.5" style={{ color: '#5A5A5A' }}>{loan.activity} • {loan.employee}</p>
+            {canLinkCourse && (
+              <p className="text-xs mt-0.5" style={{ color: '#8A8A8A' }}>
+                صاحب الحساب: {loan.user?.email || 'بلا حساب (تعذّر تحديد المالك)'}
+              </p>
+            )}
           </div>
 
           <div className="grid gap-1 text-sm md:grid-cols-2" style={{ color: '#2D4D40' }}>
