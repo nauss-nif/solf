@@ -1611,6 +1611,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 ) : settledLoans.map((loan) => (
                   <LoanCard key={loan.id} loan={loan} archived canReview={false} canModify={false} canDelete={isSuperAdmin}
+                    canLinkCourse={isAdminOrReviewer} onLinked={() => void refreshLoans(workMode)}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -2462,8 +2463,9 @@ function LinkCourseControl({ loanId, onLinked }: { loanId: string; onLinked: () 
   )
 }
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, onEdit, onDelete, onSettle, onDeleteSettlement, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, canLinkCourse = false, onLinked, onEdit, onDelete, onSettle, onDeleteSettlement, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean; canDelete?: boolean
+  canLinkCourse?: boolean; onLinked?: () => void
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void; onDeleteSettlement: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onPrintSettlement: () => void
@@ -2485,7 +2487,10 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             {attachCount > 0 && <span className="badge badge-neutral">📎 {attachCount} مرفق</span>}
             {loan.isDraft ? <span className="badge badge-warning">✏️ مسودة</span> : <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>}
             {!loan.isDraft && loan.settlementDraft && !loan.isSettled && <span className="badge badge-warning">✏️ تسوية بمسودة محفوظة</span>}
+            {loan.courseId && <span className="badge badge-info">إقفال الدورات</span>}
           </div>
+
+          {canLinkCourse && !loan.courseId && <LinkCourseControl loanId={loan.id} onLinked={() => onLinked?.()} />}
 
           <div>
             <h3 className="font-bold text-base" style={{ color: '#1F3F40' }}>{loan.refNumber}</h3>
