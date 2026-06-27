@@ -409,6 +409,34 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     if (handledCourseLink) return
     const courseId = searchParams.get('courseId')
     if (!courseId) return
+    // انتظر تحميل قائمة السلف أولاً لنعرف إن كانت هناك معاملة مرتبطة بهذه الدورة بالفعل
+    if (isLoadingLoans) return
+
+    const formType = searchParams.get('formType') // 'settlement' | 'request'
+    const existingLoan = loans.find((l) => l.courseId === courseId)
+
+    if (existingLoan) {
+      setHandledCourseLink(true)
+      setWorkMode('employee')
+      setActiveTab('requests')
+      if (formType === 'settlement') {
+        if (existingLoan.reviewStatus !== 'REVIEWED') {
+          setLoadError('طلب السلفة المرتبط بهذه الدورة لم يُعتمد بعد (نموذج ١٨)، لذلك لا يمكن تقديم التسوية قبل اعتماده.')
+          return
+        }
+        void openSettlementModal(existingLoan.id)
+        return
+      }
+      void openEditLoanModal(existingLoan.id)
+      return
+    }
+
+    if (formType === 'settlement') {
+      setHandledCourseLink(true)
+      setLoadError('لا يوجد طلب سلفة مرتبط بهذه الدورة لتسويته. يجب إنشاء طلب السلفة (نموذج ١٨) أولاً من منصة السلف.')
+      return
+    }
+
     const course = {
       id: courseId,
       code: searchParams.get('courseCode') || '',
@@ -434,7 +462,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       endDate: course.endDate || prev.endDate,
     }))
     setLoanModalOpen(true)
-  }, [handledCourseLink, searchParams])
+  }, [handledCourseLink, searchParams, isLoadingLoans, loans])
 
   useEffect(() => {
     const tab = searchParams.get('tab') as ActiveTab | null
