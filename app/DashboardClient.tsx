@@ -433,7 +433,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
     if (formType === 'settlement') {
       setHandledCourseLink(true)
-      setLoadError('لا يوجد طلب سلفة مرتبط بهذه الدورة لتسويته. يجب إنشاء طلب السلفة (نموذج ١٨) أولاً من منصة السلف.')
+      setWorkMode('employee')
+      setActiveTab('requests')
+      setLoadError('لا يوجد طلب سلفة مرتبط بهذه الدورة لتسويته. يجب إنشاء طلب السلفة (نموذج ١٨) أولاً — تأكد أنه قُدِّم عبر زر "منصة السلف" من داخل الدورة نفسها حتى يُربط بها تلقائياً.')
       return
     }
 
