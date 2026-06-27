@@ -963,6 +963,19 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
   }
 
+  async function runDeadlineCheckNow() {
+    startTransition(async () => {
+      try {
+        const res = await fetch('/api/admin/run-deadline-check', { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر تشغيل الفحص.', 'error'); return }
+        showToast(`تم الفحص: ${data.reminders} تذكير و ${data.overdueAlerts} إنذار تأخر أُرسلت.`)
+      } catch {
+        showToast('تعذر تشغيل الفحص.', 'error')
+      }
+    })
+  }
+
   async function sendReviewerReminder(loanId: string) {
     startTransition(async () => {
       const res = await fetch(`/api/loans/${loanId}/reminder`, { method: 'POST' })
@@ -1264,6 +1277,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       </button>
                       <button type="button" onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }} className="btn btn-gold">
                         ✅ اعتماد طلبات التسوية
+                      </button>
+                      <button type="button" onClick={() => void runDeadlineCheckNow()} className="btn btn-outline" title="يرسل فوراً تذكيرات/إنذارات السلف المتأخرة عن التسوية، دون انتظار المهمة اليومية المجدولة">
+                        🔔 تشغيل فحص المواعيد الآن
                       </button>
                     </div>
                   </div>
@@ -1833,9 +1849,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             </div>
 
             <div className="p-6 space-y-5 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
-              {linkedCourse && (
+              {linkedCourse ? (
                 <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#F3EDE3', border: '1px solid #C7B08C', color: '#6B5A4A' }}>
                   هذه السلفة مرتبطة بدورة من نظام الإقفال: <strong>{linkedCourse.code || linkedCourse.name || linkedCourse.id}</strong>
+                </div>
+              ) : !editingLoanId && (
+                <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#E7F3EE', border: '1px solid #C8D9D0', color: '#2A6364' }}>
+                  💡 إذا كانت هذه السلفة لتنفيذ دورة مسجّلة في منصة الإقفال: أغلق هذا النموذج وقدّمها من خلال زر
+                  "منصة السلف" داخل الدورة نفسها، حتى تُربط بها تلقائياً وتُتابع مواعيدها بدقة. وإن لم تكن مرتبطة
+                  بأي دورة (كمهمة أو زيارة مستقلة)، أكمل تقديمها من هنا مباشرة بشكل طبيعي.
                 </div>
               )}
 
