@@ -1572,6 +1572,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onReturnSettlement={() => { const note = window.prompt('سبب إعادة نموذج ١٩ للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note, 'settlement') }}
                         onCancelSettlementApproval={() => { if (!window.confirm('سيعود نموذج ١٩ إلى قائمة مراجعة التسويات. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٩ لإعادة المراجعة.', 'settlement') }}
                         onRecallDecision={(approve) => decideRecall(loan.id, approve)}
+                        onLinked={() => void refreshLoans(workMode)}
                       />
                     ))}
                   </div>
@@ -2259,7 +2260,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision }: {
+function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision, onLinked }: {
   loan: LoanDashboardRecord
   isAdmin: boolean
   isSuperAdmin: boolean
@@ -2276,6 +2277,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   onReturnSettlement: () => void
   onCancelSettlementApproval: () => void
   onRecallDecision: (approve: boolean) => void
+  onLinked: () => void
 }) {
   const hasSettlement = Boolean(loan.settlement)
   const isLoanApproved = loan.reviewStatus === 'REVIEWED'
@@ -2296,6 +2298,8 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
           {isLoanApproved && <span className="badge badge-success">✓ طلب معتمد</span>}
         </div>
       </div>
+
+      {!loan.courseId && <LinkCourseControl loanId={loan.id} onLinked={onLinked} />}
 
       {isSuperAdmin && reviewersList.length > 0 && canActAsReviewer && (
         <div className="flex items-center gap-2 mt-2 text-xs">
@@ -2365,6 +2369,95 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
           <span className="reviewer-action-note">لم يرفع الموظف التسوية بعد</span>
         )}
       </div>
+    </div>
+  )
+}
+
+type CourseLookupResult = { id: string; code: string; name: string; employeeName: string; employeeEmail: string | null }
+
+// تحكم ربط معاملة قديمة بدورة في منصة الإقفال — يبحث برمز/اسم الدورة عبر منصة الإقفال،
+// وعند الاختيار يربط المعاملة فوراً ويعيد مزامنة حالتها الحقيقية (في الوقت / متأخرة)
+function LinkCourseControl({ loanId, onLinked }: { loanId: string; onLinked: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<CourseLookupResult[]>([])
+  const [searching, setSearching] = useState(false)
+  const [linkingId, setLinkingId] = useState('')
+  const [error, setError] = useState('')
+
+  async function search() {
+    if (!query.trim()) return
+    setSearching(true); setError('')
+    try {
+      const res = await fetch(`/api/loans/course-lookup?q=${encodeURIComponent(query.trim())}`, { cache: 'no-store' })
+      const data = await res.json()
+      if (!res.ok) { setError(data?.error || 'تعذر البحث'); setResults([]); return }
+      setResults(data.courses || [])
+    } catch {
+      setError('تعذر الاتصال بمنصة الإقفال')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  async function link(course: CourseLookupResult) {
+    setLinkingId(course.id); setError('')
+    try {
+      const res = await fetch(`/api/loans/${loanId}/link-course`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: course.id, courseCode: course.code }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data?.error || 'تعذر الربط'); return }
+      setOpen(false); setQuery(''); setResults([])
+      onLinked()
+    } catch {
+      setError('تعذر الربط')
+    } finally {
+      setLinkingId('')
+    }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="btn btn-outline btn-sm mt-2">
+        🔗 ربط بدورة (معاملة قديمة غير مربوطة)
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-2 rounded-xl p-3" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
+      <div className="flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') void search() }}
+          placeholder="رمز الدورة أو اسمها، مثل od-2026-0019"
+          className="input-shell flex-1"
+        />
+        <button type="button" onClick={() => void search()} disabled={searching} className="btn btn-primary btn-sm">
+          {searching ? '...' : 'بحث'}
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setResults([]); setError('') }} className="btn btn-ghost btn-sm">إلغاء</button>
+      </div>
+      {error && <p className="text-xs mt-2" style={{ color: '#73384B' }}>{error}</p>}
+      {results.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          {results.map((c) => (
+            <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 text-xs">
+              <div className="min-w-0">
+                <strong>{c.code}</strong> — {c.name}
+                <div style={{ color: '#5A5A5A' }}>{c.employeeName} {c.employeeEmail ? `(${c.employeeEmail})` : ''}</div>
+              </div>
+              <button type="button" onClick={() => void link(c)} disabled={linkingId === c.id} className="btn btn-success btn-sm flex-shrink-0">
+                {linkingId === c.id ? '...' : 'ربط'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
