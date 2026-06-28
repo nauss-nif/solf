@@ -163,9 +163,10 @@ export default function AccountClient() {
   const activeRoles = account.roles?.length ? account.roles : [account.role]
 
   return (
-    <div className="space-y-5 animate-fade-up max-w-2xl">
+    <div className="space-y-5 animate-fade-up">
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* الصورة الشخصية */}
       <div className="section-card p-5 space-y-3">
         <h2 className="font-bold" style={{ color: '#1F3F40' }}>الصورة الشخصية</h2>
@@ -274,6 +275,7 @@ export default function AccountClient() {
         <button type="button" disabled={savingPassword} onClick={() => void handleChangePassword()} className="btn btn-primary btn-sm">
           {savingPassword ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}
         </button>
+      </div>
       </div>
 
       {signatureEditFile && (
