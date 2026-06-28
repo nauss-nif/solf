@@ -320,7 +320,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans.map(normalizeLoanRecord))
   const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
   const [loadError, setLoadError] = useState('')
-  const [activeTab, setActiveTab] = useState<ActiveTab>(isAdminOrReviewer ? 'dashboard' : 'requests')
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
+    const tabParam = searchParams.get('tab')
+    const validTabs: ActiveTab[] = ['dashboard', 'requests', 'archive', 'reports', 'alerts', 'guide']
+    if (tabParam && (validTabs as string[]).includes(tabParam)) return tabParam as ActiveTab
+    return isAdminOrReviewer ? 'dashboard' : 'requests'
+  })
   const [search, setSearch] = useState('')
   const [loanModalOpen, setLoanModalOpen] = useState(false)
   const [settlementModalOpen, setSettlementModalOpen] = useState(false)
@@ -1184,7 +1189,8 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     </div>
                     <div className="p-2">
                       <button type="button" onClick={() => { setUserMenuOpen(false); pushWithFeedback('/account', 'جاري فتح الملف الشخصي...') }}
-                        className="nav-item w-full text-right">
+                        className="w-full text-right flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition hover:bg-slate-100"
+                        style={{ color: '#1F3F40' }}>
                         <span>👤</span> الملف الشخصي
                       </button>
                       <button type="button" onClick={handleLogout}

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { fileToStoredFile, optimizeSignatureImage } from '@/lib/client-files'
+import { fileToStoredFile } from '@/lib/client-files'
 import { type StoredFile } from '@/lib/loan-form-options'
+import SignatureEditorModal from './SignatureEditorModal'
 
 type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
 type Account = {
@@ -35,6 +36,7 @@ export default function AccountClient() {
 
   const [signatureUploading, setSignatureUploading] = useState(false)
   const [signatureError, setSignatureError] = useState('')
+  const [signatureEditFile, setSignatureEditFile] = useState<File | null>(null)
 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -101,11 +103,16 @@ export default function AccountClient() {
     }
   }
 
-  async function handleSignatureUpload(fileList: FileList | null) {
+  function handleSignatureFileSelected(fileList: FileList | null) {
     const file = fileList?.[0]; if (!file) return
+    setSignatureError('')
+    setSignatureEditFile(file)
+  }
+
+  async function handleSignatureSaved(stored: StoredFile) {
+    setSignatureEditFile(null)
     setSignatureUploading(true); setSignatureError('')
     try {
-      const stored = await optimizeSignatureImage(file)
       const res = await fetch('/api/account', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureImage: stored }) })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setSignatureError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ التوقيع.'); return }
@@ -222,6 +229,9 @@ export default function AccountClient() {
       {/* التوقيع الإلكتروني */}
       <div className="section-card p-5 space-y-3">
         <h2 className="font-bold" style={{ color: '#1F3F40' }}>التوقيع الإلكتروني</h2>
+        <p className="text-xs" style={{ color: '#5A5A5A' }}>
+          يُفضَّل تصوير التوقيع على ورقة بيضاء بإضاءة جيدة. عند الرفع ستتمكن من قص الفراغات الزائدة حول التوقيع وتغيير مقاسه، وإزالة الخلفية البيضاء تلقائياً.
+        </p>
         {signatureError && <div className="alert alert-error">{signatureError}</div>}
         <div className="flex items-center gap-4">
           {account.signatureImage ? (
@@ -231,8 +241,8 @@ export default function AccountClient() {
           )}
           <div className="flex gap-2">
             <label className="btn btn-outline btn-sm cursor-pointer">
-              {signatureUploading ? 'جاري الرفع...' : account.signatureImage ? 'تغيير التوقيع' : 'رفع توقيع'}
-              <input type="file" className="hidden" accept="image/*" disabled={signatureUploading} onChange={(e) => void handleSignatureUpload(e.target.files)} />
+              {signatureUploading ? 'جاري الحفظ...' : account.signatureImage ? 'تغيير التوقيع' : 'رفع توقيع'}
+              <input type="file" className="hidden" accept="image/*" disabled={signatureUploading} onChange={(e) => handleSignatureFileSelected(e.target.files)} />
             </label>
             {account.signatureImage && (
               <button type="button" disabled={signatureUploading} onClick={() => void handleRemoveSignature()} className="btn btn-danger btn-sm">
@@ -265,6 +275,14 @@ export default function AccountClient() {
           {savingPassword ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}
         </button>
       </div>
+
+      {signatureEditFile && (
+        <SignatureEditorModal
+          file={signatureEditFile}
+          onCancel={() => setSignatureEditFile(null)}
+          onSave={(stored) => void handleSignatureSaved(stored)}
+        />
+      )}
     </div>
   )
 }

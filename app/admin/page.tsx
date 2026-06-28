@@ -16,8 +16,23 @@ export default function AdminPage() {
         </div>
         <nav className="flex-1 py-3">
           <p className="sidebar-section-label">القائمة الرئيسية</p>
-          <Link href="/" className="nav-item">
-            <span>📋</span> لوحة التحكم
+          <Link href="/?tab=dashboard" className="nav-item">
+            <span>📊</span> لوحة المعلومات
+          </Link>
+          <Link href="/?tab=requests" className="nav-item">
+            <span>📋</span> طلبات السلف والتسويات
+          </Link>
+          <Link href="/?tab=archive" className="nav-item">
+            <span>🗂️</span> الأرشيف
+          </Link>
+          <Link href="/?tab=reports" className="nav-item">
+            <span>📊</span> التقارير
+          </Link>
+          <Link href="/?tab=alerts" className="nav-item">
+            <span>📣</span> التنبيهات اليدوية
+          </Link>
+          <Link href="/?tab=guide" className="nav-item">
+            <span>📖</span> التعليمات
           </Link>
           <p className="sidebar-section-label mt-4">الإدارة</p>
           <Link href="/admin" className="nav-item active">

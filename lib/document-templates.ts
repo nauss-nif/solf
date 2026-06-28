@@ -313,14 +313,14 @@ function printShell(body: string, options: PrintShellOptions) {
       align-items: center;
       justify-content: flex-end;
       flex-direction: row-reverse;
-      gap: 4mm;
+      gap: 1.5mm;
       pointer-events: none;
       z-index: 2;
     }
     .reviewer-signature {
       display: block;
-      width: 18mm;
-      max-height: 8mm;
+      width: 9mm;
+      height: 5mm;
       object-fit: contain;
     }
     .settlement-totals-zone {
