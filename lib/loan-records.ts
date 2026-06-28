@@ -1,6 +1,6 @@
 ﻿import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { canManageAllLoans, hasRole, normalizeRoles, requireSessionUser } from '@/lib/auth'
+import { canManageAllLoans, normalizeRoles, requireSessionUser } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { fullLoanInclude } from '@/lib/loan-selects'
 import { isStoredImageFile, type StoredFile } from '@/lib/loan-form-options'
@@ -51,7 +51,8 @@ export async function getReviewerSignatures(approverId?: string | null): Promise
   if (!approver || !isStoredImageFile(approver.signatureImage)) return []
 
   const role = approver.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
-  if (!hasRole({ role, roles: normalizeRoles(approver.roles, role) }, 'REVIEWER')) return []
+  // أي حساب يملك صلاحية اعتماد فعلية (مراجع أو مدير) يصحّ توقيعه — لا يقتصر على صلاحية "مراجع" فقط
+  if (!canManageAllLoans({ role, roles: normalizeRoles(approver.roles, role) })) return []
 
   return [approver.signatureImage as StoredFile]
 }
