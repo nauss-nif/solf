@@ -1311,7 +1311,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       </div>
     </div>
 
-    <div class="official-inline" style="grid-template-columns: auto auto 1.2fr 1fr;">
+    <div class="official-inline" style="grid-template-columns: 0.45fr 1fr 1.2fr 1fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: ${escapeHtml(settings.trainingVicePresidentName)}</span>
