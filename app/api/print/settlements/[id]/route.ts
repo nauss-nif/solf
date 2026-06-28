@@ -48,8 +48,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
       loan.settlementStatus === 'APPROVED'
         ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id, loanWithReviewers.secondSettlementReviewedBy?.id)
         : undefined
+    const applicantSignature = loan.isSettled ? loanWithReviewers.user?.signatureImage ?? null : null
 
-    const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures })
+    const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
     const pdf = await renderHtmlToPdf(html)
 
     return new NextResponse(new Uint8Array(pdf), {

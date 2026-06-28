@@ -1379,6 +1379,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
 
 export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   const settings = resolveSettings(options)
+  const applicantSignature = options?.applicantSignature && isStoredImageFile(options.applicantSignature) ? options.applicantSignature : null
   const settlement = loan.settlement
   const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
   const rows = normalizeSettlementTemplateRows(loan)
@@ -1469,7 +1470,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
 
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
-      <span>التوقيع: <span class="signature-line"></span></span>
+      <span>التوقيع: ${applicantSignature ? `<img class="applicant-signature" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : '<span class="signature-line"></span>'}</span>
       <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 
