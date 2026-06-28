@@ -297,17 +297,17 @@ function printShell(body: string, options: PrintShellOptions) {
       overflow: visible;
     }
     .reviewer-signatures-layer {
-      position: absolute;
-      right: 0;
-      left: auto;
-      bottom: -1mm;
       display: flex;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: flex-end;
       flex-direction: row-reverse;
-      gap: 5mm;
-      pointer-events: none;
-      z-index: 2;
+      gap: 4mm;
+      margin-top: 2mm;
+    }
+    .reviewer-signatures-label {
+      font-size: 10px;
+      color: #5A5A5A;
+      margin-left: 2mm;
     }
     .reviewer-signature {
       display: block;
@@ -319,14 +319,10 @@ function printShell(body: string, options: PrintShellOptions) {
       position: relative;
     }
     .reviewer-signature-left-layer {
-      position: absolute;
-      top: 10px;
-      left: 0;
-      width: 20mm;
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-      pointer-events: none;
+      align-items: center;
+      gap: 4mm;
+      margin-top: 2mm;
     }
     .reviewer-signature-left-img {
       display: block;
@@ -1229,7 +1225,7 @@ function buildReviewerSignatureLeftLayer(signatures?: StoredFile[]) {
   const images = list
     .map((file) => `<img class="reviewer-signature-left-img" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
     .join('')
-  return `<div class="reviewer-signature-left-layer">${images}</div>`
+  return `<div class="reviewer-signature-left-layer"><span class="reviewer-signatures-label">تأشيرة المراجعين:</span>${images}</div>`
 }
 
 export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
@@ -1304,14 +1300,16 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
           </tr>
         </tfoot>
       </table>
+      ${reviewerSignatures.length > 0 ? `
       <div class="reviewer-signatures-layer">
+        <span class="reviewer-signatures-label">تأشيرة المراجعين:</span>
         ${reviewerSignatures
           .map((file) => `<img class="reviewer-signature" src="${file.dataUrl}" alt="تأشيرة المراجع" />`)
           .join('')}
-      </div>
+      </div>` : ''}
     </div>
 
-    <div class="official-inline" style="grid-template-columns: 1fr 1fr 1.2fr 1fr;">
+    <div class="official-inline" style="grid-template-columns: auto auto 1.2fr auto;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: ${escapeHtml(settings.trainingVicePresidentName)}</span>
