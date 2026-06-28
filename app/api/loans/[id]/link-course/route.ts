@@ -14,15 +14,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
     await ensureDatabaseSetup()
     const currentUser = getSessionUser()
     if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (!canManageAllLoans(currentUser)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const loan = await prisma.loan.findUnique({ where: { id: params.id } })
+    if (!loan) return NextResponse.json({ error: 'المعاملة غير موجودة' }, { status: 404 })
+
+    // صاحب المعاملة يستطيع ربط معاملته الخاصة، والمدير/المراجع يستطيع ربط أي معاملة
+    if (!canManageAllLoans(currentUser) && loan.userId !== currentUser.userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const body = await request.json()
     const courseId = String(body.courseId || '').trim()
     const courseCode = String(body.courseCode || '').trim() || null
     if (!courseId) return NextResponse.json({ error: 'courseId مطلوب' }, { status: 400 })
 
-    const loan = await prisma.loan.findUnique({ where: { id: params.id } })
-    if (!loan) return NextResponse.json({ error: 'المعاملة غير موجودة' }, { status: 404 })
     if (loan.courseId) {
       return NextResponse.json({ error: 'هذه المعاملة مرتبطة بدورة بالفعل.' }, { status: 409 })
     }

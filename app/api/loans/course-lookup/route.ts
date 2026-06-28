@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server'
-import { canManageAllLoans, getSessionUser } from '@/lib/auth'
+import { getSessionUser } from '@/lib/auth'
 
 // GET /api/loans/course-lookup?q=...
 // يبحث عن دورات في منصة الإقفال برمزها أو اسمها — لاستخدامه عند ربط
-// معاملة سلفة قديمة لم تُربط بدورتها وقت إنشائها.
+// معاملة سلفة قديمة لم تُربط بدورتها وقت إنشائها. متاح لأي مستخدم
+// مسجّل دخوله (موظف عادي يربط معاملته الخاصة، أو مدير/مراجع يربط أي معاملة).
 export async function GET(request: Request) {
   const currentUser = getSessionUser()
   if (!currentUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!canManageAllLoans(currentUser)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const q = new URL(request.url).searchParams.get('q') || ''
   if (!q.trim()) return NextResponse.json({ courses: [] })

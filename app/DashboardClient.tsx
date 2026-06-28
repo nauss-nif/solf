@@ -1603,6 +1603,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-3">
                     {requestLoans.map((loan) => (
                       <LoanCard key={loan.id} loan={loan} canReview={false} canModify={loan.reviewStatus !== 'REVIEWED'}
+                        canLinkCourse onLinked={() => void refreshLoans(workMode)}
                         onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1628,7 +1629,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 ) : settledLoans.map((loan) => (
                   <LoanCard key={loan.id} loan={loan} archived canReview={false} canModify={false} canDelete={isSuperAdmin}
-                    canLinkCourse={isAdminOrReviewer} onLinked={() => void refreshLoans(workMode)}
+                    canLinkCourse onLinked={() => void refreshLoans(workMode)}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1855,9 +1856,10 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 </div>
               ) : !editingLoanId && (
                 <div className="rounded-xl px-4 py-3 text-sm" style={{ background: '#E7F3EE', border: '1px solid #C8D9D0', color: '#2A6364' }}>
-                  💡 إذا كانت هذه السلفة لتنفيذ دورة مسجّلة في منصة الإقفال: أغلق هذا النموذج وقدّمها من خلال زر
-                  "منصة السلف" داخل الدورة نفسها، حتى تُربط بها تلقائياً وتُتابع مواعيدها بدقة. وإن لم تكن مرتبطة
-                  بأي دورة (كمهمة أو زيارة مستقلة)، أكمل تقديمها من هنا مباشرة بشكل طبيعي.
+                  💡 يمكنك إكمال هذا الطلب من هنا مباشرة بشكل طبيعي، أياً كانت طبيعة الصرف. ملاحظة فقط لمن لديه دورة
+                  تدريبية مسجّلة في منصة الإقفال: تقديم سلفة تلك الدورة تحديداً من خلال زر "منصة السلف" داخل الدورة
+                  نفسها (بدل هذا النموذج) يربطها بها تلقائياً ويُسهّل متابعة مواعيدها — وهذا اختياري ولا ينطبق إن لم
+                  تكن السلفة لدورة من الأساس.
                 </div>
               )}
 
