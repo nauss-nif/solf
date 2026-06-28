@@ -1603,7 +1603,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-3">
                     {requestLoans.map((loan) => (
                       <LoanCard key={loan.id} loan={loan} canReview={false} canModify={loan.reviewStatus !== 'REVIEWED'}
-                        canLinkCourse onLinked={() => void refreshLoans(workMode)}
+                        canLinkCourse onLinked={() => void refreshLoans(workMode)} isSuperAdmin={isSuperAdmin} reviewersList={reviewersList}
                         onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                         onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                         onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع للموظف:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -1629,7 +1629,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                 ) : settledLoans.map((loan) => (
                   <LoanCard key={loan.id} loan={loan} archived canReview={false} canModify={false} canDelete={isSuperAdmin}
-                    canLinkCourse onLinked={() => void refreshLoans(workMode)}
+                    canLinkCourse onLinked={() => void refreshLoans(workMode)} isSuperAdmin={isSuperAdmin} reviewersList={reviewersList}
                     onEdit={openEditLoanModal} onDelete={deleteLoan} onSettle={openSettlementModal} onDeleteSettlement={deleteSettlement}
                     onMarkReviewed={() => updateReviewState(loan.id, 'REVIEWED')}
                     onReturnForReview={() => { const note = window.prompt('ملاحظة الإرجاع:', loan.reviewNote || ''); if (note === null) return; void updateReviewState(loan.id, 'RETURNED', note) }}
@@ -2342,11 +2342,15 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
         </div>
       )}
 
-      {loan.reviewedBy && isLoanApproved && (
-        <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}</p>
+      {isLoanApproved && (
+        loan.reviewedBy
+          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}</p>
+          : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onAssigned={onLinked} />
       )}
-      {loan.settlementReviewedBy && isSettlementApproved && (
-        <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}</p>
+      {isSettlementApproved && (
+        loan.settlementReviewedBy
+          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}</p>
+          : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onAssigned={onLinked} />
       )}
 
       {loan.reviewNote && <div className="alert alert-warning text-xs mt-2"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
@@ -2491,9 +2495,59 @@ function LinkCourseControl({ loanId, onLinked }: { loanId: string; onLinked: () 
   )
 }
 
-function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, canLinkCourse = false, onLinked, onEdit, onDelete, onSettle, onDeleteSettlement, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
+// تعيين توقيع تاريخي بأثر رجعي لمعاملة معتمدة قبل إضافة تتبّع هوية المعتمِد —
+// المدير الفائق فقط، ولأنه يعرف بدقة من اعتمدها فعلاً في الواقع
+function AssignReviewerControl({ loanId, formType, reviewersList, onAssigned }: {
+  loanId: string; formType: 'advance_req' | 'settlement'
+  reviewersList: Array<{ id: string; fullName: string }>
+  onAssigned: () => void
+}) {
+  const [selected, setSelected] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function assign() {
+    if (!selected) return
+    setSaving(true); setError('')
+    try {
+      const res = await fetch(`/api/loans/${loanId}/assign-reviewer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ formType, reviewerId: selected }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data?.error || 'تعذر التعيين'); return }
+      onAssigned()
+    } catch {
+      setError('تعذر التعيين')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2">
+      <span className="text-xs" style={{ color: '#73384B' }}>
+        معتمَدة قبل تتبّع هوية المعتمِد — لا توقيع مسجَّل:
+      </span>
+      <select value={selected} onChange={(e) => setSelected(e.target.value)} className="input-shell" style={{ maxWidth: 200, padding: '0.25rem 0.5rem', height: 'auto' }}>
+        <option value="">اختر المعتمِد الفعلي...</option>
+        {reviewersList.map((r) => (
+          <option key={r.id} value={r.id}>{r.fullName}</option>
+        ))}
+      </select>
+      <button type="button" onClick={() => void assign()} disabled={!selected || saving} className="btn btn-outline btn-sm">
+        {saving ? '...' : 'تعيين'}
+      </button>
+      {error && <span className="text-xs" style={{ color: '#73384B' }}>{error}</span>}
+    </div>
+  )
+}
+
+function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, canLinkCourse = false, onLinked, isSuperAdmin = false, reviewersList = [], onEdit, onDelete, onSettle, onDeleteSettlement, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean; canDelete?: boolean
   canLinkCourse?: boolean; onLinked?: () => void
+  isSuperAdmin?: boolean; reviewersList?: Array<{ id: string; fullName: string }>
   onEdit: (id: string) => void; onDelete: (id: string) => void; onSettle: (id: string) => void; onDeleteSettlement: (id: string) => void
   onMarkReviewed: () => void; onReturnForReview: () => void
   onPrintLoan: () => void; onPrintSettlement: () => void
@@ -2502,6 +2556,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
 }) {
   const attachCount = Object.values(loan.files ?? {}).reduce((sum: number, v) => sum + toStoredFileArray(v).length, 0)
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
+  const isSettlementApproved = loan.settlementStatus === 'APPROVED'
 
   return (
     <div className="card p-5 animate-fade-up" style={{ borderRight: `3px solid ${loan.isSettled ? '#4F8F7A' : loan.reviewStatus === 'RETURNED' ? '#6B5A4A' : '#2A6364'}` }}>
@@ -2527,6 +2582,16 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
               <p className="text-xs mt-0.5" style={{ color: '#8A8A8A' }}>
                 صاحب الحساب: {loan.user?.email || 'بلا حساب (تعذّر تحديد المالك)'}
               </p>
+            )}
+            {loan.reviewStatus === 'REVIEWED' && (
+              loan.reviewedBy
+                ? <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}</p>
+                : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onAssigned={() => onLinked?.()} />
+            )}
+            {isSettlementApproved && (
+              loan.settlementReviewedBy
+                ? <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}</p>
+                : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onAssigned={() => onLinked?.()} />
             )}
           </div>
 
