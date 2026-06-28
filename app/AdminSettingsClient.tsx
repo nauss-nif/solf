@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from 'react'
 type SequenceState = { lastNumber: number; nextNumber: number; nextRefNumber: string }
 type SystemSettings = { allowPrintBeforeReview: boolean; trainingVicePresidentName: string; financialControllerName: string }
 type EmailStatus = { resendConfigured: boolean; fromEmail: string; adminEmail: string; provider: string; scopes: string[] }
+type ReviewerOption = { id: string; fullName: string }
 
 export default function AdminSettingsClient() {
   const [loadError, setLoadError] = useState('')
@@ -22,6 +23,15 @@ export default function AdminSettingsClient() {
   const [broadcastTitle, setBroadcastTitle] = useState('تم تعيينكم كمراجعين في منصة إدارة السلف')
   const [broadcastMessage, setBroadcastMessage] = useState('السلام عليكم،\n\nتم تعيينكم كمراجعين في منصة إدارة السلف، ونأمل الدخول إلى المنصة وإنشاء حساب رسمي، ثم مباشرة مراجعة معاملات طلبات السلف وتسويتها حسب الإجراءات المعتمدة.\n\nشاكرين تعاونكم.')
   const [broadcastResults, setBroadcastResults] = useState<Array<{ email: string; fullName: string; ok: boolean; id?: string; status?: number; error?: string }>>([])
+  const [reviewersList, setReviewersList] = useState<ReviewerOption[]>([])
+  const [firstReviewerId, setFirstReviewerId] = useState('')
+  const [secondReviewerId, setSecondReviewerId] = useState('')
+
+  async function loadReviewers() {
+    const res = await fetch('/api/admin/reviewers', { cache: 'no-store' })
+    const data = await res.json().catch(() => [])
+    setReviewersList(Array.isArray(data) ? data : [])
+  }
 
   async function loadSequence() {
     const res = await fetch('/api/admin/sequence', { cache: 'no-store' })
@@ -46,7 +56,7 @@ export default function AdminSettingsClient() {
     setEmailStatus(data)
   }
 
-  useEffect(() => { void loadSequence(); void loadSettings(); void loadEmailStatus() }, [])
+  useEffect(() => { void loadSequence(); void loadSettings(); void loadEmailStatus(); void loadReviewers() }, [])
 
   function showSuccess(msg: string) { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 2500) }
 
@@ -301,6 +311,53 @@ export default function AdminSettingsClient() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="section-card p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="font-bold" style={{ color: '#1F3F40' }}>إعادة توقيعَي المراجعين على المعاملات القديمة</h2>
+            <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>
+              إجراء لمرة واحدة فقط — لإثبات تأشيرة المراجعين على المعاملات المعتمدة سابقاً قبل تتبّع هوية المعتمِد. يُطبَّق فقط على المعاملات المعتمدة التي لا توقيع مسجَّل عليها حالياً.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block">
+              <span className="field-label">المراجع الأول</span>
+              <select value={firstReviewerId} onChange={(e) => setFirstReviewerId(e.target.value)} className="input-shell" style={{ minWidth: 180 }}>
+                <option value="">اختر...</option>
+                {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+              </select>
+            </label>
+            <label className="block">
+              <span className="field-label">المراجع الثاني</span>
+              <select value={secondReviewerId} onChange={(e) => setSecondReviewerId(e.target.value)} className="input-shell" style={{ minWidth: 180 }}>
+                <option value="">اختر...</option>
+                {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={isPending || !firstReviewerId || !secondReviewerId}
+              className="btn btn-primary"
+              onClick={() => {
+                if (!window.confirm('سيتم وضع توقيعَي المراجعين المحددين على كل المعاملات القديمة المعتمدة التي لا توقيع عليها. هل تريد المتابعة؟')) return
+                startTransition(async () => {
+                  const res = await fetch('/api/admin/backfill-reviewer-signatures', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ firstReviewerId, secondReviewerId }),
+                  })
+                  const data = await res.json().catch(() => ({}))
+                  if (!res.ok) { setLoadError(data.error ?? 'تعذر إعادة التوقيعات.'); return }
+                  showSuccess(`تم وضع توقيعي ${data.firstReviewerName} و${data.secondReviewerName} على ${data.requestsUpdated} نموذج ١٨ و ${data.settlementsUpdated} نموذج ١٩ القديمة.`)
+                })
+              }}
+            >
+              تطبيق على كل المعاملات القديمة
+            </button>
           </div>
         </div>
       </div>

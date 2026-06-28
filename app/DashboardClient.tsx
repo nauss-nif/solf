@@ -980,21 +980,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     })
   }
 
-  async function backfillReviewerSignatures(firstReviewerId: string, secondReviewerId: string) {
-    if (!firstReviewerId || !secondReviewerId) { showToast('اختر المراجعين الاثنين أولاً.', 'error'); return }
-    startTransition(async () => {
-      const res = await fetch('/api/admin/backfill-reviewer-signatures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstReviewerId, secondReviewerId }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر إعادة التوقيعات.', 'error'); return }
-      showToast(`تم وضع توقيعي ${data.firstReviewerName} و${data.secondReviewerName} على ${data.requestsUpdated} نموذج ١٨ و ${data.settlementsUpdated} نموذج ١٩ القديمة.`)
-      await refreshLoans(workMode)
-    })
-  }
-
   async function sendReviewerReminder(loanId: string) {
     startTransition(async () => {
       const res = await fetch(`/api/loans/${loanId}/reminder`, { method: 'POST' })
@@ -1301,9 +1286,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         🔔 تشغيل فحص المواعيد الآن
                       </button>
                     </div>
-                    {isSuperAdmin && reviewersList.length > 1 && (
-                      <BackfillSignaturesControl reviewersList={reviewersList} onRun={backfillReviewerSignatures} />
-                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
@@ -2568,32 +2550,6 @@ function AssignReviewerControl({ loanId, formType, reviewersList, onAssigned }: 
         {saving ? '...' : 'تعيين'}
       </button>
       {error && <span className="text-xs" style={{ color: '#73384B' }}>{error}</span>}
-    </div>
-  )
-}
-
-// إعادة توقيعَي المراجعين دفعة واحدة على كل المعاملات القديمة المعتمدة بلا توقيع مسجَّل
-function BackfillSignaturesControl({ reviewersList, onRun }: {
-  reviewersList: Array<{ id: string; fullName: string }>
-  onRun: (firstReviewerId: string, secondReviewerId: string) => void
-}) {
-  const [first, setFirst] = useState('')
-  const [second, setSecond] = useState('')
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ background: '#fff', border: '1px dashed #C7B08C' }}>
-      <span className="text-xs font-semibold" style={{ color: '#6B5A4A' }}>إعادة توقيعَي المراجعين على المعاملات القديمة:</span>
-      <select value={first} onChange={(e) => setFirst(e.target.value)} className="input-shell" style={{ maxWidth: 180, padding: '0.25rem 0.5rem', height: 'auto' }}>
-        <option value="">المراجع الأول...</option>
-        {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
-      </select>
-      <select value={second} onChange={(e) => setSecond(e.target.value)} className="input-shell" style={{ maxWidth: 180, padding: '0.25rem 0.5rem', height: 'auto' }}>
-        <option value="">المراجع الثاني...</option>
-        {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
-      </select>
-      <button type="button" onClick={() => onRun(first, second)} disabled={!first || !second} className="btn btn-outline btn-sm">
-        تطبيق على كل المعاملات القديمة
-      </button>
     </div>
   )
 }

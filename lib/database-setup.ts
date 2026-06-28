@@ -2,8 +2,10 @@ import { prisma } from '@/lib/prisma'
 
 let setupPromise: Promise<void> | null = null
 let authSetupPromise: Promise<void> | null = null
-const runtimeDatabaseSetupEnabled =
-  process.env.ENABLE_RUNTIME_DB_SETUP === 'true' || process.env.NODE_ENV !== 'production'
+// تُطبَّق فروقات المخطط (ADD COLUMN IF NOT EXISTS) تلقائياً عند كل بدء تشغيل —
+// عملية آمنة بالكامل (إضافة فقط، بلا حذف بيانات) ولا بد أن تعمل في الإنتاج
+// أيضاً لأن لا توجد آلية أخرى تُطبّق تعديلات المخطط على قاعدة بيانات الإنتاج.
+const runtimeDatabaseSetupEnabled = process.env.DISABLE_RUNTIME_DB_SETUP !== 'true'
 
 export function isRuntimeDatabaseSetupEnabled() {
   return runtimeDatabaseSetupEnabled
