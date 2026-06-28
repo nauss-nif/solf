@@ -2,7 +2,7 @@
 import path from 'node:path'
 import Docxtemplater from 'docxtemplater'
 import PizZip from 'pizzip'
-import { LOAN_ATTACHMENT_DEFINITIONS, toStoredFileArray, type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
+import { LOAN_ATTACHMENT_DEFINITIONS, isStoredImageFile, toStoredFileArray, type SettlementDetailRecord, type StoredFile } from '@/lib/loan-form-options'
 import { DEFAULT_SYSTEM_SETTINGS, type SystemSettings } from '@/lib/system-settings'
 import { formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
 
@@ -70,6 +70,7 @@ export type LoanDocumentRecord = {
 type DocumentRenderOptions = {
   settings?: SystemSettings
   reviewerSignatures?: StoredFile[]
+  applicantSignature?: StoredFile | null
 }
 
 type LoanTemplateRow = {
@@ -250,6 +251,13 @@ function printShell(body: string, options: PrintShellOptions) {
       padding-inline: 4px;
       text-align: right;
     }
+    .applicant-signature {
+      display: inline-block;
+      width: 18mm;
+      max-height: 8mm;
+      object-fit: contain;
+      vertical-align: middle;
+    }
     .choice-line {
       display: flex;
       gap: 28px;
@@ -311,8 +319,8 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature {
       display: block;
-      width: 12mm;
-      max-height: 5mm;
+      width: 18mm;
+      max-height: 8mm;
       object-fit: contain;
     }
     .settlement-totals-zone {
@@ -322,7 +330,7 @@ function printShell(body: string, options: PrintShellOptions) {
       position: absolute;
       top: 10px;
       left: 0;
-      width: 20mm;
+      width: 28mm;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -330,8 +338,8 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature-left-img {
       display: block;
-      width: 10mm;
-      height: 13px;
+      width: 16mm;
+      height: 20px;
       object-fit: contain;
     }
     .text-right { text-align: right !important; }
@@ -1253,6 +1261,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
   const budgetRejected = loan.budgetApproved === false
   const attachmentPages = buildLoanAttachmentPages(loan)
   const reviewerSignatures = (options?.reviewerSignatures ?? []).slice(0, 2)
+  const applicantSignature = options?.applicantSignature && isStoredImageFile(options.applicantSignature) ? options.applicantSignature : null
 
   const body = `
     <div class="letterhead-spacer" style="height: 32mm;"></div>
@@ -1282,7 +1291,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
-      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"></span></div>
+      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value">${applicantSignature ? `<img class="applicant-signature" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></div>
     </div>
 
     <div class="loan-table-wrap">

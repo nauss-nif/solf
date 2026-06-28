@@ -24,11 +24,13 @@ export default async function LoanDetailPage({
     ? loan.settlementStatus === 'APPROVED'
     : loan.reviewStatus === 'REVIEWED'
   const loanWithReviewers = loan as any
-  const preferredReviewerId = activeForm === '19' ? loanWithReviewers.settlementReviewedBy?.id : loanWithReviewers.reviewedBy?.id
-  const reviewerSignatures = isActiveFormApproved ? await getReviewerSignatures(preferredReviewerId) : undefined
+  const firstReviewerId = activeForm === '19' ? loanWithReviewers.settlementReviewedBy?.id : loanWithReviewers.reviewedBy?.id
+  const secondReviewerId = activeForm === '19' ? loanWithReviewers.secondSettlementReviewedBy?.id : loanWithReviewers.secondReviewedBy?.id
+  const reviewerSignatures = isActiveFormApproved ? await getReviewerSignatures(firstReviewerId, secondReviewerId) : undefined
+  const applicantSignature = !loan.isDraft ? loanWithReviewers.user?.signatureImage ?? null : null
   const html = activeForm === '19' && hasSettlement
     ? buildSettlementWordHtml(loan, { settings, reviewerSignatures })
-    : buildLoanRequestWordHtml(loan, { settings, reviewerSignatures })
+    : buildLoanRequestWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
 
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4">

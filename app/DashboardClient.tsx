@@ -2352,15 +2352,17 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
       {loan.settlementStatus === 'AWAITING_SECOND_REVIEW' && loan.settlementReviewedBy && (
         <p className="text-xs mt-1" style={{ color: '#8A6D00' }}>⏳ اعتمده {loan.settlementReviewedBy.fullName} — بانتظار تأشيرة المراجع الثاني لإكمال نموذج ١٩</p>
       )}
-      {isLoanApproved && (
-        loan.reviewedBy
-          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}{loan.secondReviewedBy ? ` و${loan.secondReviewedBy.fullName}` : ''}</p>
-          : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onAssigned={onLinked} />
+      {loan.reviewedBy && (
+        <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>توقيع نموذج ١٨: {loan.reviewedBy.fullName}{loan.secondReviewedBy ? ` و${loan.secondReviewedBy.fullName}` : ''}</p>
       )}
-      {isSettlementApproved && (
-        loan.settlementReviewedBy
-          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}{loan.secondSettlementReviewedBy ? ` و${loan.secondSettlementReviewedBy.fullName}` : ''}</p>
-          : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onAssigned={onLinked} />
+      {isSuperAdmin && !(loan.reviewedBy && loan.secondReviewedBy) && (
+        <AdminFinalizeReviewControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onDone={onLinked} />
+      )}
+      {hasSettlement && loan.settlementReviewedBy && (
+        <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>توقيع نموذج ١٩: {loan.settlementReviewedBy.fullName}{loan.secondSettlementReviewedBy ? ` و${loan.secondSettlementReviewedBy.fullName}` : ''}</p>
+      )}
+      {isSuperAdmin && hasSettlement && !(loan.settlementReviewedBy && loan.secondSettlementReviewedBy) && (
+        <AdminFinalizeReviewControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onDone={onLinked} />
       )}
 
       {loan.reviewNote && <div className="alert alert-warning text-xs mt-2"><strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
@@ -2505,31 +2507,33 @@ function LinkCourseControl({ loanId, onLinked }: { loanId: string; onLinked: () 
   )
 }
 
-// تعيين توقيع تاريخي بأثر رجعي لمعاملة معتمدة قبل إضافة تتبّع هوية المعتمِد —
-// المدير الفائق فقط، ولأنه يعرف بدقة من اعتمدها فعلاً في الواقع
-function AssignReviewerControl({ loanId, formType, reviewersList, onAssigned }: {
+// صلاحية مطلقة للمدير الفائق: تثبيت توقيع مراجع أو الاثنين على معاملة معيّنة
+// مباشرة، بدلاً من انتظار اعتماد كل مراجع بنفسه عبر حسابه — تُستخدم للمعاملات
+// القديمة بلا توقيع، أو لإقفال معاملة عالقة بصلاحية المدير العام
+function AdminFinalizeReviewControl({ loanId, formType, reviewersList, onDone }: {
   loanId: string; formType: 'advance_req' | 'settlement'
   reviewersList: Array<{ id: string; fullName: string }>
-  onAssigned: () => void
+  onDone?: () => void
 }) {
-  const [selected, setSelected] = useState('')
+  const [first, setFirst] = useState('')
+  const [second, setSecond] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  async function assign() {
-    if (!selected) return
+  async function run() {
+    if (!first) return
     setSaving(true); setError('')
     try {
-      const res = await fetch(`/api/loans/${loanId}/assign-reviewer`, {
+      const res = await fetch(`/api/loans/${loanId}/admin-finalize-review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ formType, reviewerId: selected }),
+        body: JSON.stringify({ formType, firstReviewerId: first, secondReviewerId: second || undefined }),
       })
       const data = await res.json()
-      if (!res.ok) { setError(data?.error || 'تعذر التعيين'); return }
-      onAssigned()
+      if (!res.ok) { setError(data?.error || 'تعذر الاعتماد'); return }
+      onDone?.()
     } catch {
-      setError('تعذر التعيين')
+      setError('تعذر الاعتماد')
     } finally {
       setSaving(false)
     }
@@ -2537,17 +2541,17 @@ function AssignReviewerControl({ loanId, formType, reviewersList, onAssigned }: 
 
   return (
     <div className="mt-1 flex flex-wrap items-center gap-2">
-      <span className="text-xs" style={{ color: '#73384B' }}>
-        معتمَدة قبل تتبّع هوية المعتمِد — لا توقيع مسجَّل:
-      </span>
-      <select value={selected} onChange={(e) => setSelected(e.target.value)} className="input-shell" style={{ maxWidth: 200, padding: '0.25rem 0.5rem', height: 'auto' }}>
-        <option value="">اختر المعتمِد الفعلي...</option>
-        {reviewersList.map((r) => (
-          <option key={r.id} value={r.id}>{r.fullName}</option>
-        ))}
+      <span className="text-xs" style={{ color: '#73384B' }}>اعتماد بصلاحية المدير العام:</span>
+      <select value={first} onChange={(e) => setFirst(e.target.value)} className="input-shell" style={{ maxWidth: 170, padding: '0.25rem 0.5rem', height: 'auto' }}>
+        <option value="">المراجع الأول...</option>
+        {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
       </select>
-      <button type="button" onClick={() => void assign()} disabled={!selected || saving} className="btn btn-outline btn-sm">
-        {saving ? '...' : 'تعيين'}
+      <select value={second} onChange={(e) => setSecond(e.target.value)} className="input-shell" style={{ maxWidth: 170, padding: '0.25rem 0.5rem', height: 'auto' }}>
+        <option value="">المراجع الثاني (اختياري)...</option>
+        {reviewersList.filter((r) => r.id !== first).map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+      </select>
+      <button type="button" onClick={() => void run()} disabled={!first || saving} className="btn btn-outline btn-sm">
+        {saving ? '...' : 'اعتماد فوري'}
       </button>
       {error && <span className="text-xs" style={{ color: '#73384B' }}>{error}</span>}
     </div>
@@ -2593,15 +2597,17 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
                 صاحب الحساب: {loan.user?.email || 'بلا حساب (تعذّر تحديد المالك)'}
               </p>
             )}
-            {loan.reviewStatus === 'REVIEWED' && (
-              loan.reviewedBy
-                ? <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}</p>
-                : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onAssigned={() => onLinked?.()} />
+            {loan.reviewedBy && (
+              <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>توقيع نموذج ١٨: {loan.reviewedBy.fullName}{loan.secondReviewedBy ? ` و${loan.secondReviewedBy.fullName}` : ''}</p>
             )}
-            {isSettlementApproved && (
-              loan.settlementReviewedBy
-                ? <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}</p>
-                : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onAssigned={() => onLinked?.()} />
+            {isSuperAdmin && !(loan.reviewedBy && loan.secondReviewedBy) && (
+              <AdminFinalizeReviewControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onDone={() => onLinked?.()} />
+            )}
+            {loan.settlement && loan.settlementReviewedBy && (
+              <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>توقيع نموذج ١٩: {loan.settlementReviewedBy.fullName}{loan.secondSettlementReviewedBy ? ` و${loan.secondSettlementReviewedBy.fullName}` : ''}</p>
+            )}
+            {isSuperAdmin && loan.settlement && !(loan.settlementReviewedBy && loan.secondSettlementReviewedBy) && (
+              <AdminFinalizeReviewControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onDone={() => onLinked?.()} />
             )}
           </div>
 

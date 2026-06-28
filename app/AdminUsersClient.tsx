@@ -137,15 +137,16 @@ export default function AdminUsersClient() {
                     </td>
                     <td>
                       {user.signatureImage ? (
-                        <div className="flex items-center gap-2">
-                          <img src={user.signatureImage.dataUrl} alt="توقيع" style={{ width: 64, height: 32, objectFit: 'contain', border: '1px solid #DADBD9', borderRadius: 6, background: '#fff' }} />
-                          <label className="btn btn-outline btn-sm cursor-pointer">
-                            تغيير
+                        <div className="flex items-center gap-1.5">
+                          <img src={user.signatureImage.dataUrl} alt="توقيع" style={{ width: 56, height: 28, objectFit: 'contain', border: '1px solid #DADBD9', borderRadius: 6, background: '#fff', flexShrink: 0 }} />
+                          <label className="btn btn-outline btn-sm cursor-pointer" title="تغيير التوقيع" style={{ padding: '0.25rem 0.5rem' }}>
+                            ✏️
                             <input type="file" className="hidden" accept="image/*" onChange={(e) => void handleSignatureUpload(user.id, e.target.files)} />
                           </label>
                           <button
                             type="button"
                             disabled={isPending}
+                            title="حذف التوقيع"
                             onClick={() => {
                               startTransition(async () => {
                                 await fetch(`/api/admin/users/${user.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureImage: null }) })
@@ -153,8 +154,9 @@ export default function AdminUsersClient() {
                               })
                             }}
                             className="btn btn-danger btn-sm"
+                            style={{ padding: '0.25rem 0.5rem' }}
                           >
-                            حذف
+                            🗑️
                           </button>
                         </div>
                       ) : (
@@ -182,10 +184,11 @@ export default function AdminUsersClient() {
                       </select>
                     </td>
                     <td>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1.5">
                         <button
                           type="button"
                           disabled={isPending}
+                          title="تغيير كلمة المرور"
                           onClick={() => {
                             const password = window.prompt('أدخل كلمة المرور الجديدة:')
                             if (!password || password.trim().length < 6) { if (password !== null) window.alert('كلمة المرور يجب أن تكون 6 أحرف على الأقل.'); return }
@@ -195,12 +198,14 @@ export default function AdminUsersClient() {
                             })
                           }}
                           className="btn btn-outline btn-sm"
+                          style={{ padding: '0.25rem 0.5rem' }}
                         >
-                          🔑 كلمة المرور
+                          🔑
                         </button>
                         <button
                           type="button"
                           disabled={isPending}
+                          title="حذف الحساب"
                           onClick={() => {
                             if (!window.confirm(`حذف حساب "${user.fullName}"؟ لا يمكن التراجع عن هذا الإجراء.`)) return
                             startTransition(async () => {
@@ -209,8 +214,9 @@ export default function AdminUsersClient() {
                             })
                           }}
                           className="btn btn-danger btn-sm"
+                          style={{ padding: '0.25rem 0.5rem' }}
                         >
-                          🗑️ حذف
+                          🗑️
                         </button>
                       </div>
                     </td>
