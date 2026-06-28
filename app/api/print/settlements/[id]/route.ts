@@ -46,7 +46,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     const loanWithReviewers = loan as any
     const reviewerSignatures =
       loan.settlementStatus === 'APPROVED'
-        ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id)
+        ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id, loanWithReviewers.secondSettlementReviewedBy?.id)
         : undefined
 
     const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures })

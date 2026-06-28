@@ -50,7 +50,7 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     const loanWithReviewers = loan as any
     const reviewerSignatures =
       loan.reviewStatus === 'REVIEWED'
-        ? await getReviewerSignatures(loanWithReviewers.reviewedBy?.id)
+        ? await getReviewerSignatures(loanWithReviewers.reviewedBy?.id, loanWithReviewers.secondReviewedBy?.id)
         : undefined
 
     const html = buildLoanRequestWordHtml(loan, { settings, reviewerSignatures })

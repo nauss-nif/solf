@@ -39,8 +39,8 @@ export async function getAuthorizedLoan(
 }
 
 // تأشيرة المراجع الذي اعتمد المعاملة فعلياً فقط — لا تُعرض أي توقيعات لمراجعين آخرين لم يعتمدوها
-export async function getReviewerSignatures(approverId?: string | null): Promise<StoredFile[]> {
-  if (!approverId) return []
+async function getOneReviewerSignature(approverId?: string | null): Promise<StoredFile | null> {
+  if (!approverId) return null
   await ensureDatabaseSetup()
 
   const approver = await prisma.user.findUnique({
@@ -48,11 +48,24 @@ export async function getReviewerSignatures(approverId?: string | null): Promise
     select: { id: true, role: true, roles: true, signatureImage: true },
   })
 
-  if (!approver || !isStoredImageFile(approver.signatureImage)) return []
+  if (!approver || !isStoredImageFile(approver.signatureImage)) return null
 
   const role = approver.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
   // أي حساب يملك صلاحية اعتماد فعلية (مراجع أو مدير) يصحّ توقيعه — لا يقتصر على صلاحية "مراجع" فقط
-  if (!canManageAllLoans({ role, roles: normalizeRoles(approver.roles, role) })) return []
+  if (!canManageAllLoans({ role, roles: normalizeRoles(approver.roles, role) })) return null
 
-  return [approver.signatureImage as StoredFile]
+  return approver.signatureImage as StoredFile
+}
+
+// المعاملة تتطلب تأشيرة كل المراجعين الذين اعتمدوها فعلياً (أول وثاني) — تُعرض الاثنتان معاً
+export async function getReviewerSignatures(
+  approverId?: string | null,
+  secondApproverId?: string | null,
+): Promise<StoredFile[]> {
+  const [first, second] = await Promise.all([
+    getOneReviewerSignature(approverId),
+    getOneReviewerSignature(secondApproverId),
+  ])
+
+  return [first, second].filter((file): file is StoredFile => file !== null)
 }

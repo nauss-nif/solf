@@ -12,7 +12,9 @@ export const dashboardLoanInclude = {
     },
   },
   reviewedBy: { select: { id: true, fullName: true } },
+  secondReviewedBy: { select: { id: true, fullName: true } },
   settlementReviewedBy: { select: { id: true, fullName: true } },
+  secondSettlementReviewedBy: { select: { id: true, fullName: true } },
   user: { select: { email: true, fullName: true } },
 } as const
 
@@ -21,5 +23,7 @@ export const fullLoanInclude = {
   settlement: true,
   user: { select: { email: true } },
   reviewedBy: { select: { id: true, fullName: true } },
+  secondReviewedBy: { select: { id: true, fullName: true } },
   settlementReviewedBy: { select: { id: true, fullName: true } },
+  secondSettlementReviewedBy: { select: { id: true, fullName: true } },
 } as const

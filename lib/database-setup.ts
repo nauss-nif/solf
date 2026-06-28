@@ -93,6 +93,81 @@ async function runSetup() {
   `)
 
   await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "reviewedById" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "secondReviewedById" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "settlementReviewedById" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "secondSettlementReviewedById" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "settlementStatus" TEXT NOT NULL DEFAULT 'NOT_STARTED';
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "isSettled" BOOLEAN NOT NULL DEFAULT FALSE;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "courseId" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "courseCode" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "destinationCategory" TEXT NOT NULL DEFAULT 'DOMESTIC';
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "settlementDeadline" TIMESTAMP(3);
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "recallRequested" BOOLEAN NOT NULL DEFAULT FALSE;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "recallReason" TEXT;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "recallRequestedAt" TIMESTAMP(3);
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "isDraft" BOOLEAN NOT NULL DEFAULT FALSE;
+  `)
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "loans"
+    ADD COLUMN IF NOT EXISTS "settlementDraft" JSONB;
+  `)
+
+  await prisma.$executeRawUnsafe(`
     CREATE UNIQUE INDEX IF NOT EXISTS "loans_refNumber_key" ON "loans"("refNumber");
   `)
 

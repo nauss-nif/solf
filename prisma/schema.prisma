@@ -22,20 +22,22 @@ enum DestinationCategory {
 // حالة المراجعة
 // ─────────────────────────────────────────────────────────────
 enum ReviewStatus {
-  PENDING   // بانتظار المراجعة
-  REVIEWED  // تمت المراجعة
-  RETURNED  // أُعيد للمراجعة
+  PENDING                 // بانتظار المراجعة
+  AWAITING_SECOND_REVIEW  // اعتمدها مراجع واحد، بانتظار تأشيرة المراجع الثاني
+  REVIEWED                // تمت المراجعة من جميع المراجعين المطلوبين
+  RETURNED                // أُعيد للمراجعة
 }
 
 // ─────────────────────────────────────────────────────────────
 // حالة التسوية (مستوى أدق من isSettled البولياني)
 // ─────────────────────────────────────────────────────────────
 enum SettlementStatus {
-  NOT_STARTED   // لم تبدأ
-  IN_PROGRESS   // بدأت لكن لم تُرسل
-  SUBMITTED     // أُرسلت للمراجعة
-  APPROVED      // اعتُمدت
-  OVERDUE       // تجاوزت المهلة
+  NOT_STARTED             // لم تبدأ
+  IN_PROGRESS              // بدأت لكن لم تُرسل
+  SUBMITTED                 // أُرسلت للمراجعة
+  AWAITING_SECOND_REVIEW   // اعتمدها مراجع واحد، بانتظار تأشيرة المراجع الثاني
+  APPROVED                  // اعتُمدت من جميع المراجعين المطلوبين
+  OVERDUE                   // تجاوزت المهلة
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -83,7 +85,9 @@ model User {
   notifications      LoanNotification[]
   sentAlerts         LoanAlert[]      @relation("AlertSender")
   reviewedLoans          Loan[]       @relation("LoanReviewedBy")
+  secondReviewedLoans    Loan[]       @relation("LoanSecondReviewedBy")
   settlementReviewedLoans Loan[]      @relation("LoanSettlementReviewedBy")
+  secondSettlementReviewedLoans Loan[] @relation("LoanSecondSettlementReviewedBy")
 
   @@map("users")
 }
@@ -121,11 +125,17 @@ model Loan {
   reviewNote    String?
   printedAt     DateTime?
 
-  // المراجع الذي يُعتمد توقيعه على نموذج ١٨ (قد يكون المدير اعتمد بالنيابة عنه)
+  // المراجع الأول الذي اعتمد نموذج ١٨ (قد يكون المدير اعتمد بالنيابة عنه)
   reviewedById  String?
 
-  // المراجع الذي يُعتمد توقيعه على نموذج ١٩ (قد يكون المدير اعتمد بالنيابة عنه)
+  // المراجع الثاني المطلوب لإكمال اعتماد نموذج ١٨ — لا تُعتبر المعاملة معتمدة نهائياً إلا بتوقيعه أيضاً
+  secondReviewedById  String?
+
+  // المراجع الأول الذي اعتمد نموذج ١٩ (قد يكون المدير اعتمد بالنيابة عنه)
   settlementReviewedById  String?
+
+  // المراجع الثاني المطلوب لإكمال اعتماد نموذج ١٩
+  secondSettlementReviewedById  String?
 
   // ─── طلب إعادة فتح المعاملة بعد الاعتماد ─────────────────
   recallRequested   Boolean   @default(false)
@@ -154,7 +164,9 @@ model Loan {
   // العلاقات
   user              User?       @relation("UserLoans", fields: [userId], references: [id], onDelete: SetNull)
   reviewedBy            User?   @relation("LoanReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  secondReviewedBy      User?   @relation("LoanSecondReviewedBy", fields: [secondReviewedById], references: [id], onDelete: SetNull)
   settlementReviewedBy  User?   @relation("LoanSettlementReviewedBy", fields: [settlementReviewedById], references: [id], onDelete: SetNull)
+  secondSettlementReviewedBy  User?   @relation("LoanSecondSettlementReviewedBy", fields: [secondSettlementReviewedById], references: [id], onDelete: SetNull)
   settlement        Settlement?
   items             LoanItem[]
   alerts            LoanAlert[]
@@ -166,7 +178,9 @@ model Loan {
   @@index([settlementDeadline])
   @@index([courseId])
   @@index([reviewedById])
+  @@index([secondReviewedById])
   @@index([settlementReviewedById])
+  @@index([secondSettlementReviewedById])
 }
 
 // ─────────────────────────────────────────────────────────────

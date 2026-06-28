@@ -311,8 +311,8 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature {
       display: block;
-      width: 22mm;
-      max-height: 9mm;
+      width: 12mm;
+      max-height: 5mm;
       object-fit: contain;
     }
     .settlement-totals-zone {
@@ -330,8 +330,8 @@ function printShell(body: string, options: PrintShellOptions) {
     }
     .reviewer-signature-left-img {
       display: block;
-      width: 18mm;
-      height: 22px;
+      width: 10mm;
+      height: 13px;
       object-fit: contain;
     }
     .text-right { text-align: right !important; }

@@ -29,8 +29,8 @@ type SettlementRecord = { id: string; supported: number; unsupported: number; to
 export type LoanDashboardRecord = {
   id: string; userId?: string; refNumber: string; employee: string; activity: string; location: string
   amount: number; budgetApproved: boolean | null
-  reviewStatus: 'PENDING' | 'RETURNED' | 'REVIEWED'
-  settlementStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'APPROVED' | 'OVERDUE'
+  reviewStatus: 'PENDING' | 'AWAITING_SECOND_REVIEW' | 'RETURNED' | 'REVIEWED'
+  settlementStatus: 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'AWAITING_SECOND_REVIEW' | 'APPROVED' | 'OVERDUE'
   reviewNote?: string; startDate: string; endDate: string
   courseId?: string | null; courseCode?: string | null
   createdAt: string; updatedAt?: string; printedAt: string | null
@@ -39,8 +39,11 @@ export type LoanDashboardRecord = {
   isDraft?: boolean; settlementDraft?: { settlementItems?: SettlementDraft[]; currencyRates?: SettlementCurrencyRate[]; settlementMeta?: SettlementMetaState } | null
   recallRequested?: boolean; recallReason?: string | null
   reviewedById?: string | null; settlementReviewedById?: string | null
+  secondReviewedById?: string | null; secondSettlementReviewedById?: string | null
   reviewedBy?: { id: string; fullName: string } | null
+  secondReviewedBy?: { id: string; fullName: string } | null
   settlementReviewedBy?: { id: string; fullName: string } | null
+  secondSettlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
   user?: { email: string; fullName: string } | null
 }
@@ -914,13 +917,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر تحديث حالة المراجعة.', 'error'); return }
       setLoans((curr) => curr.map((l) => l.id === data.id ? normalizeLoanRecord(data) : l))
+      const finalized = closureType === 'settlement' ? data.settlementStatus === 'APPROVED' : data.reviewStatus === 'REVIEWED'
       showToast(reviewStatus === 'PENDING'
         ? (closureType === 'settlement' ? 'تم إلغاء اعتماد نموذج ١٩ وإعادته للمراجعة.' : 'تم إلغاء اعتماد نموذج ١٨ وإعادته للمراجعة.')
         : reviewStatus === 'RETURNED'
           ? (closureType === 'settlement' ? 'تمت إعادة نموذج ١٩ للموظف.' : 'تمت إعادة المعاملة للموظف.')
-          : closureType === 'settlement'
-            ? 'تم اعتماد نموذج ١٩.'
-            : 'تم اعتماد نموذج ١٨.')
+          : finalized
+            ? (closureType === 'settlement' ? 'تم اعتماد نموذج ١٩ نهائياً بتوقيع المراجعين الاثنين.' : 'تم اعتماد نموذج ١٨ نهائياً بتوقيع المراجعين الاثنين.')
+            : (closureType === 'settlement' ? 'تم تسجيل تأشيرتك على نموذج ١٩ — بانتظار تأشيرة المراجع الثاني لإكمال الاعتماد.' : 'تم تسجيل تأشيرتك على نموذج ١٨ — بانتظار تأشيرة المراجع الثاني لإكمال الاعتماد.'))
     })
   }
 
@@ -973,6 +977,21 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       } catch {
         showToast('تعذر تشغيل الفحص.', 'error')
       }
+    })
+  }
+
+  async function backfillReviewerSignatures(firstReviewerId: string, secondReviewerId: string) {
+    if (!firstReviewerId || !secondReviewerId) { showToast('اختر المراجعين الاثنين أولاً.', 'error'); return }
+    startTransition(async () => {
+      const res = await fetch('/api/admin/backfill-reviewer-signatures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstReviewerId, secondReviewerId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { showToast(typeof data?.error === 'string' ? data.error : 'تعذر إعادة التوقيعات.', 'error'); return }
+      showToast(`تم وضع توقيعي ${data.firstReviewerName} و${data.secondReviewerName} على ${data.requestsUpdated} نموذج ١٨ و ${data.settlementsUpdated} نموذج ١٩ القديمة.`)
+      await refreshLoans(workMode)
     })
   }
 
@@ -1282,6 +1301,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         🔔 تشغيل فحص المواعيد الآن
                       </button>
                     </div>
+                    {isSuperAdmin && reviewersList.length > 1 && (
+                      <BackfillSignaturesControl reviewersList={reviewersList} onRun={backfillReviewerSignatures} />
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
@@ -2342,14 +2364,20 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
         </div>
       )}
 
+      {loan.reviewStatus === 'AWAITING_SECOND_REVIEW' && loan.reviewedBy && (
+        <p className="text-xs mt-1" style={{ color: '#8A6D00' }}>⏳ اعتمده {loan.reviewedBy.fullName} — بانتظار تأشيرة المراجع الثاني لإكمال نموذج ١٨</p>
+      )}
+      {loan.settlementStatus === 'AWAITING_SECOND_REVIEW' && loan.settlementReviewedBy && (
+        <p className="text-xs mt-1" style={{ color: '#8A6D00' }}>⏳ اعتمده {loan.settlementReviewedBy.fullName} — بانتظار تأشيرة المراجع الثاني لإكمال نموذج ١٩</p>
+      )}
       {isLoanApproved && (
         loan.reviewedBy
-          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}</p>
+          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٨ بتوقيع: {loan.reviewedBy.fullName}{loan.secondReviewedBy ? ` و${loan.secondReviewedBy.fullName}` : ''}</p>
           : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onAssigned={onLinked} />
       )}
       {isSettlementApproved && (
         loan.settlementReviewedBy
-          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}</p>
+          ? <p className="text-xs mt-1" style={{ color: '#5A5A5A' }}>اعتُمد نموذج ١٩ بتوقيع: {loan.settlementReviewedBy.fullName}{loan.secondSettlementReviewedBy ? ` و${loan.secondSettlementReviewedBy.fullName}` : ''}</p>
           : isSuperAdmin && <AssignReviewerControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onAssigned={onLinked} />
       )}
 
@@ -2544,6 +2572,32 @@ function AssignReviewerControl({ loanId, formType, reviewersList, onAssigned }: 
   )
 }
 
+// إعادة توقيعَي المراجعين دفعة واحدة على كل المعاملات القديمة المعتمدة بلا توقيع مسجَّل
+function BackfillSignaturesControl({ reviewersList, onRun }: {
+  reviewersList: Array<{ id: string; fullName: string }>
+  onRun: (firstReviewerId: string, secondReviewerId: string) => void
+}) {
+  const [first, setFirst] = useState('')
+  const [second, setSecond] = useState('')
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl p-3" style={{ background: '#fff', border: '1px dashed #C7B08C' }}>
+      <span className="text-xs font-semibold" style={{ color: '#6B5A4A' }}>إعادة توقيعَي المراجعين على المعاملات القديمة:</span>
+      <select value={first} onChange={(e) => setFirst(e.target.value)} className="input-shell" style={{ maxWidth: 180, padding: '0.25rem 0.5rem', height: 'auto' }}>
+        <option value="">المراجع الأول...</option>
+        {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+      </select>
+      <select value={second} onChange={(e) => setSecond(e.target.value)} className="input-shell" style={{ maxWidth: 180, padding: '0.25rem 0.5rem', height: 'auto' }}>
+        <option value="">المراجع الثاني...</option>
+        {reviewersList.map((r) => <option key={r.id} value={r.id}>{r.fullName}</option>)}
+      </select>
+      <button type="button" onClick={() => onRun(first, second)} disabled={!first || !second} className="btn btn-outline btn-sm">
+        تطبيق على كل المعاملات القديمة
+      </button>
+    </div>
+  )
+}
+
 function LoanCard({ loan, archived = false, canReview = false, canModify = false, canDelete = false, canLinkCourse = false, onLinked, isSuperAdmin = false, reviewersList = [], onEdit, onDelete, onSettle, onDeleteSettlement, onMarkReviewed, onReturnForReview, onPrintLoan, onPrintSettlement, onSendManualAlert, onSendReviewerReminder, onRequestRecall, onRecallDecision }: {
   loan: LoanDashboardRecord; archived?: boolean; canReview?: boolean; canModify?: boolean; canDelete?: boolean
   canLinkCourse?: boolean; onLinked?: () => void
@@ -2555,7 +2609,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   onRequestRecall?: () => void; onRecallDecision?: (approve: boolean) => void
 }) {
   const attachCount = Object.values(loan.files ?? {}).reduce((sum: number, v) => sum + toStoredFileArray(v).length, 0)
-  const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
+  const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'AWAITING_SECOND_REVIEW' ? { label: 'بانتظار المراجع الثاني', cls: 'badge-warning' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
   const isSettlementApproved = loan.settlementStatus === 'APPROVED'
 
   return (

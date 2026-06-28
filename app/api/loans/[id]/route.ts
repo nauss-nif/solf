@@ -130,6 +130,8 @@ export async function PATCH(
             where: { id: loan.id },
             data: {
               settlementStatus: 'SUBMITTED',
+              settlementReviewedById: null,
+              secondSettlementReviewedById: null,
               reviewNote: String(body.reviewNote ?? '').trim() || null,
             },
             include: dashboardLoanInclude,
@@ -149,6 +151,8 @@ export async function PATCH(
           where: { id: loan.id },
           data: {
             reviewStatus: 'PENDING',
+            reviewedById: null,
+            secondReviewedById: null,
             reviewNote: String(body.reviewNote ?? '').trim() || null,
           },
           include: dashboardLoanInclude,
@@ -167,6 +171,8 @@ export async function PATCH(
           data: {
             isSettled: false,
             settlementStatus: 'IN_PROGRESS',
+            settlementReviewedById: null,
+            secondSettlementReviewedById: null,
             reviewNote: String(body.reviewNote ?? '').trim() || null,
           },
           include: dashboardLoanInclude,
@@ -193,55 +199,130 @@ export async function PATCH(
         return NextResponse.json(returnedSettlementLoan)
       }
 
-      let reviewerId: string | null = null
-      if (nextStatus === 'REVIEWED') {
-        const resolved = await resolveReviewerOnBehalf(currentUser, body.onBehalfOfUserId)
-        if ('error' in resolved) return resolved.error
-        reviewerId = resolved.reviewerId
+      if (nextStatus === 'RETURNED') {
+        const returnedLoan = await prisma.loan.update({
+          where: { id: loan.id },
+          data: {
+            reviewStatus: 'RETURNED',
+            reviewedById: null,
+            secondReviewedById: null,
+            reviewNote: String(body.reviewNote ?? '').trim() || null,
+          },
+          include: dashboardLoanInclude,
+        })
+
+        if (loan.userId) {
+          const owner = await prisma.user.findUnique({ where: { id: loan.userId }, select: { email: true } })
+          if (owner?.email) {
+            void notifyLoanReviewed({
+              userId: loan.userId,
+              userEmail: owner.email,
+              refNumber: loan.refNumber,
+              loanId: loan.id,
+              status: 'RETURNED',
+              note: String(body.reviewNote ?? '').trim() || undefined,
+            }).catch(console.error)
+          }
+        }
+
+        return NextResponse.json(returnedLoan)
       }
 
-      const reviewedLoan = await prisma.loan.update({
+      // nextStatus === 'REVIEWED' — تتطلب كل معاملة تأشيرة مراجعين اثنين مختلفين قبل اعتبارها معتمدة نهائياً
+      const resolved = await resolveReviewerOnBehalf(currentUser, body.onBehalfOfUserId)
+      if ('error' in resolved) return resolved.error
+      const reviewerId = resolved.reviewerId
+      const reviewNote = String(body.reviewNote ?? '').trim() || null
+
+      if (closureType === 'settlement') {
+        if (loan.settlementStatus === 'AWAITING_SECOND_REVIEW') {
+          if (loan.settlementReviewedById === reviewerId) {
+            return NextResponse.json(
+              { error: 'لا يمكن إكمال اعتماد نموذج ١٩ بنفس توقيع المراجع الأول — يلزم تأشيرة مراجع ثانٍ مختلف.' },
+              { status: 409 },
+            )
+          }
+
+          const finalizedSettlement = await prisma.loan.update({
+            where: { id: loan.id },
+            data: { settlementStatus: 'APPROVED', secondSettlementReviewedById: reviewerId, reviewNote },
+            include: dashboardLoanInclude,
+          })
+
+          if (loan.userId) {
+            const owner = await prisma.user.findUnique({ where: { id: loan.userId }, select: { email: true } })
+            if (owner?.email) {
+              void notifyLoanReviewed({
+                userId: loan.userId,
+                userEmail: owner.email,
+                refNumber: loan.refNumber,
+                loanId: loan.id,
+                status: 'REVIEWED',
+                note: reviewNote ?? undefined,
+              }).catch(console.error)
+            }
+          }
+
+          const linkedSettlementLoan = await prisma.loan.findUnique({ where: { id: loan.id }, include: fullLoanInclude })
+          if (linkedSettlementLoan?.courseId) {
+            await syncClosureElementFromPrint('settlement', linkedSettlementLoan)
+          }
+
+          return NextResponse.json(finalizedSettlement)
+        }
+
+        const firstApprovedSettlement = await prisma.loan.update({
+          where: { id: loan.id },
+          data: { settlementStatus: 'AWAITING_SECOND_REVIEW', settlementReviewedById: reviewerId, reviewNote },
+          include: dashboardLoanInclude,
+        })
+
+        return NextResponse.json(firstApprovedSettlement)
+      }
+
+      if (loan.reviewStatus === 'AWAITING_SECOND_REVIEW') {
+        if (loan.reviewedById === reviewerId) {
+          return NextResponse.json(
+            { error: 'لا يمكن إكمال اعتماد نموذج ١٨ بنفس توقيع المراجع الأول — يلزم تأشيرة مراجع ثانٍ مختلف.' },
+            { status: 409 },
+          )
+        }
+
+        const finalizedLoan = await prisma.loan.update({
+          where: { id: loan.id },
+          data: { reviewStatus: 'REVIEWED', secondReviewedById: reviewerId, reviewNote },
+          include: dashboardLoanInclude,
+        })
+
+        if (loan.userId) {
+          const owner = await prisma.user.findUnique({ where: { id: loan.userId }, select: { email: true } })
+          if (owner?.email) {
+            void notifyLoanReviewed({
+              userId: loan.userId,
+              userEmail: owner.email,
+              refNumber: loan.refNumber,
+              loanId: loan.id,
+              status: 'REVIEWED',
+              note: reviewNote ?? undefined,
+            }).catch(console.error)
+          }
+        }
+
+        const linkedLoan = await prisma.loan.findUnique({ where: { id: loan.id }, include: fullLoanInclude })
+        if (linkedLoan?.courseId) {
+          await syncClosureElementFromPrint('advance_req', linkedLoan)
+        }
+
+        return NextResponse.json(finalizedLoan)
+      }
+
+      const firstApprovedLoan = await prisma.loan.update({
         where: { id: loan.id },
-        data: {
-          reviewStatus: nextStatus,
-          reviewNote: String(body.reviewNote ?? '').trim() || null,
-          settlementStatus: nextStatus === 'REVIEWED' && closureType === 'settlement' ? 'APPROVED' : undefined,
-          // يجب حفظ هوية المراجع الذي اعتمد فعلياً، فهي ما يحدد توقيع من يظهر في النموذج المطبوع
-          ...(nextStatus === 'REVIEWED' && closureType === 'settlement' ? { settlementReviewedById: reviewerId } : {}),
-          ...(nextStatus === 'REVIEWED' && closureType !== 'settlement' ? { reviewedById: reviewerId } : {}),
-        },
+        data: { reviewStatus: 'AWAITING_SECOND_REVIEW', reviewedById: reviewerId, reviewNote },
         include: dashboardLoanInclude,
       })
 
-      if (loan.userId && (nextStatus === 'REVIEWED' || nextStatus === 'RETURNED')) {
-        const owner = await prisma.user.findUnique({
-          where: { id: loan.userId },
-          select: { email: true },
-        })
-
-        if (owner?.email) {
-          void notifyLoanReviewed({
-            userId: loan.userId,
-            userEmail: owner.email,
-            refNumber: loan.refNumber,
-            loanId: loan.id,
-            status: nextStatus,
-            note: String(body.reviewNote ?? '').trim() || undefined,
-          }).catch(console.error)
-        }
-      }
-
-      if (nextStatus === 'REVIEWED') {
-        const linkedLoan = await prisma.loan.findUnique({
-          where: { id: loan.id },
-          include: fullLoanInclude,
-        })
-        if (linkedLoan?.courseId) {
-          await syncClosureElementFromPrint(closureType, linkedLoan)
-        }
-      }
-
-      return NextResponse.json(reviewedLoan)
+      return NextResponse.json(firstApprovedLoan)
     }
 
     const isDraft = typeof body.isDraft === 'boolean' ? body.isDraft : loan.isDraft

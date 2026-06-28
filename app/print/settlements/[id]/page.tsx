@@ -28,7 +28,7 @@ export default async function SettlementPrintPage({
   }
 
   const loanWithReviewers = loan as any
-  const reviewerSignatures = loan.settlementStatus === 'APPROVED' ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id) : undefined
+  const reviewerSignatures = loan.settlementStatus === 'APPROVED' ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id, loanWithReviewers.secondSettlementReviewedBy?.id) : undefined
   const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures })
 
   return (
