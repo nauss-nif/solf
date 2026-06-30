@@ -62,14 +62,24 @@ export default function PreviewToolbar({
           <span className="btn btn-outline btn-sm opacity-60" aria-disabled="true">لم تُرفع التسوية بعد</span>
         )}
       </div>
-      {canReview && (
-        <ReviewActions
-          loanId={loanId}
-          form={activeForm}
-          disabled={activeForm === '19' && !hasSettlement}
-          isApproved={isApproved}
-        />
-      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={activeForm === '19' ? `/print/settlements/${loanId}` : `/print/loans/${loanId}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-outline btn-sm"
+        >
+          🖨️ طباعة نموذج {activeForm === '19' ? '١٩' : '١٨'}
+        </a>
+        {canReview && (
+          <ReviewActions
+            loanId={loanId}
+            form={activeForm}
+            disabled={activeForm === '19' && !hasSettlement}
+            isApproved={isApproved}
+          />
+        )}
+      </div>
     </div>
   )
 }
