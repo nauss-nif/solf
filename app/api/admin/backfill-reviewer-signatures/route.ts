@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser, isSuperAdmin } from '@/lib/auth'
+import { fullLoanInclude } from '@/lib/loan-selects'
+import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 
 // POST /api/admin/backfill-reviewer-signatures
 // إعادة توقيع جماعية للمعاملات المعتمدة قديماً قبل وجود تتبّع هوية المعتمِد
@@ -30,6 +32,15 @@ export async function POST(request: Request) {
     ])
     if (!first || !second) return NextResponse.json({ error: 'أحد المراجعين غير موجود' }, { status: 404 })
 
+    const requestsToUpdate = await prisma.loan.findMany({
+      where: { reviewStatus: 'REVIEWED', reviewedById: null },
+      select: { id: true, courseId: true },
+    })
+    const settlementsToUpdate = await prisma.loan.findMany({
+      where: { isSettled: true, settlementStatus: 'APPROVED', settlementReviewedById: null },
+      select: { id: true, courseId: true },
+    })
+
     const requestsResult = await prisma.loan.updateMany({
       where: { reviewStatus: 'REVIEWED', reviewedById: null },
       data: { reviewedById: firstReviewerId, secondReviewedById: secondReviewerId },
@@ -39,6 +50,19 @@ export async function POST(request: Request) {
       where: { isSettled: true, settlementStatus: 'APPROVED', settlementReviewedById: null },
       data: { settlementReviewedById: firstReviewerId, secondSettlementReviewedById: secondReviewerId },
     })
+
+    // مزامنة عناصر إقفال الدورات للمعاملات المرتبطة بدورة — التحديث الجماعي لا يُشغّل المزامنة تلقائياً
+    const linkedRequestIds = requestsToUpdate.filter((l) => l.courseId).map((l) => l.id)
+    const linkedSettlementIds = settlementsToUpdate.filter((l) => l.courseId).map((l) => l.id)
+
+    if (linkedRequestIds.length) {
+      const linkedRequests = await prisma.loan.findMany({ where: { id: { in: linkedRequestIds } }, include: fullLoanInclude })
+      await Promise.all(linkedRequests.map((l) => syncClosureElementFromPrint('advance_req', l)))
+    }
+    if (linkedSettlementIds.length) {
+      const linkedSettlements = await prisma.loan.findMany({ where: { id: { in: linkedSettlementIds } }, include: fullLoanInclude })
+      await Promise.all(linkedSettlements.map((l) => syncClosureElementFromPrint('settlement', l)))
+    }
 
     return NextResponse.json({
       ok: true,
