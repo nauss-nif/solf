@@ -1,4 +1,5 @@
 import PrintActions from '@/app/print/PrintActions'
+import { canManageAllLoans, requireSessionUser } from '@/lib/auth'
 import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildLoanRequestWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
@@ -12,10 +13,12 @@ export default async function LoanPrintPage({
 }: {
   params: { id: string }
 }) {
+  const currentUser = requireSessionUser()
   const settings = await getSystemSettings()
   let loan = await getAuthorizedLoan(params.id, { markPrinted: settings.allowPrintBeforeReview })
 
-  if (!settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
+  // المراجع والمدير العام يطبعان النموذج في أي مرحلة لأغراض المراجعة
+  if (!canManageAllLoans(currentUser) && !settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
     notFound()
   }
 

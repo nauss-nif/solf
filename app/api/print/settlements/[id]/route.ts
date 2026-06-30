@@ -31,7 +31,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     }
 
     const settings = await getSystemSettings()
-    if (!settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
+    // المراجع والمدير العام يطبعان النموذج في أي مرحلة لأغراض المراجعة، بصرف النظر عن إعداد السماح بالطباعة قبل الاعتماد
+    if (!canManageAllLoans(currentUser) && !settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
       return NextResponse.json({ error: 'Not allowed' }, { status: 403 })
     }
 

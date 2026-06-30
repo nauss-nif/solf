@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import PrintActions from '@/app/print/PrintActions'
+import { canManageAllLoans, requireSessionUser } from '@/lib/auth'
 import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildSettlementWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
@@ -12,10 +13,12 @@ export default async function SettlementPrintPage({
 }: {
   params: { id: string }
 }) {
+  const currentUser = requireSessionUser()
   const settings = await getSystemSettings()
   const loan = await getAuthorizedLoan(params.id)
 
-  if (!settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
+  // المراجع والمدير العام يطبعان النموذج في أي مرحلة لأغراض المراجعة
+  if (!canManageAllLoans(currentUser) && !settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
     notFound()
   }
 
