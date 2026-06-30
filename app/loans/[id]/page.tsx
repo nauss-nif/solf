@@ -23,10 +23,13 @@ export default async function LoanDetailPage({
   const isActiveFormApproved = activeForm === '19'
     ? loan.settlementStatus === 'APPROVED'
     : loan.reviewStatus === 'REVIEWED'
+  const hasAnyReviewerSigned = activeForm === '19'
+    ? ['AWAITING_SECOND_REVIEW', 'APPROVED'].includes(loan.settlementStatus as string)
+    : ['AWAITING_SECOND_REVIEW', 'REVIEWED'].includes(loan.reviewStatus as string)
   const loanWithReviewers = loan as any
   const firstReviewerId = activeForm === '19' ? loanWithReviewers.settlementReviewedBy?.id : loanWithReviewers.reviewedBy?.id
   const secondReviewerId = activeForm === '19' ? loanWithReviewers.secondSettlementReviewedBy?.id : loanWithReviewers.secondReviewedBy?.id
-  const reviewerSignatures = isActiveFormApproved ? await getReviewerSignatures(firstReviewerId, secondReviewerId) : undefined
+  const reviewerSignatures = hasAnyReviewerSigned ? await getReviewerSignatures(firstReviewerId, secondReviewerId) : undefined
   const applicantSignature = activeForm === '19'
     ? (loan.isSettled ? loanWithReviewers.user?.signatureImage ?? null : null)
     : (!loan.isDraft ? loanWithReviewers.user?.signatureImage ?? null : null)

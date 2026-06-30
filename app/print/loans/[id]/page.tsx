@@ -31,7 +31,8 @@ export default async function LoanPrintPage({
   }
 
   const loanWithReviewers = loan as any
-  const reviewerSignatures = loan.reviewStatus === 'REVIEWED' ? await getReviewerSignatures(loanWithReviewers.reviewedBy?.id, loanWithReviewers.secondReviewedBy?.id) : undefined
+  const hasAnyReviewerSigned = ['AWAITING_SECOND_REVIEW', 'REVIEWED'].includes(loan.reviewStatus as string)
+  const reviewerSignatures = hasAnyReviewerSigned ? await getReviewerSignatures(loanWithReviewers.reviewedBy?.id, loanWithReviewers.secondReviewedBy?.id) : undefined
   const applicantSignature = !loan.isDraft ? loanWithReviewers.user?.signatureImage ?? null : null
   const html = buildLoanRequestWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
 
