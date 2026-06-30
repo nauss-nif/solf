@@ -47,6 +47,15 @@ async function runAuthSetup() {
 async function runSetup() {
   await runAuthSetup()
 
+  // إضافة قيم جديدة لأنواع enum الموجودة — آمنة تماماً (IF NOT EXISTS)
+  // يجب تنفيذها قبل أي UPDATE يستخدم هذه القيم
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TYPE "ReviewStatus" ADD VALUE IF NOT EXISTS 'AWAITING_SECOND_REVIEW';`)
+  } catch (_) { /* قد لا يكون النوع موجوداً بعد — يُهمل الخطأ */ }
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TYPE "SettlementStatus" ADD VALUE IF NOT EXISTS 'AWAITING_SECOND_REVIEW';`)
+  } catch (_) { /* قد لا يكون النوع موجوداً بعد — يُهمل الخطأ */ }
+
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "loans" (
       "id" TEXT PRIMARY KEY,
