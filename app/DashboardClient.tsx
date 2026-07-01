@@ -2324,28 +2324,49 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   const loan19Signers = [loan.settlementReviewedBy?.fullName, loan.secondSettlementReviewedBy?.fullName].filter(Boolean)
 
   return (
-    <div className={`reviewer-card ${isLoanApproved ? 'is-approved' : ''}`}>
+    <div className={`rc${isLoanApproved ? ' is-approved' : ''}`}>
 
-      {/* ── رأس: اسم الدورة + الحالة ── */}
-      <div className="rc-head">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="rc-head-title">{loan.activity}</h3>
-          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-            {isSettlementApproved
-              ? <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>✓ مكتملة</span>
-              : isLoanApproved
-                ? <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>✓ 18 معتمد</span>
-                : null}
-          </div>
+      {/* ── رأس البطاقة: رمز المعاملة + اسم الدورة + الشارات ── */}
+      <div className={`rc-header${isLoanApproved ? ' is-approved' : ''}`}>
+        {/* يمين: رمز المعاملة */}
+        <div className="rc-ref">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+          {loan.refNumber}
+        </div>
+
+        {/* وسط: اسم الدورة */}
+        <h3 className="rc-title">{loan.activity}</h3>
+
+        {/* يسار: الشارات */}
+        <div className="rc-badges">
+          {loan.courseId && <span className="rc-badge rc-badge-lock">🔒 إفعال</span>}
+          {isSettlementApproved
+            ? <span className="rc-badge rc-badge-done">✓ مكتمل</span>
+            : isLoanApproved
+              ? <span className="rc-badge rc-badge-approved">✓ معتمد 18</span>
+              : null}
         </div>
       </div>
 
-      {/* ── شريط الموظف والبيانات ── */}
-      <div className="rc-employee">
-        <span className="rc-employee-item">👤 {loan.employee}</span>
-        <span className="rc-employee-item">💰 <strong>{loan.amount?.toLocaleString('en-US')} ر.س</strong></span>
-        <span className="rc-employee-item">🔢 <strong>{loan.refNumber}</strong></span>
-        <span className="rc-employee-item">📅 {formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
+      {/* ── شريط البيانات: 4 خانات ── */}
+      <div className="rc-info">
+        <div className="rc-info-cell">
+          <span className="rc-info-label">الموظف</span>
+          <span className="rc-info-value">{loan.employee}</span>
+          {(loan as any).user?.email && <span className="rc-info-sub">{(loan as any).user.email}</span>}
+        </div>
+        <div className="rc-info-cell">
+          <span className="rc-info-label">الفترة</span>
+          <span className="rc-info-value" style={{ fontSize: '0.7rem' }}>{formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
+        </div>
+        <div className="rc-info-cell">
+          <span className="rc-info-label">المبلغ</span>
+          <span className="rc-info-value">💰 {loan.amount?.toLocaleString('en-US')} ر.س</span>
+        </div>
+        <div className="rc-info-cell">
+          <span className="rc-info-label">رمز المعاملة</span>
+          <span className="rc-info-value">{loan.refNumber}</span>
+        </div>
       </div>
 
       {/* ── تنبيهات ── */}
@@ -2364,63 +2385,67 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
         </div>
       )}
 
-      {/* ── جسم البطاقة: عمود 18 (يمين) | عمود 19 (يسار) ── */}
-      <div className="rc-body">
+      {/* ── القسم السفلي: التواقيع (يمين) | الأزرار (يسار) ── */}
+      <div className="rc-bottom">
 
-        {/* عمود نموذج 18 — يمين */}
-        <div className="rc-col rc-col-18">
-          <span className="rc-col-label">نموذج 18</span>
+        {/* يمين: التواقيع والاعتمادات */}
+        <div className="rc-sigs">
+          <div className="rc-sigs-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            التواقيع والاعتمادات
+          </div>
 
-          {/* توقيعات المراجعين */}
-          {loan18Signers.length === 0 && <span className="rc-sig-line empty">⏳ بانتظار الاعتماد</span>}
-          {loan18Signers[0] && <span className="rc-sig-line">✅ {loan18Signers[0]}</span>}
-          {loan18Signers[1]
-            ? <span className="rc-sig-line">✅ {loan18Signers[1]}</span>
-            : loan18Signers[0] && <span className="rc-sig-line pending">⏳ بانتظار المراجع الثاني</span>}
+          {/* صف 18 */}
+          <div className="rc-sig-row">
+            <span className="rc-sig-num">18</span>
+            {loan18Signers.length === 0
+              ? <><span className="rc-sig-wait">⏳</span><span className="rc-sig-muted">لم يعتمد</span></>
+              : <><span className="rc-sig-check">✓</span><span className="rc-sig-name">{loan18Signers.join(' ، ')}</span></>}
+          </div>
 
-          {/* أزرار نموذج 18 */}
-          <div className="rc-col-actions">
-            <button type="button" onClick={onPreviewLoan} className="rc-btn rc-btn-preview">🔍 معاينة</button>
-            {!isLoanApproved && <button type="button" onClick={onEditItems} className="rc-btn rc-btn-edit">✏️ تعديل</button>}
-            <button type="button" onClick={onReturnLoan} className="rc-btn rc-btn-return">↩ إعادة</button>
-            {isLoanApproved
-              ? <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="rc-btn rc-btn-cancel">
-                  {isSettlementApproved ? 'ألغِ 19 أولاً' : '✗ إلغاء الاعتماد'}
-                </button>
-              : <button type="button" onClick={onApproveLoan} className="rc-btn rc-btn-approve">✓ اعتماد</button>}
+          {/* صف 19 */}
+          <div className="rc-sig-row">
+            <span className="rc-sig-num">19</span>
+            {!hasSettlement
+              ? <><span className="rc-sig-wait">⏳</span><span className="rc-sig-muted">لم ترفع التسوية</span></>
+              : loan19Signers.length === 0
+                ? <><span className="rc-sig-wait">⏳</span><span className="rc-sig-muted">لم يعتمد</span></>
+                : <><span className="rc-sig-check">✓</span><span className="rc-sig-name">{loan19Signers.join(' ، ')}</span></>}
           </div>
         </div>
 
-        {/* عمود نموذج 19 — يسار */}
-        <div className="rc-col">
-          <span className={`rc-col-label${isSettlementApproved ? ' is-settled' : ''}`}>نموذج 19</span>
+        {/* يسار: الأزرار */}
+        <div className="rc-actions">
+          {/* صف أزرار نموذج 18 */}
+          <div className="rc-action-row">
+            <button type="button" onClick={onPreviewLoan} className="rc-btn rc-btn-preview">👁 معاينة</button>
+            <button type="button" onClick={onReturnLoan} className="rc-btn rc-btn-return">↩ إعادة</button>
+            {isLoanApproved
+              ? <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="rc-btn rc-btn-cancel" title={isSettlementApproved ? 'ألغِ 19 أولاً' : ''}>✗ إلغاء</button>
+              : <button type="button" onClick={onApproveLoan} className="rc-btn rc-btn-approve">✓ اعتماد</button>}
+          </div>
 
-          {hasSettlement ? (
-            <>
-              {loan19Signers.length === 0 && <span className="rc-sig-line empty">⏳ بانتظار الاعتماد</span>}
-              {loan19Signers[0] && <span className="rc-sig-line">✅ {loan19Signers[0]}</span>}
-              {loan19Signers[1]
-                ? <span className="rc-sig-line">✅ {loan19Signers[1]}</span>
-                : loan19Signers[0] && <span className="rc-sig-line pending">⏳ بانتظار المراجع الثاني</span>}
-
-              <div className="rc-col-actions">
-                <button type="button" onClick={onPreviewSettlement} className="rc-btn rc-btn-preview">🔍 معاينة</button>
+          {/* صف أزرار نموذج 19 */}
+          <div className="rc-action-row">
+            {hasSettlement ? (
+              <>
+                <button type="button" onClick={onPreviewSettlement} className="rc-btn rc-btn-preview">👁 معاينة</button>
                 <button type="button" onClick={onReturnSettlement} className="rc-btn rc-btn-return">↩ إعادة</button>
                 {isSettlementApproved
-                  ? <button type="button" onClick={onCancelSettlementApproval} className="rc-btn rc-btn-cancel">✗ إلغاء الاعتماد</button>
+                  ? <button type="button" onClick={onCancelSettlementApproval} className="rc-btn rc-btn-cancel">✗ إلغاء</button>
                   : <button type="button" onClick={onApproveSettlement} className="rc-btn rc-btn-approve">✓ اعتماد</button>}
-              </div>
-            </>
-          ) : (
-            <span className="rc-empty-note">لم يرفع الموظف التسوية بعد</span>
-          )}
+              </>
+            ) : (
+              <span className="rc-no-settlement">لم يرفع الموظف التسوية بعد</span>
+            )}
+          </div>
         </div>
       </div>
 
       {/* ── أدوات المدير ── */}
-      {!loan.courseId && <div className="px-3 py-1"><LinkCourseControl loanId={loan.id} onLinked={onLinked} /></div>}
+      {!loan.courseId && <div className="rc-admin"><LinkCourseControl loanId={loan.id} onLinked={onLinked} /></div>}
       {isSuperAdmin && reviewersList.length > 0 && canActAsReviewer && (
-        <div className="flex items-center gap-2 px-3 py-1 text-xs" style={{ borderTop: '1px solid #E8EEEE' }}>
+        <div className="flex items-center gap-2 px-3 py-1 text-xs" style={{ borderTop: '1px solid #EEF1F1' }}>
           <label style={{ color: '#5A5A5A' }}>اعتماد بالنيابة عن:</label>
           <select value={onBehalfUserId} onChange={(e) => onChangeOnBehalf(e.target.value)} className="input-shell" style={{ maxWidth: 180, padding: '0.2rem 0.4rem', height: 'auto' }}>
             <option value="">(توقيعي)</option>
