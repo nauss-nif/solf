@@ -2326,13 +2326,10 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   return (
     <div className={`reviewer-card ${isLoanApproved ? 'is-approved' : ''}`}>
 
-      {/* ── الرأس: اسم الموظف + الشارات ── */}
-      <div className="flex items-center justify-between gap-2 pb-1.5" style={{ borderBottom: '1px solid #E8E0D5' }}>
-        <div className="min-w-0">
-          <p className="text-sm font-bold truncate" style={{ color: '#1F3F40' }}>👤 {loan.employee}</p>
-          <p className="text-[11px]" style={{ color: '#6B7280' }}>{loan.activity}</p>
-        </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
+      {/* ── اسم الدورة (المعرّف الرئيسي) + الشارات ── */}
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-sm font-bold leading-snug" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
+        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
           {loan.courseId && <span className="badge badge-info text-[10px]">🔗 إقفال</span>}
           {isSettlementApproved
             ? <span className="badge badge-success text-[10px]">✓ مكتملة</span>
@@ -2342,35 +2339,35 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
         </div>
       </div>
 
-      {/* ── تفاصيل المعاملة في سطر واحد ── */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-0 py-1.5 text-xs" style={{ borderBottom: '1px solid #E8E0D5', color: '#4B5563' }}>
-        <span>🔢 {loan.refNumber}</span>
-        <span style={{ color: '#D1C4A8' }}>|</span>
+      {/* ── شريط المعلومات: موظف | رقم | مبلغ | تاريخ ── */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0 mt-1.5 mb-2 text-[11px]" style={{ color: '#6B7280' }}>
+        <span>👤 {loan.employee}</span>
+        <span style={{ color: '#D1C4A8' }}>•</span>
+        <span>{loan.refNumber}</span>
+        <span style={{ color: '#D1C4A8' }}>•</span>
         <span>💰 {loan.amount?.toLocaleString('ar-SA')} ر.س</span>
-        <span style={{ color: '#D1C4A8' }}>|</span>
+        <span style={{ color: '#D1C4A8' }}>•</span>
         <span>📅 {formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
-        <span style={{ color: '#D1C4A8' }}>|</span>
-        <span style={{ color: '#9CA3AF' }}>✉️ {loan.user?.email || '—'}</span>
       </div>
 
-      {/* ── حالة المراجعين ── */}
-      <div className="py-1.5 text-xs space-y-0.5" style={{ borderBottom: '1px solid #E8E0D5' }}>
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-[11px] w-16 flex-shrink-0" style={{ color: '#1F3F40' }}>نموذج ١٨</span>
+      {/* ── حالة المراجعين: ١٨ و١٩ جنباً إلى جنب ── */}
+      <div className="flex flex-wrap gap-x-6 gap-y-0.5 px-2 py-1.5 mb-2 rounded-lg text-[11px]" style={{ background: '#F0F4F0' }}>
+        <div className="flex items-center gap-1.5">
+          <span className="font-semibold" style={{ color: '#374151' }}>١٨:</span>
           {loan18Signers.length === 2
-            ? <span style={{ color: '#166534' }}>✅ {loan18Signers[0]}　✅ {loan18Signers[1]}</span>
+            ? <span style={{ color: '#166534' }}>✅ {loan18Signers[0]}  ✅ {loan18Signers[1]}</span>
             : loan18Signers.length === 1
-              ? <span style={{ color: '#92400E' }}>✅ {loan18Signers[0]}　⏳ بانتظار المراجع الثاني</span>
-              : <span style={{ color: '#9CA3AF' }}>⏳ بانتظار الاعتماد</span>}
+              ? <span style={{ color: '#92400E' }}>✅ {loan18Signers[0]}  ⏳ بانتظار الثاني</span>
+              : <span style={{ color: '#9CA3AF' }}>⏳ لم يُعتمد</span>}
         </div>
         {hasSettlement && (
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-[11px] w-16 flex-shrink-0" style={{ color: '#1F3F40' }}>نموذج ١٩</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold" style={{ color: '#374151' }}>١٩:</span>
             {loan19Signers.length === 2
-              ? <span style={{ color: '#166534' }}>✅ {loan19Signers[0]}　✅ {loan19Signers[1]}</span>
+              ? <span style={{ color: '#166534' }}>✅ {loan19Signers[0]}  ✅ {loan19Signers[1]}</span>
               : loan19Signers.length === 1
-                ? <span style={{ color: '#92400E' }}>✅ {loan19Signers[0]}　⏳ بانتظار المراجع الثاني</span>
-                : <span style={{ color: '#9CA3AF' }}>⏳ بانتظار الاعتماد</span>}
+                ? <span style={{ color: '#92400E' }}>✅ {loan19Signers[0]}  ⏳ بانتظار الثاني</span>
+                : <span style={{ color: '#9CA3AF' }}>⏳ لم يُعتمد</span>}
           </div>
         )}
       </div>
@@ -2406,7 +2403,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
       )}
 
       {/* ── أزرار الإجراءات ── */}
-      <div className="pt-1.5 space-y-1.5">
+      <div className="space-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-bold w-16 flex-shrink-0" style={{ color: '#374151' }}>نموذج ١٨</span>
           <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة</button>
