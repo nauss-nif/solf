@@ -2341,34 +2341,39 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
         </div>
       </div>
 
-      {/* ── شريط البيانات ── */}
+      {/* ── شبكة البيانات: عمودان متوازنان ── */}
       <div className="reviewer-card-meta">
-        <span>👤 {loan.employee}</span>
-        <span className="reviewer-card-meta-sep">·</span>
-        <span style={{ color: '#1F3F40', fontWeight: 600 }}>{loan.refNumber}</span>
-        <span className="reviewer-card-meta-sep">·</span>
-        <span>💰 {loan.amount?.toLocaleString('ar-SA')} ر.س</span>
-        <span className="reviewer-card-meta-sep">·</span>
-        <span>📅 {formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
+        <div className="reviewer-card-meta-cell">
+          <span>👤</span><span>{loan.employee}</span>
+        </div>
+        <div className="reviewer-card-meta-cell">
+          <span>💰</span><span style={{ fontWeight: 600 }}>{loan.amount?.toLocaleString('en-US')} ر.س</span>
+        </div>
+        <div className="reviewer-card-meta-cell">
+          <span>🔢</span><span style={{ fontWeight: 600, color: '#1F3F40' }}>{loan.refNumber}</span>
+        </div>
+        <div className="reviewer-card-meta-cell">
+          <span>📅</span><span>{formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
+        </div>
       </div>
 
       {/* ── حالة المراجعين ── */}
       <div className="reviewer-card-sigs">
         <div className="reviewer-card-sig-item">
-          <span className="reviewer-card-sig-label">١٨</span>
+          <span className="reviewer-card-sig-label">نموذج 18</span>
           {loan18Signers.length === 2
-            ? <span style={{ color: '#166534' }}>✅ {loan18Signers[0]} · ✅ {loan18Signers[1]}</span>
+            ? <span style={{ color: '#166534' }}>✅ {loan18Signers[0]} &nbsp;·&nbsp; ✅ {loan18Signers[1]}</span>
             : loan18Signers.length === 1
-              ? <><span style={{ color: '#166534' }}>✅ {loan18Signers[0]}</span><span style={{ color: '#92400E' }}> · ⏳ بانتظار الثاني</span></>
+              ? <><span style={{ color: '#166534' }}>✅ {loan18Signers[0]}</span><span style={{ color: '#92400E' }}> &nbsp;·&nbsp; ⏳ بانتظار المراجع الثاني</span></>
               : <span style={{ color: '#9CA3AF' }}>⏳ بانتظار الاعتماد</span>}
         </div>
         {hasSettlement && (
           <div className="reviewer-card-sig-item">
-            <span className="reviewer-card-sig-label">١٩</span>
+            <span className="reviewer-card-sig-label">نموذج 19</span>
             {loan19Signers.length === 2
-              ? <span style={{ color: '#166534' }}>✅ {loan19Signers[0]} · ✅ {loan19Signers[1]}</span>
+              ? <span style={{ color: '#166534' }}>✅ {loan19Signers[0]} &nbsp;·&nbsp; ✅ {loan19Signers[1]}</span>
               : loan19Signers.length === 1
-                ? <><span style={{ color: '#166534' }}>✅ {loan19Signers[0]}</span><span style={{ color: '#92400E' }}> · ⏳ بانتظار الثاني</span></>
+                ? <><span style={{ color: '#166534' }}>✅ {loan19Signers[0]}</span><span style={{ color: '#92400E' }}> &nbsp;·&nbsp; ⏳ بانتظار المراجع الثاني</span></>
                 : <span style={{ color: '#9CA3AF' }}>⏳ بانتظار الاعتماد</span>}
           </div>
         )}
@@ -2407,7 +2412,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
       {/* ── أزرار الإجراءات ── */}
       <div className="reviewer-card-actions">
         <div className="reviewer-card-action-row">
-          <span className="reviewer-card-form-tag">١٨</span>
+          <span className="reviewer-card-form-tag">18</span>
           <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة</button>
           {!isLoanApproved && <button type="button" onClick={onEditItems} className="btn btn-outline btn-sm">✏️ تعديل</button>}
           <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-sm">↩ إعادة</button>
@@ -2417,7 +2422,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
           {isLoanApproved && isSettlementApproved && <span className="text-[10px]" style={{ color: '#73384B' }}>ألغ ١٩ أولاً</span>}
         </div>
         <div className="reviewer-card-action-row">
-          <span className="reviewer-card-form-tag">١٩</span>
+          <span className="reviewer-card-form-tag">19</span>
           {hasSettlement ? (
             <>
               <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة</button>

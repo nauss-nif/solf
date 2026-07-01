@@ -719,39 +719,47 @@ textarea.input-shell { resize: vertical; min-height: 80px; }
   background: #FAFCFC;
 }
 .reviewer-card-meta {
+  padding: 0.5rem 0.9rem;
+  border-bottom: 1px solid #EEF1F1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.3rem 1.5rem;
+  font-size: 0.72rem;
+}
+.reviewer-card-meta-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #374151;
+}
+.reviewer-card-meta-cell span:first-child {
+  color: #9CA3AF;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+.reviewer-card-sigs {
   padding: 0.45rem 0.9rem;
   border-bottom: 1px solid #EEF1F1;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 0.6rem;
-  font-size: 0.72rem;
-  color: #6B7B7C;
-}
-.reviewer-card-meta-sep {
-  color: #CBD5D5;
-  font-size: 0.65rem;
-}
-.reviewer-card-sigs {
-  padding: 0.4rem 0.9rem;
-  border-bottom: 1px solid #EEF1F1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.5rem;
+  flex-direction: column;
+  gap: 0.22rem;
   font-size: 0.72rem;
 }
 .reviewer-card-sig-item {
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.45rem;
 }
 .reviewer-card-sig-label {
   font-weight: 700;
-  color: #1F3F40;
-  font-size: 0.7rem;
-  background: #E7F0F0;
-  padding: 0.05rem 0.4rem;
+  color: #fff;
+  font-size: 0.65rem;
+  background: #2A6364;
+  padding: 0.07rem 0.5rem;
   border-radius: 0.3rem;
+  flex-shrink: 0;
+  min-width: 58px;
+  text-align: center;
 }
 .reviewer-card-actions {
   padding: 0.5rem 0.9rem;
