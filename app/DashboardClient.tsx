@@ -2326,74 +2326,76 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   return (
     <div className={`reviewer-card ${isLoanApproved ? 'is-approved' : ''}`}>
 
-      {/* ── اسم الدورة (المعرّف الرئيسي) + الشارات ── */}
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-bold leading-snug" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
-        <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-          {loan.courseId && <span className="badge badge-info text-[10px]">🔗 إقفال</span>}
-          {isSettlementApproved
-            ? <span className="badge badge-success text-[10px]">✓ مكتملة</span>
-            : isLoanApproved
-              ? <span className="badge badge-success text-[10px]">✓ ١٨ معتمد</span>
-              : null}
+      {/* ── رأس البطاقة: اسم الدورة + الشارات ── */}
+      <div className="reviewer-card-header">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="text-sm font-bold leading-snug" style={{ color: '#1F3F40' }}>{loan.activity}</h3>
+          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+            {loan.courseId && <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>🔗 إقفال</span>}
+            {isSettlementApproved
+              ? <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>✓ مكتملة</span>
+              : isLoanApproved
+                ? <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>✓ ١٨ معتمد</span>
+                : null}
+          </div>
         </div>
       </div>
 
-      {/* ── شريط المعلومات: موظف | رقم | مبلغ | تاريخ ── */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-0 mt-1.5 mb-2 text-[11px]" style={{ color: '#6B7280' }}>
+      {/* ── شريط البيانات ── */}
+      <div className="reviewer-card-meta">
         <span>👤 {loan.employee}</span>
-        <span style={{ color: '#D1C4A8' }}>•</span>
-        <span>{loan.refNumber}</span>
-        <span style={{ color: '#D1C4A8' }}>•</span>
+        <span className="reviewer-card-meta-sep">·</span>
+        <span style={{ color: '#1F3F40', fontWeight: 600 }}>{loan.refNumber}</span>
+        <span className="reviewer-card-meta-sep">·</span>
         <span>💰 {loan.amount?.toLocaleString('ar-SA')} ر.س</span>
-        <span style={{ color: '#D1C4A8' }}>•</span>
+        <span className="reviewer-card-meta-sep">·</span>
         <span>📅 {formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
       </div>
 
-      {/* ── حالة المراجعين: ١٨ و١٩ جنباً إلى جنب ── */}
-      <div className="flex flex-wrap gap-x-6 gap-y-0.5 px-2 py-1.5 mb-2 rounded-lg text-[11px]" style={{ background: '#F0F4F0' }}>
-        <div className="flex items-center gap-1.5">
-          <span className="font-semibold" style={{ color: '#374151' }}>١٨:</span>
+      {/* ── حالة المراجعين ── */}
+      <div className="reviewer-card-sigs">
+        <div className="reviewer-card-sig-item">
+          <span className="reviewer-card-sig-label">١٨</span>
           {loan18Signers.length === 2
-            ? <span style={{ color: '#166534' }}>✅ {loan18Signers[0]}  ✅ {loan18Signers[1]}</span>
+            ? <span style={{ color: '#166534' }}>✅ {loan18Signers[0]} · ✅ {loan18Signers[1]}</span>
             : loan18Signers.length === 1
-              ? <span style={{ color: '#92400E' }}>✅ {loan18Signers[0]}  ⏳ بانتظار الثاني</span>
-              : <span style={{ color: '#9CA3AF' }}>⏳ لم يُعتمد</span>}
+              ? <><span style={{ color: '#166534' }}>✅ {loan18Signers[0]}</span><span style={{ color: '#92400E' }}> · ⏳ بانتظار الثاني</span></>
+              : <span style={{ color: '#9CA3AF' }}>⏳ بانتظار الاعتماد</span>}
         </div>
         {hasSettlement && (
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold" style={{ color: '#374151' }}>١٩:</span>
+          <div className="reviewer-card-sig-item">
+            <span className="reviewer-card-sig-label">١٩</span>
             {loan19Signers.length === 2
-              ? <span style={{ color: '#166534' }}>✅ {loan19Signers[0]}  ✅ {loan19Signers[1]}</span>
+              ? <span style={{ color: '#166534' }}>✅ {loan19Signers[0]} · ✅ {loan19Signers[1]}</span>
               : loan19Signers.length === 1
-                ? <span style={{ color: '#92400E' }}>✅ {loan19Signers[0]}  ⏳ بانتظار الثاني</span>
-                : <span style={{ color: '#9CA3AF' }}>⏳ لم يُعتمد</span>}
+                ? <><span style={{ color: '#166534' }}>✅ {loan19Signers[0]}</span><span style={{ color: '#92400E' }}> · ⏳ بانتظار الثاني</span></>
+                : <span style={{ color: '#9CA3AF' }}>⏳ بانتظار الاعتماد</span>}
           </div>
         )}
       </div>
 
-      {/* ── أدوات المدير العام ── */}
-      {!loan.courseId && <LinkCourseControl loanId={loan.id} onLinked={onLinked} />}
+      {/* ── أدوات المدير ── */}
+      {!loan.courseId && <div className="px-3 py-1"><LinkCourseControl loanId={loan.id} onLinked={onLinked} /></div>}
       {isSuperAdmin && reviewersList.length > 0 && canActAsReviewer && (
-        <div className="flex items-center gap-2 pt-2 text-xs">
+        <div className="flex items-center gap-2 px-3 py-1 text-xs" style={{ borderTop: '1px solid #EEF1F1' }}>
           <label style={{ color: '#5A5A5A' }}>اعتماد بالنيابة عن:</label>
-          <select value={onBehalfUserId} onChange={(e) => onChangeOnBehalf(e.target.value)} className="input-shell" style={{ maxWidth: 200, padding: '0.25rem 0.5rem', height: 'auto' }}>
+          <select value={onBehalfUserId} onChange={(e) => onChangeOnBehalf(e.target.value)} className="input-shell" style={{ maxWidth: 180, padding: '0.2rem 0.4rem', height: 'auto' }}>
             <option value="">(توقيعي)</option>
             {reviewersList.map((r) => (<option key={r.id} value={r.id}>{r.fullName}</option>))}
           </select>
         </div>
       )}
       {isSuperAdmin && !(loan.reviewedBy && loan.secondReviewedBy) && (
-        <AdminFinalizeReviewControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onDone={onLinked} />
+        <div className="px-3"><AdminFinalizeReviewControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onDone={onLinked} /></div>
       )}
       {isSuperAdmin && hasSettlement && !(loan.settlementReviewedBy && loan.secondSettlementReviewedBy) && (
-        <AdminFinalizeReviewControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onDone={onLinked} />
+        <div className="px-3"><AdminFinalizeReviewControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onDone={onLinked} /></div>
       )}
 
       {/* ── تنبيهات ── */}
-      {loan.reviewNote && <div className="alert alert-warning text-xs mt-2">⚠️ <strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
+      {loan.reviewNote && <div className="alert alert-warning text-xs mx-3 my-1">⚠️ <strong>ملاحظة الإرجاع:</strong> {loan.reviewNote}</div>}
       {loan.recallRequested && (
-        <div className="alert alert-warning text-xs mt-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="alert alert-warning text-xs mx-3 my-1 flex flex-wrap items-center justify-between gap-2">
           <span>🔓 <strong>طلب إعادة فتح:</strong> {loan.recallReason}</span>
           <div className="flex gap-2">
             <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-sm">✓ قبول</button>
@@ -2403,29 +2405,29 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
       )}
 
       {/* ── أزرار الإجراءات ── */}
-      <div className="space-y-1.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-bold w-16 flex-shrink-0" style={{ color: '#374151' }}>نموذج ١٨</span>
+      <div className="reviewer-card-actions">
+        <div className="reviewer-card-action-row">
+          <span className="reviewer-card-form-tag">١٨</span>
           <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة</button>
           {!isLoanApproved && <button type="button" onClick={onEditItems} className="btn btn-outline btn-sm">✏️ تعديل</button>}
           <button type="button" onClick={onReturnLoan} className="btn btn-warning btn-sm">↩ إعادة</button>
           {isLoanApproved
-            ? <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-sm">إلغاء الاعتماد</button>
+            ? <button type="button" onClick={onCancelLoanApproval} disabled={isSettlementApproved} className="btn btn-danger btn-sm">إلغاء</button>
             : <button type="button" onClick={onApproveLoan} className="btn btn-success btn-sm">✓ اعتماد</button>}
           {isLoanApproved && isSettlementApproved && <span className="text-[10px]" style={{ color: '#73384B' }}>ألغ ١٩ أولاً</span>}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-bold w-16 flex-shrink-0" style={{ color: '#374151' }}>نموذج ١٩</span>
+        <div className="reviewer-card-action-row">
+          <span className="reviewer-card-form-tag">١٩</span>
           {hasSettlement ? (
             <>
               <button type="button" onClick={onPreviewSettlement} className="btn btn-primary btn-sm">معاينة</button>
               <button type="button" onClick={onReturnSettlement} className="btn btn-warning btn-sm">↩ إعادة</button>
               {isSettlementApproved
-                ? <button type="button" onClick={onCancelSettlementApproval} className="btn btn-danger btn-sm">إلغاء الاعتماد</button>
+                ? <button type="button" onClick={onCancelSettlementApproval} className="btn btn-danger btn-sm">إلغاء</button>
                 : <button type="button" onClick={onApproveSettlement} className="btn btn-success btn-sm">✓ اعتماد</button>}
             </>
           ) : (
-            <span className="text-xs" style={{ color: '#9CA3AF' }}>لم يرفع الموظف التسوية بعد</span>
+            <span style={{ color: '#9CA3AF', fontSize: '0.72rem' }}>لم يرفع الموظف التسوية بعد</span>
           )}
         </div>
       </div>

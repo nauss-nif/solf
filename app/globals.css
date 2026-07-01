@@ -702,16 +702,83 @@ textarea.input-shell { resize: vertical; min-height: 80px; }
 }
 
 .reviewer-card {
-  background: #FEFEFD;
-  border: 1px solid var(--color-border);
-  border-radius: 0.875rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  padding: 1rem;
+  background: #fff;
+  border: 1px solid #E2E8E8;
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  padding: 0;
+  overflow: hidden;
+  transition: box-shadow 0.15s ease;
 }
-
+.reviewer-card:hover {
+  box-shadow: 0 4px 12px rgba(42,99,100,0.10);
+}
+.reviewer-card-header {
+  padding: 0.65rem 0.9rem 0.55rem;
+  border-bottom: 1px solid #EEF1F1;
+  background: #FAFCFC;
+}
+.reviewer-card-meta {
+  padding: 0.45rem 0.9rem;
+  border-bottom: 1px solid #EEF1F1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.6rem;
+  font-size: 0.72rem;
+  color: #6B7B7C;
+}
+.reviewer-card-meta-sep {
+  color: #CBD5D5;
+  font-size: 0.65rem;
+}
+.reviewer-card-sigs {
+  padding: 0.4rem 0.9rem;
+  border-bottom: 1px solid #EEF1F1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.72rem;
+}
+.reviewer-card-sig-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.reviewer-card-sig-label {
+  font-weight: 700;
+  color: #1F3F40;
+  font-size: 0.7rem;
+  background: #E7F0F0;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.3rem;
+}
+.reviewer-card-actions {
+  padding: 0.5rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.reviewer-card-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+.reviewer-card-form-tag {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  background: #2A6364;
+  border-radius: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  flex-shrink: 0;
+}
 .reviewer-card.is-approved {
-  background: #E7F3EE;
   border-color: #BFE3D2;
+}
+.reviewer-card.is-approved .reviewer-card-header {
+  background: #F0FAF5;
 }
 
 .reviewer-card-compact {
