@@ -701,93 +701,122 @@ textarea.input-shell { resize: vertical; min-height: 80px; }
   color: #fff;
 }
 
+/* ── بطاقة المراجع ────────────────────────────── */
 .reviewer-card {
   background: #fff;
-  border: 1px solid #E2E8E8;
+  border: 1px solid #DDE5E5;
   border-radius: 1rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   overflow: hidden;
   transition: box-shadow 0.15s ease;
 }
 .reviewer-card:hover {
-  box-shadow: 0 4px 12px rgba(42,99,100,0.10);
+  box-shadow: 0 4px 14px rgba(42,99,100,0.11);
 }
-.reviewer-card-header {
-  padding: 0.65rem 0.9rem 0.55rem;
-  border-bottom: 1px solid #EEF1F1;
-  background: #FAFCFC;
+/* رأس البطاقة: اسم الدورة */
+.rc-head {
+  padding: 0.6rem 1rem 0.5rem;
+  background: #F7FAFA;
+  border-bottom: 1px solid #E8EEEE;
 }
-.reviewer-card-meta {
-  padding: 0.5rem 0.9rem;
-  border-bottom: 1px solid #EEF1F1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.3rem 1.5rem;
-  font-size: 0.72rem;
-}
-.reviewer-card-meta-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  color: #374151;
-}
-.reviewer-card-meta-cell span:first-child {
-  color: #9CA3AF;
-  flex-shrink: 0;
-  font-size: 0.85rem;
-}
-.reviewer-card-sigs {
-  padding: 0.45rem 0.9rem;
-  border-bottom: 1px solid #EEF1F1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.22rem;
-  font-size: 0.72rem;
-}
-.reviewer-card-sig-item {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-.reviewer-card-sig-label {
+.rc-head-title {
+  font-size: 0.88rem;
   font-weight: 700;
-  color: #fff;
-  font-size: 0.65rem;
-  background: #2A6364;
-  padding: 0.07rem 0.5rem;
-  border-radius: 0.3rem;
-  flex-shrink: 0;
-  min-width: 58px;
-  text-align: center;
+  color: #1F3F40;
+  line-height: 1.35;
 }
-.reviewer-card-actions {
-  padding: 0.5rem 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-.reviewer-card-action-row {
+/* شريط الموظف */
+.rc-employee {
+  padding: 0.4rem 1rem;
+  border-bottom: 1px solid #E8EEEE;
   display: flex;
   flex-wrap: wrap;
+  gap: 0 1.2rem;
+  font-size: 0.72rem;
+  color: #5A6A6B;
+  background: #FDFEFE;
+}
+.rc-employee-item {
+  display: flex;
   align-items: center;
   gap: 0.3rem;
 }
-.reviewer-card-form-tag {
+/* جسم البطاقة: عمودان — ١٨ يمين، ١٩ يسار */
+.rc-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid #E8EEEE;
+}
+.rc-col {
+  padding: 0.6rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.rc-col-18 {
+  border-left: 1px solid #E8EEEE;
+}
+.rc-col-label {
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   color: #fff;
   background: #2A6364;
   border-radius: 0.35rem;
-  padding: 0.1rem 0.4rem;
-  flex-shrink: 0;
+  padding: 0.12rem 0.55rem;
+  display: inline-block;
+  align-self: flex-start;
 }
-.reviewer-card.is-approved {
-  border-color: #BFE3D2;
+.rc-col-label.is-settled {
+  background: #4F8F7A;
 }
-.reviewer-card.is-approved .reviewer-card-header {
-  background: #F0FAF5;
+.rc-sig-line {
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #374151;
 }
+.rc-sig-line.pending {
+  color: #92400E;
+}
+.rc-sig-line.empty {
+  color: #9CA3AF;
+}
+.rc-col-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.rc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  padding: 0.42rem 0.75rem;
+  transition: opacity 0.1s, transform 0.1s;
+  width: 100%;
+}
+.rc-btn:active { transform: scale(0.97); }
+.rc-btn:disabled { opacity: 0.45; cursor: default; }
+.rc-btn-preview  { background: #2A6364; color: #fff; }
+.rc-btn-return   { background: #FFF3CD; color: #7A5200; border: 1px solid #F0D070; }
+.rc-btn-approve  { background: #D1FAE5; color: #065F46; border: 1px solid #6EE7B7; }
+.rc-btn-cancel   { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
+.rc-btn-edit     { background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; }
+.rc-empty-note   { font-size: 0.7rem; color: #9CA3AF; font-style: italic; }
+/* تنبيهات */
+.rc-alerts { padding: 0 1rem; }
+/* أدوات المدير */
+.rc-admin { padding: 0.4rem 1rem; border-bottom: 1px solid #E8EEEE; }
+.reviewer-card.is-approved { border-color: #BFE3D2; }
+.reviewer-card.is-approved .rc-head { background: #F0FAF5; }
 
 .reviewer-card-compact {
   background: #FEFEFD;
