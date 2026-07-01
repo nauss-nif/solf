@@ -2617,79 +2617,90 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   const reviewBadge = loan.reviewStatus === 'REVIEWED' ? { label: 'تمت المراجعة', cls: 'badge-success' } : loan.reviewStatus === 'AWAITING_SECOND_REVIEW' ? { label: 'بانتظار المراجع الثاني', cls: 'badge-warning' } : loan.reviewStatus === 'RETURNED' ? { label: 'مُعاد للمراجعة', cls: 'badge-warning' } : { label: 'بانتظار المراجعة', cls: 'badge-neutral' }
   const isSettlementApproved = loan.settlementStatus === 'APPROVED'
 
+  const accentColor = loan.isSettled ? '#4F8F7A' : loan.reviewStatus === 'RETURNED' ? '#6B5A4A' : '#2A6364'
+
   return (
-    <div className="card p-5 animate-fade-up" style={{ borderRight: `3px solid ${loan.isSettled ? '#4F8F7A' : loan.reviewStatus === 'RETURNED' ? '#6B5A4A' : '#2A6364'}` }}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2 flex-1">
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className={`badge ${loan.isSettled ? 'badge-success' : 'badge-primary'}`}>
-              {loan.isSettled ? '✓ تمت التسوية' : '⏳ قيد التسوية'}
+    <div className="lc animate-fade-up" style={{ borderRightColor: accentColor }}>
+
+      {/* ── رأس: الشارات ── */}
+      <div className="lc-badges">
+        <span className={`badge ${loan.isSettled ? 'badge-success' : 'badge-primary'}`}>
+          {loan.isSettled ? '✓ تمت التسوية' : '⏳ قيد التسوية'}
+        </span>
+        {loan.printedAt && <span className="badge badge-gold">🖨️ مطبوع / قصّر</span>}
+        {loan.isDraft
+          ? <span className="badge badge-warning">✏️ مسودة</span>
+          : <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>}
+        {!loan.isDraft && loan.settlementDraft && !loan.isSettled && <span className="badge badge-warning">✏️ تسوية مسودة</span>}
+        {loan.courseId && <span className="badge badge-info">🔒 إقفال الدورات</span>}
+        {attachCount > 0 && <span className="badge badge-neutral">📎 {attachCount}</span>}
+      </div>
+
+      {/* ── جسم: معلومات + أزرار ── */}
+      <div className="lc-body">
+
+        {/* يمين: المعلومات */}
+        <div className="lc-info">
+          {/* اسم الدورة */}
+          <h3 className="lc-title">{loan.activity}</h3>
+
+          {/* موظف + رقم مرجعي + إيميل */}
+          <div className="lc-meta">
+            <span className="lc-meta-item">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="3"/></svg>
+              {loan.refNumber}
             </span>
-            {loan.printedAt && <span className="badge badge-gold">🖨️ مطبوع / مُصدَّر</span>}
-            {attachCount > 0 && <span className="badge badge-neutral">📎 {attachCount} مرفق</span>}
-            {loan.isDraft ? <span className="badge badge-warning">✏️ مسودة</span> : <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>}
-            {!loan.isDraft && loan.settlementDraft && !loan.isSettled && <span className="badge badge-warning">✏️ تسوية بمسودة محفوظة</span>}
-            {loan.courseId && <span className="badge badge-info">إقفال الدورات</span>}
+            <span className="lc-meta-sep">·</span>
+            <span className="lc-meta-item">{loan.employee}</span>
+            {(loan as any).user?.email && (
+              <>
+                <span className="lc-meta-sep">·</span>
+                <span className="lc-meta-item lc-meta-muted">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></svg>
+                  {(loan as any).user.email}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* التواقيع */}
+          {loan.reviewedBy && (
+            <div className="lc-sig">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+              توقيع نموذج 18: {loan.reviewedBy.fullName}{loan.secondReviewedBy ? ` و${loan.secondReviewedBy.fullName}` : ''}
+            </div>
+          )}
+          {isSuperAdmin && !(loan.reviewedBy && loan.secondReviewedBy) && (
+            <AdminFinalizeReviewControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onDone={() => onLinked?.()} />
+          )}
+          {loan.settlement && loan.settlementReviewedBy && (
+            <div className="lc-sig">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l4-8 4 4 4-6 4 10"/></svg>
+              توقيع نموذج 19: {loan.settlementReviewedBy.fullName}{loan.secondSettlementReviewedBy ? ` و${loan.secondSettlementReviewedBy.fullName}` : ''}
+            </div>
+          )}
+          {isSuperAdmin && loan.settlement && !(loan.settlementReviewedBy && loan.secondSettlementReviewedBy) && (
+            <AdminFinalizeReviewControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onDone={() => onLinked?.()} />
+          )}
+
+          {/* تفاصيل: موقع + تاريخ + موازنة + مبلغ */}
+          <div className="lc-details">
+            {loan.location && <span>📍 {loan.location}</span>}
+            <span>📅 {formatDate(loan.startDate)} – {formatDate(loan.endDate)}</span>
+            <span>الموازنة: {loan.budgetApproved === true ? '✓ معتمدة' : loan.budgetApproved === false ? '✗ غير معتمدة' : '—'}</span>
+            <span className="lc-amount">💰 {formatCurrencySar(loan.amount)}</span>
           </div>
 
           {canLinkCourse && !loan.courseId && <LinkCourseControl loanId={loan.id} onLinked={() => onLinked?.()} />}
-
-          <div>
-            <h3 className="font-bold text-base" style={{ color: '#1F3F40' }}>{loan.refNumber}</h3>
-            <p className="text-sm mt-0.5" style={{ color: '#5A5A5A' }}>{loan.activity} • {loan.employee}</p>
-            {canLinkCourse && (
-              <p className="text-xs mt-0.5" style={{ color: '#8A8A8A' }}>
-                صاحب الحساب: {loan.user?.email || 'بلا حساب (تعذّر تحديد المالك)'}
-              </p>
-            )}
-            {loan.reviewedBy && (
-              <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>توقيع نموذج ١٨: {loan.reviewedBy.fullName}{loan.secondReviewedBy ? ` و${loan.secondReviewedBy.fullName}` : ''}</p>
-            )}
-            {isSuperAdmin && !(loan.reviewedBy && loan.secondReviewedBy) && (
-              <AdminFinalizeReviewControl loanId={loan.id} formType="advance_req" reviewersList={reviewersList} onDone={() => onLinked?.()} />
-            )}
-            {loan.settlement && loan.settlementReviewedBy && (
-              <p className="text-xs mt-0.5" style={{ color: '#5A5A5A' }}>توقيع نموذج ١٩: {loan.settlementReviewedBy.fullName}{loan.secondSettlementReviewedBy ? ` و${loan.secondSettlementReviewedBy.fullName}` : ''}</p>
-            )}
-            {isSuperAdmin && loan.settlement && !(loan.settlementReviewedBy && loan.secondSettlementReviewedBy) && (
-              <AdminFinalizeReviewControl loanId={loan.id} formType="settlement" reviewersList={reviewersList} onDone={() => onLinked?.()} />
-            )}
-          </div>
-
-          <div className="grid gap-1 text-sm md:grid-cols-2" style={{ color: '#2D4D40' }}>
-            <span>📍 {loan.location || '—'}</span>
-            <span>📅 {formatDate(loan.startDate)} – {formatDate(loan.endDate)}</span>
-            <span>الموازنة: {loan.budgetApproved === true ? '✓ معتمدة' : loan.budgetApproved === false ? '✗ غير معتمدة' : '—'}</span>
-            <span className="font-semibold" style={{ color: '#2A6364', fontFamily: 'IBM Plex Mono, monospace' }}>💰 {formatCurrencySar(loan.amount)}</span>
-          </div>
-
-          {(() => { const countdown = getSettlementCountdown(loan); return countdown && (
-            <div className={`alert ${countdown.cls} text-xs font-semibold flex flex-wrap items-center justify-between gap-2`}>
-              <span>{countdown.label}</span>
-              <span style={{ opacity: 0.8 }}>آخر مهلة: {countdown.deadlineLabel}</span>
-            </div>
-          ) })()}
-
-          {loan.reviewNote && (
-            <div className="alert alert-warning text-xs">
-              <strong>ملاحظة المراجع:</strong> {loan.reviewNote}
-            </div>
-          )}
-
-          {loan.recallRequested && (
-            <div className="alert alert-warning text-xs">
-              <strong>طلب إعادة فتح قيد المراجعة:</strong> {loan.recallReason}
-            </div>
-          )}
         </div>
 
-        {/* Actions */}
-        <div className="grid gap-2 sm:grid-cols-2 lg:w-[340px] flex-shrink-0">
-          <button type="button" onClick={onPrintLoan} className="btn btn-outline btn-sm">🖨️ طباعة نموذج ١٨</button>
+        {/* يسار: الأزرار */}
+        <div className="lc-actions">
+          <button type="button" onClick={onPrintLoan} className="btn btn-outline btn-sm">🖨️ طباعة نموذج 18</button>
 
           {loan.isSettled ? (
             <>
-              <button type="button" onClick={onPrintSettlement} className="btn btn-outline btn-sm">🖨️ طباعة نموذج ١٩</button>
+              <button type="button" onClick={onPrintSettlement} className="btn btn-outline btn-sm">🖨️ طباعة نموذج 19</button>
               {loan.settlementStatus !== 'APPROVED' && (
                 <>
                   <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-success btn-sm">✏️ تعديل التسوية</button>
@@ -2698,15 +2709,12 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
               )}
             </>
           ) : (
-            <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-gold btn-sm sm:col-span-2">📝 بدء تسوية السلفة</button>
+            <button type="button" onClick={() => onSettle(loan.id)} className="btn btn-gold btn-sm">📝 بدء تسوية السلفة</button>
           )}
 
           {!archived && canModify && !loan.isSettled && loan.reviewStatus !== 'REVIEWED' && (
-            <>
-              <button type="button" onClick={() => onEdit(loan.id)} className="btn btn-success btn-sm">✏️ تعديل</button>
-            </>
+            <button type="button" onClick={() => onEdit(loan.id)} className="btn btn-success btn-sm">✏️ تعديل</button>
           )}
-
           {((!archived && canModify && !loan.isSettled && loan.reviewStatus !== 'REVIEWED') || canDelete) && (
             <button type="button" onClick={() => onDelete(loan.id)} className="btn btn-danger btn-sm">🗑️ حذف</button>
           )}
@@ -2715,7 +2723,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
             <>
               <button type="button" onClick={onMarkReviewed} className="btn btn-success btn-sm">✓ اعتماد المراجعة</button>
               <button type="button" onClick={onReturnForReview} className="btn btn-warning btn-sm">↩ إعادة للموظف</button>
-              {!loan.isSettled && <button type="button" onClick={onSendManualAlert} className="btn btn-warning btn-sm sm:col-span-2">📣 تنبيه الموظف</button>}
+              {!loan.isSettled && <button type="button" onClick={onSendManualAlert} className="btn btn-warning btn-sm">📣 تنبيه الموظف</button>}
               {loan.recallRequested && onRecallDecision && (
                 <>
                   <button type="button" onClick={() => onRecallDecision(true)} className="btn btn-success btn-sm">✓ قبول إعادة الفتح</button>
@@ -2726,17 +2734,26 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
           )}
 
           {!canReview && !loan.isSettled && loan.reviewStatus !== 'REVIEWED' && (
-            <button type="button" onClick={onSendReviewerReminder} className="btn btn-outline btn-sm sm:col-span-2">🔔 تذكير المراجعين</button>
+            <button type="button" onClick={onSendReviewerReminder} className="btn btn-outline btn-sm">🔔 تذكير المراجعين</button>
           )}
-
           {!canReview
             && ((loan.reviewStatus === 'REVIEWED' && !loan.isSettled) || loan.settlementStatus === 'APPROVED')
             && !loan.recallRequested
             && onRequestRecall && (
-            <button type="button" onClick={onRequestRecall} className="btn btn-outline btn-sm sm:col-span-2">↩ طلب إعادة فتح المعاملة</button>
+            <button type="button" onClick={onRequestRecall} className="btn btn-outline btn-sm">↩ طلب إعادة فتح المعاملة</button>
           )}
         </div>
       </div>
+
+      {/* ── تنبيهات ── */}
+      {(() => { const countdown = getSettlementCountdown(loan); return countdown && (
+        <div className={`alert ${countdown.cls} text-xs font-semibold flex flex-wrap items-center justify-between gap-2 mx-4 mb-2`}>
+          <span>{countdown.label}</span>
+          <span style={{ opacity: 0.8 }}>آخر مهلة: {countdown.deadlineLabel}</span>
+        </div>
+      ) })()}
+      {loan.reviewNote && <div className="alert alert-warning text-xs mx-4 mb-2"><strong>ملاحظة المراجع:</strong> {loan.reviewNote}</div>}
+      {loan.recallRequested && <div className="alert alert-warning text-xs mx-4 mb-2"><strong>طلب إعادة فتح:</strong> {loan.recallReason}</div>}
     </div>
   )
 }
