@@ -2326,9 +2326,12 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   return (
     <div className={`reviewer-card ${isLoanApproved ? 'is-approved' : ''}`}>
 
-      {/* ── الرأس: اسم النشاط + الشارات ── */}
-      <div className="flex items-start justify-between gap-2 pb-2" style={{ borderBottom: '1px solid #E8E0D5' }}>
-        <p className="text-xs font-medium leading-snug" style={{ color: '#6B7280' }}>{loan.activity}</p>
+      {/* ── الرأس: اسم الموظف + الشارات ── */}
+      <div className="flex items-center justify-between gap-2 pb-1.5" style={{ borderBottom: '1px solid #E8E0D5' }}>
+        <div className="min-w-0">
+          <p className="text-sm font-bold truncate" style={{ color: '#1F3F40' }}>👤 {loan.employee}</p>
+          <p className="text-[11px]" style={{ color: '#6B7280' }}>{loan.activity}</p>
+        </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {loan.courseId && <span className="badge badge-info text-[10px]">🔗 إقفال</span>}
           {isSettlementApproved
@@ -2339,21 +2342,19 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
         </div>
       </div>
 
-      {/* ── اسم الموظف بارز ── */}
-      <div className="py-2" style={{ borderBottom: '1px solid #E8E0D5' }}>
-        <p className="text-base font-bold" style={{ color: '#1F3F40' }}>👤 {loan.employee}</p>
-        <p className="text-xs mt-0.5" style={{ color: '#9CA3AF' }}>✉️ {loan.user?.email || '—'}</p>
-      </div>
-
-      {/* ── تفاصيل المعاملة: عمودان ── */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 py-2 text-xs" style={{ borderBottom: '1px solid #E8E0D5', color: '#4B5563' }}>
-        <div><span style={{ color: '#9CA3AF' }}>الرقم</span><br/><strong>{loan.refNumber}</strong></div>
-        <div><span style={{ color: '#9CA3AF' }}>المبلغ</span><br/><strong>{loan.amount?.toLocaleString('ar-SA')} ر.س</strong></div>
-        <div className="col-span-2"><span style={{ color: '#9CA3AF' }}>الفترة</span>　{formatDate(loan.startDate)} — {formatDate(loan.endDate)}</div>
+      {/* ── تفاصيل المعاملة في سطر واحد ── */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-0 py-1.5 text-xs" style={{ borderBottom: '1px solid #E8E0D5', color: '#4B5563' }}>
+        <span>🔢 {loan.refNumber}</span>
+        <span style={{ color: '#D1C4A8' }}>|</span>
+        <span>💰 {loan.amount?.toLocaleString('ar-SA')} ر.س</span>
+        <span style={{ color: '#D1C4A8' }}>|</span>
+        <span>📅 {formatDate(loan.startDate)} — {formatDate(loan.endDate)}</span>
+        <span style={{ color: '#D1C4A8' }}>|</span>
+        <span style={{ color: '#9CA3AF' }}>✉️ {loan.user?.email || '—'}</span>
       </div>
 
       {/* ── حالة المراجعين ── */}
-      <div className="py-2 text-xs space-y-1" style={{ borderBottom: '1px solid #E8E0D5' }}>
+      <div className="py-1.5 text-xs space-y-0.5" style={{ borderBottom: '1px solid #E8E0D5' }}>
         <div className="flex items-center gap-2">
           <span className="font-bold text-[11px] w-16 flex-shrink-0" style={{ color: '#1F3F40' }}>نموذج ١٨</span>
           {loan18Signers.length === 2
@@ -2405,7 +2406,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
       )}
 
       {/* ── أزرار الإجراءات ── */}
-      <div className="pt-2 space-y-2">
+      <div className="pt-1.5 space-y-1.5">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-bold w-16 flex-shrink-0" style={{ color: '#374151' }}>نموذج ١٨</span>
           <button type="button" onClick={onPreviewLoan} className="btn btn-primary btn-sm">معاينة</button>
