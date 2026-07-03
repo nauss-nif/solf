@@ -15,7 +15,7 @@ export const dashboardLoanInclude = {
   secondReviewedBy: { select: { id: true, fullName: true } },
   settlementReviewedBy: { select: { id: true, fullName: true } },
   secondSettlementReviewedBy: { select: { id: true, fullName: true } },
-  user: { select: { email: true, fullName: true } },
+  user: { select: { email: true, fullName: true, profileImage: true } },
 } as const
 
 export const fullLoanInclude = {

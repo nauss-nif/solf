@@ -45,7 +45,7 @@ export type LoanDashboardRecord = {
   settlementReviewedBy?: { id: string; fullName: string } | null
   secondSettlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
-  user?: { email: string; fullName: string } | null
+  user?: { email: string; fullName: string; profileImage?: { url?: string } | null } | null
 }
 
 type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER'> }
@@ -2350,10 +2350,12 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
 
       {/* ── شريط البيانات: 4 خانات ── */}
       <div className="rc-info">
-        <div className="rc-info-cell">
-          <span className="rc-info-label">الموظف</span>
-          <span className="rc-info-value">{loan.employee}</span>
-          {(loan as any).user?.email && <span className="rc-info-sub">{(loan as any).user.email}</span>}
+        <div className="rc-info-cell" style={{ flexDirection: 'row', alignItems: 'center', gap: '0.5rem' }}>
+          <EmployeeAvatar name={loan.employee} imageJson={loan.user?.profileImage as any} size={32} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.08rem', minWidth: 0 }}>
+            <span className="rc-info-label">الموظف</span>
+            <span className="rc-info-value" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{loan.employee}</span>
+          </div>
         </div>
         <div className="rc-info-cell">
           <span className="rc-info-label">الفترة</span>
@@ -2641,8 +2643,11 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
 
         {/* يمين: المعلومات */}
         <div className="lc-info">
-          {/* اسم الدورة */}
-          <h3 className="lc-title">{loan.activity}</h3>
+          {/* أفاتار + اسم الدورة */}
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+            <EmployeeAvatar name={loan.employee} imageJson={loan.user?.profileImage as any} size={38} />
+            <h3 className="lc-title">{loan.activity}</h3>
+          </div>
 
           {/* موظف + رقم مرجعي + إيميل */}
           <div className="lc-meta">
@@ -2754,6 +2759,29 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
       ) })()}
       {loan.reviewNote && <div className="alert alert-warning text-xs mx-4 mb-2"><strong>ملاحظة المراجع:</strong> {loan.reviewNote}</div>}
       {loan.recallRequested && <div className="alert alert-warning text-xs mx-4 mb-2"><strong>طلب إعادة فتح:</strong> {loan.recallReason}</div>}
+    </div>
+  )
+}
+
+function EmployeeAvatar({ name, imageJson, size = 36 }: { name: string; imageJson?: { url?: string } | null; size?: number }) {
+  const url = imageJson?.url
+  const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('')
+  if (url) {
+    return (
+      <Image
+        src={url} alt={name} width={size} height={size}
+        style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #E8EEEE' }}
+      />
+    )
+  }
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: '#2A6364', color: '#fff', display: 'flex', alignItems: 'center',
+      justifyContent: 'center', fontSize: size * 0.35, fontWeight: 700,
+      border: '2px solid #E8EEEE', letterSpacing: '-0.5px',
+    }}>
+      {initials}
     </div>
   )
 }
