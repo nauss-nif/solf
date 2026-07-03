@@ -24,6 +24,7 @@ export async function GET() {
         roles: true,
         status: true,
         signatureImage: true,
+        profileImage: true,
         createdAt: true,
       },
     })

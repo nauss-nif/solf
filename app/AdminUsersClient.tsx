@@ -5,7 +5,7 @@ import { type StoredFile } from '@/lib/loan-form-options'
 import SignatureEditorModal from './SignatureEditorModal'
 
 type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
-type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; signatureImage?: StoredFile | null; createdAt: string }
+type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; signatureImage?: StoredFile | null; profileImage?: StoredFile | null; createdAt: string }
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string; bg: string }> = [
   { value: 'EMPLOYEE', label: 'موظف',  color: '#2A6364', bg: '#E7F3EE' },
@@ -21,6 +21,7 @@ export default function AdminUsersClient() {
   const [signatureUploadingId, setSignatureUploadingId] = useState<string | null>(null)
   const [signatureError, setSignatureError] = useState('')
   const [signatureEditTarget, setSignatureEditTarget] = useState<{ userId: string; file: File } | null>(null)
+  const [profileImageUploadingId, setProfileImageUploadingId] = useState<string | null>(null)
 
   async function loadUsers() {
     const res = await fetch('/api/admin/users', { cache: 'no-store' })
@@ -37,6 +38,31 @@ export default function AdminUsersClient() {
     const file = fileList?.[0]; if (!file) return
     setSignatureError('')
     setSignatureEditTarget({ userId, file })
+  }
+
+  async function handleProfileImageUpload(userId: string, fileList: FileList | null) {
+    const file = fileList?.[0]; if (!file) return
+    setProfileImageUploadingId(userId)
+    try {
+      const { fileToStoredFile } = await import('@/lib/client-files')
+      const stored = await fileToStoredFile(file)
+      const res = await fetch(`/api/admin/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profileImage: stored }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { showSuccess(typeof data?.error === 'string' ? data.error : 'تعذر رفع الصورة.'); return }
+      await loadUsers(); showSuccess('تم حفظ الصورة الشخصية.')
+    } finally {
+      setProfileImageUploadingId(null)
+    }
+  }
+
+  async function handleRemoveProfileImage(userId: string) {
+    setProfileImageUploadingId(userId)
+    try {
+      await fetch(`/api/admin/users/${userId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ profileImage: null }) })
+      await loadUsers(); showSuccess('تم حذف الصورة الشخصية.')
+    } finally {
+      setProfileImageUploadingId(null)
+    }
   }
 
   async function handleSignatureSaved(userId: string, stored: StoredFile) {
@@ -95,9 +121,19 @@ export default function AdminUsersClient() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     {/* Identity */}
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                        style={{ background: '#E7F3EE', color: '#2A6364' }}>
-                        {user.fullName.charAt(0)}
+                      <div className="relative group flex-shrink-0">
+                        {user.profileImage ? (
+                          <img src={user.profileImage.dataUrl} alt={user.fullName} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #C8D9D0' }} />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold"
+                            style={{ background: '#E7F3EE', color: '#2A6364' }}>
+                            {user.fullName.charAt(0)}
+                          </div>
+                        )}
+                        <label className="absolute inset-0 rounded-full cursor-pointer flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity" title="تغيير الصورة الشخصية">
+                          {profileImageUploadingId === user.id ? <span className="text-white text-[10px]">...</span> : <span className="text-white text-[10px]">📷</span>}
+                          <input type="file" className="hidden" accept="image/*" disabled={profileImageUploadingId === user.id} onChange={(e) => void handleProfileImageUpload(user.id, e.target.files)} />
+                        </label>
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold text-sm truncate" style={{ color: '#1F3F40' }}>{user.fullName}</p>
@@ -188,6 +224,25 @@ export default function AdminUsersClient() {
                         )
                       })}
                     </div>
+
+                    <div className="h-4 w-px" style={{ background: '#DADBD9' }} />
+
+                    {/* Profile Image */}
+                    {user.profileImage && (
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs" style={{ color: '#8A8A8A' }}>الصورة:</span>
+                        <button
+                          type="button"
+                          disabled={profileImageUploadingId === user.id}
+                          title="حذف الصورة الشخصية"
+                          onClick={() => void handleRemoveProfileImage(user.id)}
+                          className="btn btn-danger btn-sm"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.65rem' }}
+                        >
+                          حذف الصورة
+                        </button>
+                      </div>
+                    )}
 
                     <div className="h-4 w-px" style={{ background: '#DADBD9' }} />
 

@@ -45,7 +45,7 @@ export type LoanDashboardRecord = {
   settlementReviewedBy?: { id: string; fullName: string } | null
   secondSettlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
-  user?: { email: string; fullName: string; profileImage?: { url?: string } | null } | null
+  user?: { email: string; fullName: string; profileImage?: { dataUrl?: string } | null } | null
 }
 
 type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER'> }
@@ -1004,15 +1004,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW').length,
     settlementPending: loans.filter((loan) => loan.settlement && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')).length,
     approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')).length,
-    returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested).length,
+    returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')).length,
     linkedCourses: loans.filter((loan) => loan.courseId).length,
   }), [loans])
   const reviewerQueue = filteredLoans
     .filter((loan) => {
       if (reviewerFilter === 'advance')    return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
       if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
-      if (reviewerFilter === 'returned')   return loan.reviewStatus === 'RETURNED' || loan.recallRequested
-      if (reviewerFilter === 'approved')   return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
+      if (reviewerFilter === 'returned')   return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')
+      if (reviewerFilter === 'approved')   return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED') && !(loan.settlementStatus === 'IN_PROGRESS' && !loan.isSettled && Boolean(loan.settlement))
       return false
     })
     // الأحدث أولاً دائماً — بدون أولويات معقدة
@@ -1600,6 +1600,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         onCancelSettlementApproval={() => { if (!window.confirm('سيعود نموذج ١٩ إلى قائمة مراجعة التسويات. هل تريد إلغاء الاعتماد؟')) return; void updateReviewState(loan.id, 'PENDING', 'أُلغي اعتماد نموذج ١٩ لإعادة المراجعة.', 'settlement') }}
                         onRecallDecision={(approve) => decideRecall(loan.id, approve)}
                         onLinked={() => void refreshLoans(workMode)}
+                        onSettle={() => openSettlementModal(loan.id)}
                       />
                     ))}
                   </div>
@@ -2296,7 +2297,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
 // ── SUB COMPONENTS ─────────────────────────────────────────────────────────────
 
-function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision, onLinked }: {
+function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalfUserId, onChangeOnBehalf, onEditItems, onPreviewLoan, onApproveLoan, onReturnLoan, onCancelLoanApproval, onPreviewSettlement, onApproveSettlement, onReturnSettlement, onCancelSettlementApproval, onRecallDecision, onLinked, onSettle }: {
   loan: LoanDashboardRecord
   isAdmin: boolean
   isSuperAdmin: boolean
@@ -2314,6 +2315,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
   onCancelSettlementApproval: () => void
   onRecallDecision: (approve: boolean) => void
   onLinked: () => void
+  onSettle: () => void
 }) {
   const hasSettlement = Boolean(loan.settlement)
   const isLoanApproved = loan.reviewStatus === 'REVIEWED'
@@ -2339,7 +2341,7 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
 
         {/* يسار: الشارات */}
         <div className="rc-badges">
-          {loan.courseId && <span className="rc-badge rc-badge-lock">🔒 إفعال</span>}
+          {loan.courseId && <span className="rc-badge rc-badge-lock">🔗 مرتبط بدورة</span>}
           {isSettlementApproved
             ? <span className="rc-badge rc-badge-done">✓ مكتمل</span>
             : isLoanApproved
@@ -2432,11 +2434,16 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
             {hasSettlement ? (
               <>
                 <button type="button" onClick={onPreviewSettlement} className="rc-btn rc-btn-preview">👁 معاينة</button>
+                {isAdmin && !isSettlementApproved && (
+                  <button type="button" onClick={onSettle} className="rc-btn rc-btn-return" title="تعديل بيانات التسوية">✏️</button>
+                )}
                 <button type="button" onClick={onReturnSettlement} className="rc-btn rc-btn-return">↩ إعادة</button>
                 {isSettlementApproved
                   ? <button type="button" onClick={onCancelSettlementApproval} className="rc-btn rc-btn-cancel">✗ إلغاء</button>
                   : <button type="button" onClick={onApproveSettlement} className="rc-btn rc-btn-approve">✓ اعتماد</button>}
               </>
+            ) : isAdmin && loan.reviewStatus === 'REVIEWED' ? (
+              <button type="button" onClick={onSettle} className="rc-btn rc-btn-approve" style={{ flex: 1 }}>📝 إدخال تسوية</button>
             ) : (
               <span className="rc-no-settlement">لم يرفع الموظف التسوية بعد</span>
             )}
@@ -2634,7 +2641,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
           ? <span className="badge badge-warning">✏️ مسودة</span>
           : <span className={`badge ${reviewBadge.cls}`}>{reviewBadge.label}</span>}
         {!loan.isDraft && loan.settlementDraft && !loan.isSettled && <span className="badge badge-warning">✏️ تسوية مسودة</span>}
-        {loan.courseId && <span className="badge badge-info">🔒 إقفال الدورات</span>}
+        {loan.courseId && <span className="badge badge-info">🔗 مرتبط بدورة</span>}
         {attachCount > 0 && <span className="badge badge-neutral">📎 {attachCount}</span>}
       </div>
 
@@ -2763,13 +2770,14 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   )
 }
 
-function EmployeeAvatar({ name, imageJson, size = 36 }: { name: string; imageJson?: { url?: string } | null; size?: number }) {
-  const url = imageJson?.url
+function EmployeeAvatar({ name, imageJson, size = 36 }: { name: string; imageJson?: { dataUrl?: string } | null; size?: number }) {
+  const url = imageJson?.dataUrl
   const initials = name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('')
   if (url) {
     return (
-      <Image
-        src={url} alt={name} width={size} height={size}
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={url} alt={name}
         style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #E8EEEE' }}
       />
     )

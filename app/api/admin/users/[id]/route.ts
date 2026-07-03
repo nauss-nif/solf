@@ -53,6 +53,15 @@ export async function PATCH(
         return NextResponse.json({ error: 'التوقيع يجب أن يكون صورة فقط.' }, { status: 400 })
       }
     }
+    if ('profileImage' in body) {
+      if (body.profileImage === null) {
+        data.profileImage = null
+      } else if (isStoredImageFile(body.profileImage)) {
+        data.profileImage = body.profileImage
+      } else {
+        return NextResponse.json({ error: 'الصورة الشخصية يجب أن تكون صورة فقط.' }, { status: 400 })
+      }
+    }
 
     const user = await prisma.user.update({
       where: { id: params.id },
@@ -67,6 +76,7 @@ export async function PATCH(
         roles: true,
         status: true,
         signatureImage: true,
+        profileImage: true,
       },
     })
 

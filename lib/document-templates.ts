@@ -1424,6 +1424,14 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
       <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
     </div>
 
+    ${Number(settlement?.total ?? 0) === 0 && Number(settlement?.supported ?? 0) === 0 ? `
+    <div style="border: 2px solid #c0392b; border-radius: 4px; background: #fff5f5; padding: 10px 16px; margin: 10px 0; text-align: center; direction: rtl;">
+      <p style="margin: 0; font-size: 14pt; font-weight: 700; color: #c0392b; letter-spacing: 0.3px;">
+        ⚠ لم يُصرف أي مبلغ من هذه السلفة — تمت إعادة المبلغ كاملاً إلى الجهة المختصة
+      </p>
+    </div>
+    ` : ''}
+
     <div class="loan-table-wrap">
       <table class="form-grid">
         <thead>
