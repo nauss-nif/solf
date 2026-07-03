@@ -56,7 +56,7 @@ type SettlementMetaState = { receiptNumber: string; receiptDate: string; overage
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
-type ReviewerQueueFilter = 'all' | 'advance' | 'settlement' | 'approved' | 'returned'
+type ReviewerQueueFilter = 'advance' | 'settlement' | 'returned' | 'approved'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
@@ -346,7 +346,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   const [linkedCourse, setLinkedCourse] = useState<LinkedCourse | null>(null)
   const [handledCourseLink, setHandledCourseLink] = useState(false)
   const [navigationFeedback, setNavigationFeedback] = useState('')
-  const [reviewerFilter, setReviewerFilter] = useState<ReviewerQueueFilter>('all')
+  const [reviewerFilter, setReviewerFilter] = useState<ReviewerQueueFilter>('advance')
   const [employeeStatFilter, setEmployeeStatFilter] = useState<'all' | 'pending' | 'overdue'>('all')
   const [itemUsage, setItemUsage] = useState<ItemUsageStat[]>([])
   const isAdmin = currentUser.roles.includes('ADMIN')
@@ -1009,24 +1009,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
   }), [loans])
   const reviewerQueue = filteredLoans
     .filter((loan) => {
-      if (reviewerFilter === 'advance') return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
+      if (reviewerFilter === 'advance')    return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
       if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
-      if (reviewerFilter === 'approved') return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
-      // المعادة: إرجاع المراجع التقليدي للموظف، أو طلب إعادة فتح معاملة معتمدة سابقاً (سواء كان معلّقاً أو تمت الموافقة عليه وأصبح قيد التعديل من جديد)
-      if (reviewerFilter === 'returned') return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.settlement && loan.settlementStatus === 'IN_PROGRESS')
-      // كل المعاملات النشطة: تستبعد السلف المؤرشفة (المُسوّاة) إلا إن أُعيد فتحها أو كان عليها طلب إعادة فتح معلّق
-      return !loan.isSettled || loan.recallRequested || loan.settlementStatus !== 'APPROVED'
+      if (reviewerFilter === 'returned')   return loan.reviewStatus === 'RETURNED' || loan.recallRequested
+      if (reviewerFilter === 'approved')   return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
+      return false
     })
-    .sort((a, b) => {
-      const priority = (loan: LoanDashboardRecord) => {
-        if (loan.recallRequested) return -1
-        if (loan.reviewStatus === 'PENDING') return 0
-        if (loan.settlement && loan.settlementStatus !== 'APPROVED') return 1
-        if (loan.reviewStatus === 'RETURNED') return 2
-        return 3
-      }
-      return priority(a) - priority(b) || new Date(b.updatedAt ?? b.createdAt).getTime() - new Date(a.updatedAt ?? a.createdAt).getTime()
-    })
+    // الأحدث أولاً دائماً — بدون أولويات معقدة
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   // ── RENDER ────────────────────────────────────────────────────────────────────
 
@@ -1286,9 +1276,6 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                         🧾 تسويات نموذج 19
                         {reviewerStats.settlementPending > 0 && <span className="mr-1 font-bold">({reviewerStats.settlementPending})</span>}
                       </button>
-                      <button type="button" onClick={() => { setReviewerFilter('all'); selectTab('requests', requestsSectionLabel) }} className="btn btn-outline btn-sm">
-                        كل المعاملات
-                      </button>
                     </div>
                     <button type="button" onClick={() => void runDeadlineCheckNow()} className="btn btn-outline btn-sm">
                       🔔 فحص المواعيد
@@ -1513,30 +1500,24 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 {isReviewerMode ? (
                   <div className="reviewer-workbench">
                     <div className="reviewer-workbench-header">
-                      <div>
-                        <p className="text-xs font-bold" style={{ color: '#2A6364' }}>مساحة عمل المراجع</p>
-                        <h3 className="mt-1 font-bold" style={{ color: '#1F3F40' }}>اعتماد نموذج ١٨ ونموذج ١٩</h3>
-                        <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>تعامل مع طلب السلفة وتسوية السلفة كعنصرين مستقلين، مع إمكانية المعاينة، الاعتماد، الإعادة، وإلغاء الاعتماد عند الحاجة.</p>
-                      </div>
-                      <button type="button" onClick={() => void refreshLoans(workMode)} className="btn btn-outline btn-sm">
-                        تحديث القائمة
-                      </button>
+                      <p className="font-bold" style={{ color: '#1F3F40' }}>اعتماد السلف</p>
+                      <button type="button" onClick={() => void refreshLoans(workMode)} className="btn btn-outline btn-sm">تحديث</button>
                     </div>
                     <div className="reviewer-metrics">
                       <button type="button" onClick={() => setReviewerFilter('advance')} className={`reviewer-metric ${reviewerFilter === 'advance' ? 'active' : ''}`}>
-                        <span>طلبات سلفة تنتظر نموذج ١٨</span>
+                        <span>نموذج 18</span>
                         <strong>{formatEnglishNumber(reviewerStats.advancePending)}</strong>
                       </button>
                       <button type="button" onClick={() => setReviewerFilter('settlement')} className={`reviewer-metric ${reviewerFilter === 'settlement' ? 'active' : ''}`}>
-                        <span>تسويات تنتظر نموذج ١٩</span>
+                        <span>نموذج 19</span>
                         <strong>{formatEnglishNumber(reviewerStats.settlementPending)}</strong>
                       </button>
                       <button type="button" onClick={() => setReviewerFilter('returned')} className={`reviewer-metric ${reviewerFilter === 'returned' ? 'active' : ''}`}>
-                        <span>معادة للموظف</span>
+                        <span>معادة</span>
                         <strong>{formatEnglishNumber(reviewerStats.returned)}</strong>
                       </button>
                       <button type="button" onClick={() => setReviewerFilter('approved')} className={`reviewer-metric ${reviewerFilter === 'approved' ? 'active' : ''}`}>
-                        <span>مكتملة الاعتماد</span>
+                        <span>مكتملة</span>
                         <strong>{formatEnglishNumber(reviewerStats.approved)}</strong>
                       </button>
                     </div>
@@ -1581,17 +1562,19 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-4">
                     <div className="reviewer-filter-bar">
                       {([
-                        ['all', 'المعاملات النشطة'],
-                        ['advance', 'نموذج ١٨'],
-                        ['settlement', 'نموذج ١٩'],
-                        ['returned', 'المعادة'],
-                        ['approved', 'المكتملة'],
+                        ['advance',    `نموذج 18 (${reviewerStats.advancePending})`],
+                        ['settlement', `نموذج 19 (${reviewerStats.settlementPending})`],
+                        ['returned',   `معادة (${reviewerStats.returned})`],
+                        ['approved',   `مكتملة (${reviewerStats.approved})`],
                       ] as Array<[ReviewerQueueFilter, string]>).map(([value, label]) => (
                         <button key={value} type="button" onClick={() => setReviewerFilter(value)} className={reviewerFilter === value ? 'active' : ''}>
                           {label}
                         </button>
                       ))}
                     </div>
+                    <p className="text-xs" style={{ color: '#8FA3A4', textAlign: 'left' }}>
+                      {reviewerQueue.length} معاملة — مرتبة من الأحدث للأقدم
+                    </p>
                     {reviewerQueue.length === 0 ? (
                       <div className="empty-state">
                         <div className="empty-state-icon text-4xl">✅</div>
@@ -2381,8 +2364,8 @@ function ReviewerLoanCard({ loan, isAdmin, isSuperAdmin, reviewersList, onBehalf
           <span className="rc-info-value">💰 {loan.amount?.toLocaleString('en-US')} ر.س</span>
         </div>
         <div className="rc-info-cell">
-          <span className="rc-info-label">رمز المعاملة</span>
-          <span className="rc-info-value">{loan.refNumber}</span>
+          <span className="rc-info-label">تاريخ الطلب</span>
+          <span className="rc-info-value">{formatDate(loan.createdAt)}</span>
         </div>
       </div>
 
