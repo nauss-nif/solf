@@ -1000,16 +1000,17 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     : filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
   const reviewerStats = useMemo(() => ({
-    advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING').length,
-    settlementPending: loans.filter((loan) => loan.settlement && loan.settlementStatus !== 'APPROVED').length,
+    // تشمل PENDING + AWAITING_SECOND_REVIEW لأن المعاملة لا تنتهي إلا بتوقيع المراجعَين معاً
+    advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW').length,
+    settlementPending: loans.filter((loan) => loan.settlement && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')).length,
     approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')).length,
     returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested).length,
     linkedCourses: loans.filter((loan) => loan.courseId).length,
   }), [loans])
   const reviewerQueue = filteredLoans
     .filter((loan) => {
-      if (reviewerFilter === 'advance') return loan.reviewStatus === 'PENDING'
-      if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && loan.settlementStatus !== 'APPROVED'
+      if (reviewerFilter === 'advance') return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
+      if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
       if (reviewerFilter === 'approved') return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')
       // المعادة: إرجاع المراجع التقليدي للموظف، أو طلب إعادة فتح معاملة معتمدة سابقاً (سواء كان معلّقاً أو تمت الموافقة عليه وأصبح قيد التعديل من جديد)
       if (reviewerFilter === 'returned') return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.settlement && loan.settlementStatus === 'IN_PROGRESS')
@@ -1275,23 +1276,23 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
             {activeTab === 'dashboard' && isAdminOrReviewer && (
               <div className="space-y-6">
                 {isReviewerMode ? (
-                  <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
-                    <div>
-                      <p className="text-xs font-semibold" style={{ color: '#6B5A4A' }}>أولوية المراجع</p>
-                      <h2 className="mt-1 text-lg font-bold" style={{ color: '#1F3F40' }}>اعتماد طلبات السلف وطلبات التسوية</h2>
-                      <p className="mt-1 text-sm" style={{ color: '#5A5A5A' }}>راجع نموذج ١٨ لاعتماد طلب السلفة، وراجع نموذج ١٩ فقط بعد رفع الموظف للتسوية.</p>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <button type="button" onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }} className="btn btn-primary">
-                        🔍 مراجعة طلبات السلف
+                  <div className="flex flex-wrap gap-2 items-center justify-between">
+                    <div className="flex gap-2 flex-wrap">
+                      <button type="button" onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }} className="btn btn-primary btn-sm">
+                        📝 طلبات نموذج 18
+                        {reviewerStats.advancePending > 0 && <span className="mr-1 font-bold">({reviewerStats.advancePending})</span>}
                       </button>
-                      <button type="button" onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }} className="btn btn-gold">
-                        ✅ اعتماد طلبات التسوية
+                      <button type="button" onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }} className="btn btn-gold btn-sm">
+                        🧾 تسويات نموذج 19
+                        {reviewerStats.settlementPending > 0 && <span className="mr-1 font-bold">({reviewerStats.settlementPending})</span>}
                       </button>
-                      <button type="button" onClick={() => void runDeadlineCheckNow()} className="btn btn-outline" title="يرسل فوراً تذكيرات/إنذارات السلف المتأخرة عن التسوية، دون انتظار المهمة اليومية المجدولة">
-                        🔔 تشغيل فحص المواعيد الآن
+                      <button type="button" onClick={() => { setReviewerFilter('all'); selectTab('requests', requestsSectionLabel) }} className="btn btn-outline btn-sm">
+                        كل المعاملات
                       </button>
                     </div>
+                    <button type="button" onClick={() => void runDeadlineCheckNow()} className="btn btn-outline btn-sm">
+                      🔔 فحص المواعيد
+                    </button>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-4 rounded-2xl p-5 lg:flex-row lg:items-center lg:justify-between" style={{ background: '#F3EDE3', border: '1px solid #C7B08C' }}>
@@ -1319,10 +1320,26 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
 
                 {isReviewerMode ? (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <StatCard label="بانتظار اعتماد نموذج ١٨" value={reviewerStats.advancePending} accent="danger" icon="📝"
-                      onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }} />
-                    <StatCard label="تسويات بانتظار نموذج ١٩" value={reviewerStats.settlementPending} accent="warning" icon="🧾"
-                      onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }} />
+                    <StatCard
+                      label="نموذج 18 — تحتاج اعتماد"
+                      value={reviewerStats.advancePending}
+                      accent="danger"
+                      icon="📝"
+                      sub={loans.filter((l) => l.reviewStatus === 'AWAITING_SECOND_REVIEW').length > 0
+                        ? `${loans.filter((l) => l.reviewStatus === 'AWAITING_SECOND_REVIEW').length} وقّع عليها مراجع واحد`
+                        : undefined}
+                      onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }}
+                    />
+                    <StatCard
+                      label="نموذج 19 — تحتاج اعتماد"
+                      value={reviewerStats.settlementPending}
+                      accent="warning"
+                      icon="🧾"
+                      sub={loans.filter((l) => l.settlementStatus === 'AWAITING_SECOND_REVIEW').length > 0
+                        ? `${loans.filter((l) => l.settlementStatus === 'AWAITING_SECOND_REVIEW').length} وقّع عليها مراجع واحد`
+                        : undefined}
+                      onClick={() => { setReviewerFilter('settlement'); selectTab('requests', requestsSectionLabel) }}
+                    />
                     <StatCard label="معادة للموظف" value={reviewerStats.returned} accent="primary" icon="↩️"
                       onClick={() => { setReviewerFilter('returned'); selectTab('requests', requestsSectionLabel) }} />
                     <StatCard label="مكتملة الاعتماد" value={reviewerStats.approved} accent="success" icon="✅"
@@ -2758,7 +2775,7 @@ function LoanCard({ loan, archived = false, canReview = false, canModify = false
   )
 }
 
-function StatCard({ label, value, accent, icon, onClick }: { label: string; value: number; accent: 'primary' | 'warning' | 'success' | 'danger'; icon: string; onClick?: () => void }) {
+function StatCard({ label, value, accent, icon, sub, onClick }: { label: string; value: number; accent: 'primary' | 'warning' | 'success' | 'danger'; icon: string; sub?: string; onClick?: () => void }) {
   const colors = { primary: '#2A6364', warning: '#6B5A4A', success: '#4F8F7A', danger: '#73384B' }
   const bgs    = { primary: '#E7F3EE', warning: '#F3EDE3', success: '#E7F3EE', danger: '#F3E7EB' }
   const Tag = onClick ? 'button' : 'div'
@@ -2769,6 +2786,7 @@ function StatCard({ label, value, accent, icon, onClick }: { label: string; valu
         <span className="text-xl w-9 h-9 flex items-center justify-center rounded-lg" style={{ background: bgs[accent] }}>{icon}</span>
       </div>
       <p className="stat-value" style={{ color: colors[accent] }}>{value}</p>
+      {sub && <p className="text-xs mt-1" style={{ color: '#92400E', background: '#FEF3C7', borderRadius: '0.3rem', padding: '0.1rem 0.4rem', display: 'inline-block' }}>⚡ {sub}</p>}
     </Tag>
   )
 }
