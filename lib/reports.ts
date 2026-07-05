@@ -125,8 +125,10 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
       if (!loan.isOnHold) {
         const endDate = new Date(loan.endDate)
         const settledDate = new Date((loan.settlement as { createdAt: Date }).createdAt)
-        const days = Math.round((settledDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
-        if (days >= 0) { requester._daysToSettleSum += days; requester._daysToSettleCount += 1 }
+        const rawDays = Math.round((settledDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
+        const days = Math.max(0, rawDays) // السلب يعني قبل الموعد = 0 يوم
+        requester._daysToSettleSum += days
+        requester._daysToSettleCount += 1
       }
     } else if (!loan.isSettled && !loan.isOnHold) {
       // السلفات الموقوفة لا تُحتسب في المتأخرات
