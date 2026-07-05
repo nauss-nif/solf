@@ -56,7 +56,7 @@ type SettlementMetaState = { receiptNumber: string; receiptDate: string; overage
 type ToastItem = { id: number; message: string; tone: 'success' | 'error' | 'info'; important: boolean }
 type LoanFormState = { requestDate: string; refNumber: string; agencyCode: string; employee: string; activity: string; location: string; startDate: string; endDate: string; budgetApproved: boolean | null }
 type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
-type ReviewerQueueFilter = 'advance' | 'settlement' | 'returned' | 'approved'
+type ReviewerQueueFilter = 'advance' | 'awaitingSettlement' | 'settlement' | 'returned' | 'approved'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
 type WorkMode = 'employee' | 'reviewer'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
@@ -1582,10 +1582,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   <div className="space-y-4">
                     <div className="reviewer-filter-bar">
                       {([
-                        ['advance',    `نموذج 18 (${reviewerStats.advancePending})`],
-                        ['settlement', `نموذج 19 (${reviewerStats.settlementPending})`],
-                        ['returned',   `معادة (${reviewerStats.returned})`],
-                        ['approved',   `مكتملة (${reviewerStats.approved})`],
+                        ['advance',             `بانتظار اعتماد السلفة (${reviewerStats.advancePending})`],
+                        ['awaitingSettlement',  `بانتظار رفع التسوية (${reviewerStats.awaitingSettlement})`],
+                        ['settlement',          `بانتظار اعتماد التسوية (${reviewerStats.settlementPending})`],
+                        ['returned',            `معادة (${reviewerStats.returned})`],
+                        ['approved',            `مكتملة (${reviewerStats.approved})`],
                       ] as Array<[ReviewerQueueFilter, string]>).map(([value, label]) => (
                         <button key={value} type="button" onClick={() => setReviewerFilter(value)} className={reviewerFilter === value ? 'active' : ''}>
                           {label}
