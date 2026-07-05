@@ -69,6 +69,8 @@ export type AgencyReportRequester = {
   settledCount: number
   totalSettlement: number
   totalSavings: number
+  avgDaysToSettle: number | null   // متوسط أيام التسوية من نهاية النشاط
+  overdueCount: number             // طلبات متأخرة لم تُسوَّ
 }
 
 export type AgencyReportData = {
@@ -111,13 +113,21 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
       totalOverage += loan.settlement.overage
     }
 
-    const requester = requesterMap.get(loan.employee) ?? { employee: loan.employee, count: 0, totalAmount: 0, settledCount: 0, totalSettlement: 0, totalSavings: 0 }
+    const requester = requesterMap.get(loan.employee) ?? { employee: loan.employee, count: 0, totalAmount: 0, settledCount: 0, totalSettlement: 0, totalSavings: 0, _daysToSettleSum: 0, _daysToSettleCount: 0, overdueCount: 0 }
     requester.count += 1
     requester.totalAmount += loan.amount
     if (loan.isSettled && loan.settlement) {
       requester.settledCount += 1
       requester.totalSettlement += loan.settlement.total
       requester.totalSavings += loan.settlement.savings - loan.settlement.overage
+      // حساب عدد أيام التسوية من نهاية النشاط حتى رفع التسوية
+      const endDate = new Date(loan.endDate)
+      const settledDate = new Date((loan.settlement as { createdAt: Date }).createdAt)
+      const days = Math.round((settledDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (days >= 0) { requester._daysToSettleSum += days; requester._daysToSettleCount += 1 }
+    } else if (!loan.isSettled) {
+      const daysSinceEnd = Math.round((Date.now() - new Date(loan.endDate).getTime()) / (1000 * 60 * 60 * 24))
+      if (daysSinceEnd > 7) requester.overdueCount += 1
     }
     requesterMap.set(loan.employee, requester)
 
@@ -150,7 +160,12 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
       pendingCount: loans.length - settledCount,
     },
     loans: reportLoans,
-    requesters: [...requesterMap.values()].sort((a, b) => b.totalAmount - a.totalAmount),
+    requesters: [...requesterMap.values()].map((r) => ({
+      employee: r.employee, count: r.count, totalAmount: r.totalAmount,
+      settledCount: r.settledCount, totalSettlement: r.totalSettlement, totalSavings: r.totalSavings,
+      avgDaysToSettle: r._daysToSettleCount > 0 ? Math.round(r._daysToSettleSum / r._daysToSettleCount) : null,
+      overdueCount: r.overdueCount,
+    })).sort((a, b) => b.totalAmount - a.totalAmount),
     itemUsage,
   }
 }

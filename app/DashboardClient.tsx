@@ -1718,8 +1718,11 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                   </div>
                   {isAdminOrReviewer && (
                     <div className="mt-4 flex flex-wrap gap-2">
+                      <a href="/print/executive-report" target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm">
+                        📊 التقرير التنفيذي — أداء الموظفين والتسويات
+                      </a>
                       <a href="/print/agency-report" target="_blank" rel="noopener noreferrer" className="btn btn-outline btn-sm">
-                        📄 فتح التقرير الشامل لسعادة الوكيل (PDF)
+                        📄 التقرير الشامل التفصيلي (PDF)
                       </a>
                       <button type="button" className="btn btn-outline btn-sm" onClick={() => downloadAgencyExcelReport(loans, itemUsage)}>
                         📊 تصدير التقرير الشامل (Excel)
