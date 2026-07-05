@@ -70,8 +70,11 @@ export default async function ExecutiveReportPage() {
   const topCategories  = [...itemUsage].sort((a, b) => b.requestTotal - a.requestTotal).slice(0, 6)
   const maxCatAmount   = topCategories[0]?.requestTotal ?? 1
 
-  const overdueLoans   = loans.filter((l) => !l.isSettled && (Date.now() - new Date(l.endDate).getTime()) > 7 * 24 * 60 * 60 * 1000)
-    .sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
+  const overdueLoans   = loans.filter((l) => {
+    if (l.isSettled) return false
+    const deadline = l.settlementDeadline ? new Date(l.settlementDeadline) : null
+    return deadline ? Date.now() > deadline.getTime() : false
+  }).sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime())
 
   const now = new Date()
   const dateStr = now.toLocaleDateString('ar-SA-u-ca-gregory', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -231,7 +234,8 @@ export default async function ExecutiveReportPage() {
                 </thead>
                 <tbody>
                   {overdueLoans.slice(0, 10).map((loan, i) => {
-                    const days = Math.round((Date.now() - new Date(loan.endDate).getTime()) / (1000 * 60 * 60 * 24))
+                    const deadline = loan.settlementDeadline ? new Date(loan.settlementDeadline) : new Date(loan.endDate)
+                    const days = Math.round((Date.now() - deadline.getTime()) / (1000 * 60 * 60 * 24))
                     return (
                       <tr key={loan.refNumber} style={{ background: i % 2 === 0 ? '#FFF5F5' : '#fff', borderBottom: '1px solid #FECACA' }}>
                         <td style={{ padding: '6px 8px', fontWeight: 700 }}>{loan.refNumber}</td>

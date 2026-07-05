@@ -59,6 +59,7 @@ export type AgencyReportLoan = {
   overage: number
   startDate: Date
   endDate: Date
+  settlementDeadline: Date | null
   createdAt: Date
 }
 
@@ -131,9 +132,9 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
         requester._daysToSettleCount += 1
       }
     } else if (!loan.isSettled && !loan.isOnHold) {
-      // السلفات الموقوفة لا تُحتسب في المتأخرات
-      const daysSinceEnd = Math.round((Date.now() - new Date(loan.endDate).getTime()) / (1000 * 60 * 60 * 24))
-      if (daysSinceEnd > 7) requester.overdueCount += 1
+      // تأخر = تجاوز مهلة التسوية المحسوبة (10 أيام عمل من نهاية النشاط)
+      const deadline = loan.settlementDeadline ? new Date(loan.settlementDeadline) : null
+      if (deadline && Date.now() > deadline.getTime()) requester.overdueCount += 1
     }
     requesterMap.set(loan.employee, requester)
 
@@ -150,6 +151,7 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
       overage: loan.settlement?.overage ?? 0,
       startDate: loan.startDate,
       endDate: loan.endDate,
+      settlementDeadline: loan.settlementDeadline ?? null,
       createdAt: loan.createdAt,
     }
   })
