@@ -97,7 +97,8 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
 
   const itemUsage = await getItemUsageStats()
 
-  const requesterMap = new Map<string, AgencyReportRequester>()
+  type RequesterAccum = AgencyReportRequester & { _daysToSettleSum: number; _daysToSettleCount: number }
+  const requesterMap = new Map<string, RequesterAccum>()
   let totalRequested = 0
   let totalSettled = 0
   let totalSavings = 0
@@ -113,7 +114,7 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
       totalOverage += loan.settlement.overage
     }
 
-    const requester = requesterMap.get(loan.employee) ?? { employee: loan.employee, count: 0, totalAmount: 0, settledCount: 0, totalSettlement: 0, totalSavings: 0, _daysToSettleSum: 0, _daysToSettleCount: 0, overdueCount: 0 }
+    const requester: RequesterAccum = requesterMap.get(loan.employee) ?? { employee: loan.employee, count: 0, totalAmount: 0, settledCount: 0, totalSettlement: 0, totalSavings: 0, avgDaysToSettle: null, overdueCount: 0, _daysToSettleSum: 0, _daysToSettleCount: 0 }
     requester.count += 1
     requester.totalAmount += loan.amount
     if (loan.isSettled && loan.settlement) {
