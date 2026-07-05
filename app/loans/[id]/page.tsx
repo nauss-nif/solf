@@ -41,7 +41,7 @@ export default async function LoanDetailPage({
     <main className="min-h-screen bg-slate-100 px-2 py-4">
       <div className="mx-auto max-w-[210mm] space-y-4">
         <div className="rounded-3xl bg-white p-4 shadow-sm print:hidden">
-          <PreviewToolbar loanId={loan.id} activeForm={activeForm} hasSettlement={hasSettlement} canReview={canReview} isApproved={isActiveFormApproved} returnTab={searchParams?.returnTab} returnFilter={searchParams?.returnFilter} />
+          <PreviewToolbar loanId={loan.id} activeForm={activeForm} hasSettlement={hasSettlement} canReview={canReview} isApproved={isActiveFormApproved} isOnHold={(loan as any).isOnHold ?? false} holdReason={(loan as any).holdReason ?? null} returnTab={searchParams?.returnTab} returnFilter={searchParams?.returnFilter} />
           {requestedForm === '19' && !hasSettlement && (
             <div className="alert alert-warning mt-3">لم تُرفع التسوية بعد، لذلك لا تتوفر معاينة نموذج ١٩ لهذه المعاملة.</div>
           )}

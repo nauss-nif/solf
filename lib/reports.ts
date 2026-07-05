@@ -121,12 +121,15 @@ export async function getAgencyReportData(): Promise<AgencyReportData> {
       requester.settledCount += 1
       requester.totalSettlement += loan.settlement.total
       requester.totalSavings += loan.settlement.savings - loan.settlement.overage
-      // حساب عدد أيام التسوية من نهاية النشاط حتى رفع التسوية
-      const endDate = new Date(loan.endDate)
-      const settledDate = new Date((loan.settlement as { createdAt: Date }).createdAt)
-      const days = Math.round((settledDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
-      if (days >= 0) { requester._daysToSettleSum += days; requester._daysToSettleCount += 1 }
-    } else if (!loan.isSettled) {
+      // لا تُحتسب السلفات الموقوفة في متوسط الأيام
+      if (!loan.isOnHold) {
+        const endDate = new Date(loan.endDate)
+        const settledDate = new Date((loan.settlement as { createdAt: Date }).createdAt)
+        const days = Math.round((settledDate.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
+        if (days >= 0) { requester._daysToSettleSum += days; requester._daysToSettleCount += 1 }
+      }
+    } else if (!loan.isSettled && !loan.isOnHold) {
+      // السلفات الموقوفة لا تُحتسب في المتأخرات
       const daysSinceEnd = Math.round((Date.now() - new Date(loan.endDate).getTime()) / (1000 * 60 * 60 * 24))
       if (daysSinceEnd > 7) requester.overdueCount += 1
     }

@@ -107,6 +107,16 @@ export async function PATCH(
     }
 
     const body = await request.json()
+
+    // تعليق / رفع تعليق السلفة (للمدير فقط)
+    if ('isOnHold' in body && canManageAllLoans(currentUser)) {
+      await prisma.loan.update({
+        where: { id: loan.id },
+        data: { isOnHold: Boolean(body.isOnHold), holdReason: body.holdReason ?? null },
+      })
+      return NextResponse.json({ ok: true })
+    }
+
     if (
       typeof body.reviewStatus === 'string' &&
       !('activity' in body) &&

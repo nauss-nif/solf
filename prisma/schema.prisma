@@ -146,6 +146,12 @@ model Loan {
   isSettled          Boolean         @default(false)
   settlementStatus   SettlementStatus @default(NOT_STARTED)
 
+  // ─── تعليق / انتظار موافقة خارجية ──────────────────────
+  // عندما تكون السلفة موقوفة بسبب انتظار موافقة عليا (مثل نثريات معالي الرئيس)
+  // لا تُحتسب في متوسط سرعة التسوية ولا في قائمة المتأخرات
+  isOnHold           Boolean   @default(false)
+  holdReason         String?
+
   // ─── مسودات ─────────────────────────────────────────────
   // طلب السلفة كمسودة (لم يُقدَّم للمراجعة بعد)
   isDraft            Boolean   @default(false)
