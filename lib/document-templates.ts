@@ -1401,9 +1401,15 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
 
   const body = `
     <div class="letterhead-spacer" style="height: 31mm;"></div>
-    <div class="print-title">
+    <div class="print-title" style="position:relative;">
       <h2>نموذج رقم 19</h2>
       <h1>طلب تسوية سلفة مؤقتة</h1>
+      ${Number(settlement?.total ?? 0) === 0 && Number(settlement?.supported ?? 0) === 0 ? `
+      <div style="position:absolute; top:0; left:0; width:30mm; border:2px solid #c0392b; border-radius:4px; background:#fff5f5; padding:5px 4px; text-align:center; direction:rtl; transform:rotate(-6deg);">
+        <div style="font-size:7pt; font-weight:900; color:#c0392b; line-height:1.4; letter-spacing:0.3px;">تسوية صفرية</div>
+        <div style="font-size:5.5pt; font-weight:700; color:#c0392b; line-height:1.4; margin-top:2px; border-top:1px solid #f5b7b1; padding-top:2px;">أُعيد المبلغ كاملاً</div>
+      </div>
+      ` : ''}
     </div>
     <div class="reference-line">رقم المرجع: ${escapeHtml(loan.refNumber)}</div>
 
@@ -1424,15 +1430,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
       <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
     </div>
 
-    ${Number(settlement?.total ?? 0) === 0 && Number(settlement?.supported ?? 0) === 0 ? `
-    <div style="border: 2px solid #c0392b; border-radius: 4px; background: #fff5f5; padding: 10px 16px; margin: 10px 0; text-align: center; direction: rtl;">
-      <p style="margin: 0; font-size: 14pt; font-weight: 700; color: #c0392b; letter-spacing: 0.3px;">
-        ⚠ لم يُصرف أي مبلغ من هذه السلفة — تمت إعادة المبلغ كاملاً إلى الجهة المختصة
-      </p>
-    </div>
-    ` : ''}
-
-    <div class="loan-table-wrap">
+    <div class="loan-table-wrap" style="position:relative;">
       <table class="form-grid">
         <thead>
           <tr>
