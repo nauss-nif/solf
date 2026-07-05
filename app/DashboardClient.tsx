@@ -874,16 +874,18 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         if (!settlementMeta.exchangeRateProofDate) { setSettlementError('حدد تاريخ سعر الصرف.'); return }
       }
     }
-    const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
-    const pettyCashApproval = details.find((item) => isPettyCashCategory(item.category))?.invoices.find((inv) => inv.attachment)?.attachment ?? null
-    if (hasPettyCash && !pettyCashApproval) { setSettlementError('أرفق موافقة المعالي عند وجود نثريات ضمن التسوية.'); return }
-    for (const inv of allInvoices) {
-      if (!inv.amount || inv.sar <= 0) { setSettlementError(`أكمل مبلغ الفاتورة في بند ${inv.category}.`); return }
-      if (!isPettyCashCategory(inv.category) && !inv.invoiceDate) { setSettlementError(`حدد تاريخ الفاتورة في بند ${inv.category}.`); return }
-      if (!isPettyCashCategory(inv.category) && !inv.issuer.trim()) { setSettlementError(`أدخل الجهة المصدرة للفاتورة في بند ${inv.category}.`); return }
-      if (!isPettyCashCategory(inv.category) && !inv.attachment) { setSettlementError(`أرفق صورة الفاتورة في بند ${inv.category}.`); return }
+    if (allInvoices.length > 0) {
+      const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
+      const pettyCashApproval = details.find((item) => isPettyCashCategory(item.category))?.invoices.find((inv) => inv.attachment)?.attachment ?? null
+      if (hasPettyCash && !pettyCashApproval) { setSettlementError('أرفق موافقة المعالي عند وجود نثريات ضمن التسوية.'); return }
+      for (const inv of allInvoices) {
+        if (!inv.amount || inv.sar <= 0) { setSettlementError(`أكمل مبلغ الفاتورة في بند ${inv.category}.`); return }
+        if (!isPettyCashCategory(inv.category) && !inv.invoiceDate) { setSettlementError(`حدد تاريخ الفاتورة في بند ${inv.category}.`); return }
+        if (!isPettyCashCategory(inv.category) && !inv.issuer.trim()) { setSettlementError(`أدخل الجهة المصدرة للفاتورة في بند ${inv.category}.`); return }
+        if (!isPettyCashCategory(inv.category) && !inv.attachment) { setSettlementError(`أرفق صورة الفاتورة في بند ${inv.category}.`); return }
+      }
+      if (settlementSummary.overage > 0 && !settlementMeta.overageReason.trim()) { setSettlementError('أدخل مبرر الزيادة عند تجاوز إجمالي المصروفات مبلغ السلفة.'); return }
     }
-    if (settlementSummary.overage > 0 && !settlementMeta.overageReason.trim()) { setSettlementError('أدخل مبرر الزيادة عند تجاوز إجمالي المصروفات مبلغ السلفة.'); return }
     if (settlementSummary.savings > 0) {
       if (!settlementMeta.receiptNumber.trim()) { setSettlementError('أدخل رقم سند القبض عند وجود وفر في السلفة النقدية.'); return }
       if (!settlementMeta.receiptDate) { setSettlementError('أدخل تاريخ سند القبض.'); return }
