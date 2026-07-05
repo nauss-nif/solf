@@ -868,7 +868,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     const details = buildSettlementPayload(settlementItems, currencyRates)
     const allInvoices = details.flatMap((item) => item.invoices.map((inv) => ({ ...inv, category: item.category })))
     if (currencyRates.some((r) => r.currencyCode !== 'SAR' && r.rate <= 0)) { setSettlementError('أكمل أسعار الصرف لجميع العملات المضافة.'); return }
-    if (allInvoices.length === 0) { setSettlementError('أضف فاتورة واحدة على الأقل قبل حفظ التسوية.'); return }
+
     if (currencyRates.length > 0) {
       if (!settlementMeta.exchangeRateProof) { setSettlementError('أرفق إثبات سعر الصرف (أول يوم صرف) قبل حفظ التسوية.'); return }
       if (!settlementMeta.exchangeRateProofDate) { setSettlementError('حدد تاريخ سعر الصرف.'); return }
