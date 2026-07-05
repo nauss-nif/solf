@@ -867,11 +867,12 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     if (incompleteAdditional) { setSettlementError('أدخل اسم البند الإضافي قبل حفظ التسوية.'); return }
     const details = buildSettlementPayload(settlementItems, currencyRates)
     const allInvoices = details.flatMap((item) => item.invoices.map((inv) => ({ ...inv, category: item.category })))
-    if (currencyRates.some((r) => r.currencyCode !== 'SAR' && r.rate <= 0)) { setSettlementError('أكمل أسعار الصرف لجميع العملات المضافة.'); return }
-
-    if (currencyRates.length > 0) {
-      if (!settlementMeta.exchangeRateProof) { setSettlementError('أرفق إثبات سعر الصرف (أول يوم صرف) قبل حفظ التسوية.'); return }
-      if (!settlementMeta.exchangeRateProofDate) { setSettlementError('حدد تاريخ سعر الصرف.'); return }
+    if (allInvoices.length > 0) {
+      if (currencyRates.some((r) => r.currencyCode !== 'SAR' && r.rate <= 0)) { setSettlementError('أكمل أسعار الصرف لجميع العملات المضافة.'); return }
+      if (currencyRates.length > 0) {
+        if (!settlementMeta.exchangeRateProof) { setSettlementError('أرفق إثبات سعر الصرف (أول يوم صرف) قبل حفظ التسوية.'); return }
+        if (!settlementMeta.exchangeRateProofDate) { setSettlementError('حدد تاريخ سعر الصرف.'); return }
+      }
     }
     const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
     const pettyCashApproval = details.find((item) => isPettyCashCategory(item.category))?.invoices.find((inv) => inv.attachment)?.attachment ?? null
