@@ -1003,19 +1003,25 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     : filteredLoans
   const settledLoans  = filteredLoans.filter((l) => l.isSettled)
   const reviewerStats = useMemo(() => ({
-    // تشمل PENDING + AWAITING_SECOND_REVIEW لأن المعاملة لا تنتهي إلا بتوقيع المراجعَين معاً
+    // بانتظار اعتماد السلفة (نموذج 18)
     advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW').length,
+    // بانتظار رفع التسوية (السلفة معتمدة والموظف لم يرفع نموذج 19)
+    awaitingSettlement: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && !loan.isSettled && !loan.settlement && loan.settlementStatus !== 'APPROVED').length,
+    // بانتظار اعتماد التسوية (نموذج 19 مرفوع)
     settlementPending: loans.filter((loan) => loan.settlement && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')).length,
-    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED').length,
+    // معادة للموظف
     returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')).length,
+    // مكتملة (كلا النموذجين معتمدان)
+    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED').length,
     linkedCourses: loans.filter((loan) => loan.courseId).length,
   }), [loans])
   const reviewerQueue = filteredLoans
     .filter((loan) => {
-      if (reviewerFilter === 'advance')    return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
-      if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
-      if (reviewerFilter === 'returned')   return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')
-      if (reviewerFilter === 'approved')   return loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED'
+      if (reviewerFilter === 'advance')          return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
+      if (reviewerFilter === 'awaitingSettlement') return loan.reviewStatus === 'REVIEWED' && !loan.isSettled && !loan.settlement && loan.settlementStatus !== 'APPROVED'
+      if (reviewerFilter === 'settlement')       return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
+      if (reviewerFilter === 'returned')         return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')
+      if (reviewerFilter === 'approved')         return loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED'
       return false
     })
     // الأحدث أولاً دائماً — بدون أولويات معقدة
@@ -1309,9 +1315,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                 )}
 
                 {isReviewerMode ? (
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                     <StatCard
-                      label="نموذج 18 — تحتاج اعتماد"
+                      label="بانتظار اعتماد السلفة"
                       value={reviewerStats.advancePending}
                       accent="danger"
                       icon="📝"
@@ -1321,7 +1327,14 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                       onClick={() => { setReviewerFilter('advance'); selectTab('requests', requestsSectionLabel) }}
                     />
                     <StatCard
-                      label="نموذج 19 — تحتاج اعتماد"
+                      label="بانتظار رفع التسوية"
+                      value={reviewerStats.awaitingSettlement}
+                      accent="primary"
+                      icon="⏳"
+                      onClick={() => { setReviewerFilter('awaitingSettlement'); selectTab('requests', requestsSectionLabel) }}
+                    />
+                    <StatCard
+                      label="بانتظار اعتماد التسوية"
                       value={reviewerStats.settlementPending}
                       accent="warning"
                       icon="🧾"
@@ -1332,7 +1345,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     />
                     <StatCard label="معادة للموظف" value={reviewerStats.returned} accent="primary" icon="↩️"
                       onClick={() => { setReviewerFilter('returned'); selectTab('requests', requestsSectionLabel) }} />
-                    <StatCard label="مكتملة الاعتماد" value={reviewerStats.approved} accent="success" icon="✅"
+                    <StatCard label="مكتملة" value={reviewerStats.approved} accent="success" icon="✅"
                       onClick={() => { setReviewerFilter('approved'); selectTab('requests', requestsSectionLabel) }} />
                   </div>
                 ) : (
@@ -1508,11 +1521,15 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
                     </div>
                     <div className="reviewer-metrics">
                       <button type="button" onClick={() => setReviewerFilter('advance')} className={`reviewer-metric ${reviewerFilter === 'advance' ? 'active' : ''}`}>
-                        <span>نموذج 18</span>
+                        <span>بانتظار اعتماد السلفة</span>
                         <strong>{formatEnglishNumber(reviewerStats.advancePending)}</strong>
                       </button>
+                      <button type="button" onClick={() => setReviewerFilter('awaitingSettlement')} className={`reviewer-metric ${reviewerFilter === 'awaitingSettlement' ? 'active' : ''}`}>
+                        <span>بانتظار رفع التسوية</span>
+                        <strong>{formatEnglishNumber(reviewerStats.awaitingSettlement)}</strong>
+                      </button>
                       <button type="button" onClick={() => setReviewerFilter('settlement')} className={`reviewer-metric ${reviewerFilter === 'settlement' ? 'active' : ''}`}>
-                        <span>نموذج 19</span>
+                        <span>بانتظار اعتماد التسوية</span>
                         <strong>{formatEnglishNumber(reviewerStats.settlementPending)}</strong>
                       </button>
                       <button type="button" onClick={() => setReviewerFilter('returned')} className={`reviewer-metric ${reviewerFilter === 'returned' ? 'active' : ''}`}>

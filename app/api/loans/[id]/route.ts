@@ -229,6 +229,13 @@ export async function PATCH(
       }
 
       // nextStatus === 'REVIEWED' — تتطلب كل معاملة تأشيرة مراجعين اثنين مختلفين قبل اعتبارها معتمدة نهائياً
+      // المدير لا يعتمد بنفسه — يجب تحديد مراجع بالنيابة عنه
+      if (isSuperAdmin(currentUser) && !body.onBehalfOfUserId) {
+        return NextResponse.json(
+          { error: 'المدير لا يمكنه الاعتماد المباشر — استخدم أداة تثبيت توقيع المراجع وحدد المراجع بالاسم.' },
+          { status: 403 },
+        )
+      }
       const resolved = await resolveReviewerOnBehalf(currentUser, body.onBehalfOfUserId)
       if ('error' in resolved) return resolved.error
       const reviewerId = resolved.reviewerId
@@ -338,6 +345,9 @@ export async function PATCH(
       )
     }
 
+    // أي تعديل في محتوى المعاملة يُلغي توقيعات المراجعين السابقة تلقائياً
+    const hadReviewerSignature = !!loan.reviewedById || !!loan.secondReviewedById
+
     const updateData: Record<string, unknown> = {
       activity: String(body.activity ?? '').trim(),
       location: String(body.location ?? '').trim(),
@@ -345,9 +355,9 @@ export async function PATCH(
       budgetApproved:
         typeof body.budgetApproved === 'boolean' ? body.budgetApproved : null,
       isDraft,
-      reviewStatus: canManageAllLoans(currentUser)
-        ? ((body.reviewStatus ?? loan.reviewStatus) as 'PENDING' | 'REVIEWED' | 'RETURNED')
-        : 'PENDING',
+      reviewStatus: 'PENDING',
+      reviewedById: null,
+      secondReviewedById: null,
       reviewNote: canManageAllLoans(currentUser)
         ? String(body.reviewNote ?? '').trim() || null
         : null,
@@ -387,6 +397,21 @@ export async function PATCH(
         amount: updatedLoan.amount,
         activity: updatedLoan.activity,
       }).catch(() => {})
+    }
+
+    // إشعار الموظف إذا أُلغي توقيع المراجع بسبب التعديل
+    if (hadReviewerSignature && updatedLoan.userId) {
+      const owner = await prisma.user.findUnique({ where: { id: updatedLoan.userId }, select: { email: true } })
+      if (owner?.email) {
+        void notifyLoanReviewed({
+          userId: updatedLoan.userId,
+          userEmail: owner.email,
+          refNumber: updatedLoan.refNumber,
+          loanId: updatedLoan.id,
+          status: 'RETURNED',
+          note: 'تم تعديل بيانات المعاملة من قِبل المدير — يرجى مراجعتها وانتظار إعادة الاعتماد.',
+        }).catch(console.error)
+      }
     }
 
     return NextResponse.json(updatedLoan)
