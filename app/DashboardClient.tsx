@@ -874,9 +874,9 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         if (!settlementMeta.exchangeRateProofDate) { setSettlementError('حدد تاريخ سعر الصرف.'); return }
       }
     }
+    const pettyCashApproval = details.find((item) => isPettyCashCategory(item.category))?.invoices.find((inv) => inv.attachment)?.attachment ?? null
     if (allInvoices.length > 0) {
       const hasPettyCash = details.some((item) => isPettyCashCategory(item.category))
-      const pettyCashApproval = details.find((item) => isPettyCashCategory(item.category))?.invoices.find((inv) => inv.attachment)?.attachment ?? null
       if (hasPettyCash && !pettyCashApproval) { setSettlementError('أرفق موافقة المعالي عند وجود نثريات ضمن التسوية.'); return }
       for (const inv of allInvoices) {
         if (!inv.amount || inv.sar <= 0) { setSettlementError(`أكمل مبلغ الفاتورة في بند ${inv.category}.`); return }
