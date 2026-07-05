@@ -1006,7 +1006,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
     // تشمل PENDING + AWAITING_SECOND_REVIEW لأن المعاملة لا تنتهي إلا بتوقيع المراجعَين معاً
     advancePending: loans.filter((loan) => loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW').length,
     settlementPending: loans.filter((loan) => loan.settlement && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')).length,
-    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED')).length,
+    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED').length,
     returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')).length,
     linkedCourses: loans.filter((loan) => loan.courseId).length,
   }), [loans])
@@ -1015,7 +1015,7 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
       if (reviewerFilter === 'advance')    return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
       if (reviewerFilter === 'settlement') return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
       if (reviewerFilter === 'returned')   return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')
-      if (reviewerFilter === 'approved')   return loan.reviewStatus === 'REVIEWED' && (!loan.settlement || loan.settlementStatus === 'APPROVED') && !(loan.settlementStatus === 'IN_PROGRESS' && !loan.isSettled && Boolean(loan.settlement))
+      if (reviewerFilter === 'approved')   return loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED'
       return false
     })
     // الأحدث أولاً دائماً — بدون أولويات معقدة
