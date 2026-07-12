@@ -11,8 +11,6 @@ export const dashboardLoanInclude = {
       createdAt: true,
     },
   },
-  // مطلوب لحساب التأخر بشكل صحيح (10 أيام عمل بعد نهاية النشاط)
-  settlementDeadline: true,
   reviewedBy: { select: { id: true, fullName: true } },
   secondReviewedBy: { select: { id: true, fullName: true } },
   settlementReviewedBy: { select: { id: true, fullName: true } },
