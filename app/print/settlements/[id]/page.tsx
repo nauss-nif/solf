@@ -26,6 +26,22 @@ export default async function SettlementPrintPage({
     notFound()
   }
 
+  // لا يُسمح للموظف بطباعة التسوية حتى تكتمل جميع التواقيع (APPROVED)
+  if (!canManageAllLoans(currentUser) && (loan as any).settlementStatus !== 'APPROVED') {
+    return (
+      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-8" dir="rtl">
+        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md text-center">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="text-xl font-bold text-slate-800 mb-3">لا يمكن طباعة النموذج بعد</h2>
+          <p className="text-slate-600 text-sm leading-relaxed">
+            لم تكتمل جميع التواقيع المطلوبة على نموذج التسوية بعد.<br />
+            يُسمح بالطباعة فقط بعد اعتماد المراجع المالي ووكيل الجامعة.
+          </p>
+        </div>
+      </main>
+    )
+  }
+
   if (loan.settlementStatus === 'APPROVED') {
     await syncClosureElementFromPrint('settlement', loan)
   }

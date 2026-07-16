@@ -155,6 +155,12 @@ function formatDate(value: Date | string | null | undefined) {
   )}/${date.getFullYear()}`
 }
 
+// يعرض التاريخ بشكل صريح من اليسار لليمين (يوم/شهر/سنة) بغض النظر عن اتجاه السياق العربي
+function htmlDate(value: Date | string | null | undefined) {
+  const d = formatDate(value)
+  return d ? `<span dir="ltr" style="unicode-bidi:isolate;display:inline-block;">${d}</span>` : ''
+}
+
 function formatNumber(value: number) {
   return formatEnglishNumber(value, {
     minimumFractionDigits: 2,
@@ -1288,10 +1294,10 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       </div>
       <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
       <div></div>
-      <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${formatDate(loan.startDate)} إلى ${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${htmlDate(loan.startDate)} إلى ${htmlDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
-      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value">${applicantSignature ? `<img class="applicant-signature" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></div>
+      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"><span class="signature-line" style="position:relative;display:inline-block;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;max-height:20px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span></div>
     </div>
 
     <div class="loan-table-wrap">
@@ -1424,10 +1430,10 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
       <div></div>
-      <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${formatDate(loan.startDate)}</span></div>
-      <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${formatDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${htmlDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${htmlDate(loan.endDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${htmlDate(loan.startDate)}</span></div>
+      <div class="meta-row"><span class="meta-label">نهاية الصرف:</span><span class="meta-value">${htmlDate(loan.endDate)}</span></div>
     </div>
 
     <div class="loan-table-wrap" style="position:relative;">
@@ -1471,12 +1477,12 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>وفر السلفة النقدي: ${formatNumber(Number(settlement?.savings ?? 0))}</span>
       <span>رقم سند القبض: ${escapeHtml(settlementMeta.receiptNumber || '')}</span>
-      <span>تاريخه: ${escapeHtml(formatDateOrBlank(settlementMeta.receiptDate || ''))}</span>
+      <span>تاريخه: ${htmlDate(settlementMeta.receiptDate || '')}</span>
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
-      <span>التوقيع: ${applicantSignature ? `<img class="applicant-signature" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : '<span class="signature-line"></span>'}</span>
+      <span>التوقيع: <span class="signature-line" style="position:relative;display:inline-block;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;max-height:20px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span>
       <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 

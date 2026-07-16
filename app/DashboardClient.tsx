@@ -312,7 +312,7 @@ const ItemUsageInsights = dynamic(() => import('./dashboard-charts').then((m) =>
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 
-export default function DashboardClient({ currentUser, initialLoans }: { currentUser: CurrentUser; initialLoans: LoanDashboardRecord[] }) {
+export default function DashboardClient({ currentUser, initialLoans, hasSignature }: { currentUser: CurrentUser; initialLoans: LoanDashboardRecord[]; hasSignature?: boolean }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
@@ -1216,6 +1216,20 @@ export default function DashboardClient({ currentUser, initialLoans }: { current
         )}
 
         <main className="app-main">
+          {hasSignature === false && (
+            <div style={{ background: '#FFF8E6', border: '1.5px solid #F0A500', borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 22 }}>✍️</span>
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <p style={{ margin: 0, fontWeight: 700, color: '#7A4F00', fontSize: 14 }}>لم تُضف توقيعك بعد</p>
+                <p style={{ margin: '2px 0 0', color: '#8C6200', fontSize: 12 }}>توقيعك مطلوب ليظهر على نماذج طلب السلفة والتسوية — أضفه الآن من صفحة الملف الشخصي.</p>
+              </div>
+              <button type="button"
+                onClick={() => pushWithFeedback('/account', 'جاري فتح الملف الشخصي...')}
+                style={{ background: '#F0A500', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 18px', fontWeight: 700, fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                إضافة التوقيع ◄
+              </button>
+            </div>
+          )}
           {!isAdminOrReviewer && (
             <>
               {/* STAT CARDS */}
