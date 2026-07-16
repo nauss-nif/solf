@@ -26,28 +26,23 @@ export default async function SettlementPrintPage({
     notFound()
   }
 
-  // لا يُسمح للموظف بطباعة التسوية حتى تكتمل جميع التواقيع (APPROVED)
-  if (!canManageAllLoans(currentUser) && (loan as any).settlementStatus !== 'APPROVED') {
-    return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center p-8" dir="rtl">
-        <div className="bg-white rounded-2xl shadow-lg p-10 max-w-md text-center">
-          <div className="text-5xl mb-4">🔒</div>
-          <h2 className="text-xl font-bold text-slate-800 mb-3">لا يمكن طباعة النموذج بعد</h2>
-          <p className="text-slate-600 text-sm leading-relaxed">
-            لم تكتمل جميع التواقيع المطلوبة على نموذج التسوية بعد.<br />
-            يُسمح بالطباعة فقط بعد اعتماد المراجع المالي ووكيل الجامعة.
-          </p>
-        </div>
-      </main>
-    )
-  }
+  const loanWithReviewers = loan as any
+  const settlementStatus = loanWithReviewers.settlementStatus as string
 
-  if (loan.settlementStatus === 'APPROVED') {
+  // الموظف يستطيع المعاينة دائماً — الطباعة محجوبة حتى يوقّع المراجعان الاثنان
+  const isFullyApproved = settlementStatus === 'APPROVED'
+  const printBlocked = !canManageAllLoans(currentUser) && !isFullyApproved
+
+  // تحديد سبب الحجب بدقة
+  const printBlockedReason = settlementStatus === 'AWAITING_SECOND_REVIEW'
+    ? 'بانتظار توقيع المراجع الثاني — ستُتاح الطباعة بعد اعتماده'
+    : 'لم يعتمد أي مراجع هذه التسوية بعد — ستُتاح الطباعة بعد توقيع المراجعَين'
+
+  if (isFullyApproved) {
     await syncClosureElementFromPrint('settlement', loan)
   }
 
-  const loanWithReviewers = loan as any
-  const hasAnyReviewerSigned = ['AWAITING_SECOND_REVIEW', 'APPROVED'].includes(loan.settlementStatus as string)
+  const hasAnyReviewerSigned = ['AWAITING_SECOND_REVIEW', 'APPROVED'].includes(settlementStatus)
   const reviewerSignatures = hasAnyReviewerSigned ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id, loanWithReviewers.secondSettlementReviewedBy?.id) : undefined
   const applicantSignature = loan.isSettled ? loanWithReviewers.user?.signatureImage ?? null : null
   const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
@@ -55,7 +50,11 @@ export default async function SettlementPrintPage({
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">
       <div className="mx-auto max-w-[210mm]">
-        <PrintActions pdfHref={`/api/print/settlements/${params.id}`} />
+        <PrintActions
+          pdfHref={`/api/print/settlements/${params.id}`}
+          printBlocked={printBlocked}
+          printBlockedReason={printBlocked ? printBlockedReason : undefined}
+        />
         <div className="bg-white p-2 print:p-0" dangerouslySetInnerHTML={{ __html: html }} />
       </div>
     </main>
