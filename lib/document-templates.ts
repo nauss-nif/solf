@@ -715,7 +715,7 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
         ? 'موافقة المعالي'
         : joinValues(invoices.map((invoice) => invoice.type), '<br />'),
       documentDate: joinValues(
-        invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
+        invoices.map((invoice) => invoice.date?.trim() ? htmlDate(invoice.date) : ''),
         '<br />',
       ),
       issuer: isPettyCash ? '' : joinValues(invoices.map((invoice) => invoice.issuer), '<br />'),
@@ -822,7 +822,7 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
                 <th>نوع المستند</th>
                 <td>${escapeHtml(documentType || '-')}</td>
                 <th>تاريخ المستند</th>
-                <td>${escapeHtml(date || '-')}</td>
+                <td>${date ? `<span dir="ltr" style="unicode-bidi:isolate;">${escapeHtml(date)}</span>` : '-'}</td>
               </tr>
               <tr>
                 <th>الجهة المصدرة</th>
