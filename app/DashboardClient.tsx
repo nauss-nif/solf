@@ -1020,17 +1020,17 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
     settlementPending: loans.filter((loan) => loan.settlement && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')).length,
     // معادة للموظف
     returned: loans.filter((loan) => loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')).length,
-    // مكتملة (كلا النموذجين معتمدان)
-    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED').length,
+    // مكتملة (كلا النموذجين معتمدان — يشمل القديمة حيث isSettled لم يُعيَّن بعد)
+    approved: loans.filter((loan) => loan.reviewStatus === 'REVIEWED' && loan.settlementStatus === 'APPROVED').length,
     linkedCourses: loans.filter((loan) => loan.courseId).length,
   }), [loans])
   const reviewerQueue = filteredLoans
     .filter((loan) => {
       if (reviewerFilter === 'advance')          return loan.reviewStatus === 'PENDING' || loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
-      if (reviewerFilter === 'awaitingSettlement') return loan.reviewStatus === 'REVIEWED' && !loan.isSettled && !loan.settlement && loan.settlementStatus !== 'APPROVED'
+      if (reviewerFilter === 'awaitingSettlement') return loan.reviewStatus === 'REVIEWED' && loan.settlementStatus !== 'APPROVED' && !loan.settlement
       if (reviewerFilter === 'settlement')       return Boolean(loan.settlement) && (loan.settlementStatus === 'SUBMITTED' || loan.settlementStatus === 'AWAITING_SECOND_REVIEW')
       if (reviewerFilter === 'returned')         return loan.reviewStatus === 'RETURNED' || loan.recallRequested || (loan.reviewStatus === 'REVIEWED' && !loan.isSettled && Boolean(loan.settlement) && loan.settlementStatus === 'IN_PROGRESS')
-      if (reviewerFilter === 'approved')         return loan.reviewStatus === 'REVIEWED' && loan.isSettled && loan.settlementStatus === 'APPROVED'
+      if (reviewerFilter === 'approved')         return loan.reviewStatus === 'REVIEWED' && loan.settlementStatus === 'APPROVED'
       return false
     })
     // الأحدث أولاً دائماً — بدون أولويات معقدة
