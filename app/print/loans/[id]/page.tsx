@@ -1,6 +1,5 @@
 import PrintActions from '@/app/print/PrintActions'
 import { canManageAllLoans, requireSessionUser } from '@/lib/auth'
-import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildLoanRequestWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
@@ -16,11 +15,8 @@ export default async function LoanPrintPage({
   const settings = await getSystemSettings()
   const loan = await getAuthorizedLoan(params.id)
 
-  if (loan.reviewStatus === 'REVIEWED') {
-    await syncClosureElementFromPrint('advance_req', loan)
-    if (!settings.allowPrintBeforeReview) {
-      await getAuthorizedLoan(params.id, { markPrinted: true })
-    }
+  if (loan.reviewStatus === 'REVIEWED' && !settings.allowPrintBeforeReview) {
+    await getAuthorizedLoan(params.id, { markPrinted: true })
   }
 
   // الموظف يستطيع المعاينة دائماً — الطباعة محجوبة حتى يوقّع المراجعان الاثنان

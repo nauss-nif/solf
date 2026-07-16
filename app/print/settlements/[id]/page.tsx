@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import PrintActions from '@/app/print/PrintActions'
 import { canManageAllLoans, requireSessionUser } from '@/lib/auth'
-import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildSettlementWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
@@ -37,10 +36,6 @@ export default async function SettlementPrintPage({
   const printBlockedReason = settlementStatus === 'AWAITING_SECOND_REVIEW'
     ? 'بانتظار توقيع المراجع الثاني — ستُتاح الطباعة بعد اعتماده'
     : 'لم يعتمد أي مراجع هذه التسوية بعد — ستُتاح الطباعة بعد توقيع المراجعَين'
-
-  if (isFullyApproved) {
-    await syncClosureElementFromPrint('settlement', loan)
-  }
 
   const hasAnyReviewerSigned = ['AWAITING_SECOND_REVIEW', 'APPROVED'].includes(settlementStatus)
   const reviewerSignatures = hasAnyReviewerSigned ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id, loanWithReviewers.secondSettlementReviewedBy?.id) : undefined

@@ -6,7 +6,6 @@ import { fullLoanInclude } from '@/lib/loan-selects'
 import { getReviewerSignatures } from '@/lib/loan-records'
 import { buildSettlementWordHtml } from '@/lib/document-templates'
 import { getSystemSettings } from '@/lib/system-settings'
-import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { renderHtmlToPdf } from '@/lib/pdf'
 
 export const runtime = 'nodejs'
@@ -38,10 +37,6 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
     if (!loan.settlement) {
       return NextResponse.json({ error: 'No settlement' }, { status: 404 })
-    }
-
-    if (loan.settlementStatus === 'APPROVED') {
-      await syncClosureElementFromPrint('settlement', loan)
     }
 
     const loanWithReviewers = loan as any
