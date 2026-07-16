@@ -262,7 +262,7 @@ export async function PATCH(
 
           const finalizedSettlement = await prisma.loan.update({
             where: { id: loan.id },
-            data: { settlementStatus: 'APPROVED', secondSettlementReviewedById: reviewerId, reviewNote, settlementApprovedAt: new Date() },
+            data: { settlementStatus: 'APPROVED', isSettled: true, secondSettlementReviewedById: reviewerId, reviewNote, settlementApprovedAt: new Date() },
             include: dashboardLoanInclude,
           })
 
