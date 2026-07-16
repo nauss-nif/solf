@@ -150,10 +150,10 @@ function formatDate(value: Date | string | null | undefined) {
   if (!value) return ''
   const date = new Date(value)
 
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(
+  return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(
     2,
     '0',
-  )}/${date.getFullYear()}`
+  )}-${date.getFullYear()}`
 }
 
 // يعرض التاريخ بشكل صريح من اليسار لليمين (يوم/شهر/سنة) بغض النظر عن اتجاه السياق العربي
@@ -1397,7 +1397,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
           <td class="text-right text-top">${escapeHtml(row.category)}</td>
           <td style="width:12%;">${row.amount}</td>
           <td style="width:11%;" class="text-top">${row.documentType}</td>
-          <td style="width:14%;direction:ltr;text-align:center;" class="text-top">${row.documentDate}</td>
+          <td style="width:14%;text-align:center;" dir="ltr" class="text-top">${row.documentDate}</td>
           <td style="width:21%;" class="text-top">${row.issuer}</td>
         </tr>
       `,
