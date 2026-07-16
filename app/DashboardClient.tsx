@@ -726,7 +726,7 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
     setSelectedLoanId(loanId); setSettlementError('')
 
     // تعديل تسوية مُقدَّمة مسبقاً (قبل اعتمادها) — جلب التفاصيل الكاملة المحفوظة
-    if (loan.isSettled && loan.settlementStatus !== 'APPROVED') {
+    if (loan.settlement && loan.settlementStatus !== 'APPROVED') {
       try {
         const res = await fetch(`/api/loans/${loanId}`)
         if (res.ok) {
@@ -2204,6 +2204,12 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
                                 </Field>
                                 <Field label="تاريخ الفاتورة">
                                   <input type="date" value={invoice.invoiceDate} onChange={(e) => updateInvoice(itemIndex, invoiceIndex, 'invoiceDate', e.target.value)} className="input-shell" />
+                                  {(() => {
+                                    if (!invoice.invoiceDate || !settlementLoan?.endDate) return null
+                                    const diff = (new Date(invoice.invoiceDate).getTime() - new Date(settlementLoan.endDate).getTime()) / 86400000
+                                    if (diff > 5) return <p style={{ color: '#B45309', fontSize: 11, marginTop: 3 }}>⚠️ تاريخ الفاتورة يتجاوز تاريخ نهاية الصرف بـ {Math.round(diff)} يوماً — يرجى المراجعة</p>
+                                    return null
+                                  })()}
                                 </Field>
                                 <Field label="الجهة المصدرة">
                                   <input value={invoice.issuer} onChange={(e) => updateInvoice(itemIndex, invoiceIndex, 'issuer', e.target.value)} className="input-shell" placeholder="اسم الجهة أو الشركة" />
