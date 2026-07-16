@@ -4,7 +4,6 @@ import { syncClosureElementFromPrint } from '@/lib/closure-integration'
 import { buildLoanRequestWordHtml } from '@/lib/document-templates'
 import { getAuthorizedLoan, getReviewerSignatures } from '@/lib/loan-records'
 import { getSystemSettings } from '@/lib/system-settings'
-import { notFound } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,20 +14,22 @@ export default async function LoanPrintPage({
 }) {
   const currentUser = requireSessionUser()
   const settings = await getSystemSettings()
-  let loan = await getAuthorizedLoan(params.id, { markPrinted: settings.allowPrintBeforeReview })
-
-  // المراجع والمدير العام يطبعان النموذج في أي مرحلة لأغراض المراجعة
-  if (!canManageAllLoans(currentUser) && !settings.allowPrintBeforeReview && loan.reviewStatus !== 'REVIEWED') {
-    notFound()
-  }
-
-  if (!settings.allowPrintBeforeReview) {
-    loan = await getAuthorizedLoan(params.id, { markPrinted: true })
-  }
+  const loan = await getAuthorizedLoan(params.id)
 
   if (loan.reviewStatus === 'REVIEWED') {
     await syncClosureElementFromPrint('advance_req', loan)
+    if (!settings.allowPrintBeforeReview) {
+      await getAuthorizedLoan(params.id, { markPrinted: true })
+    }
   }
+
+  // الموظف يستطيع المعاينة دائماً — الطباعة محجوبة حتى يوقّع المراجعان الاثنان
+  const isFullyReviewed = loan.reviewStatus === 'REVIEWED'
+  const printBlocked = !canManageAllLoans(currentUser) && !isFullyReviewed
+
+  const printBlockedReason = loan.reviewStatus === 'AWAITING_SECOND_REVIEW'
+    ? 'بانتظار توقيع المراجع الثاني — ستُتاح الطباعة بعد اعتماده'
+    : 'لم يعتمد أي مراجع هذا الطلب بعد — ستُتاح الطباعة بعد توقيع المراجعَين'
 
   const loanWithReviewers = loan as any
   const hasAnyReviewerSigned = ['AWAITING_SECOND_REVIEW', 'REVIEWED'].includes(loan.reviewStatus as string)
@@ -39,7 +40,11 @@ export default async function LoanPrintPage({
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">
       <div className="mx-auto max-w-[210mm]">
-        <PrintActions pdfHref={`/api/print/loans/${params.id}`} />
+        <PrintActions
+          pdfHref={`/api/print/loans/${params.id}`}
+          printBlocked={printBlocked}
+          printBlockedReason={printBlocked ? printBlockedReason : undefined}
+        />
         <div className="bg-white p-2 print:p-0" dangerouslySetInnerHTML={{ __html: html }} />
       </div>
     </main>
