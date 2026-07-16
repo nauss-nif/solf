@@ -63,6 +63,7 @@ export type LoanDocumentRecord = {
   endDate: Date | string
   createdAt: Date | string
   reviewStatus?: string | null
+  settlementApprovedAt?: Date | string | null
   items: LoanItemLike[]
   settlement?: SettlementLike | null
 }
@@ -1483,7 +1484,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
       <span>التوقيع: <span class="signature-line" style="position:relative;display:inline-block;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;max-height:20px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span>
-      <span>التاريخ: <span class="signature-line"></span></span>
+      <span>التاريخ: ${loan.settlementApprovedAt ? `<span style="font-weight:700;">${htmlDate(loan.settlementApprovedAt)}</span>` : '<span class="signature-line"></span>'}</span>
     </div>
 
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">

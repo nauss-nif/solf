@@ -143,8 +143,10 @@ model Loan {
   recallRequestedAt DateTime?
 
   // ─── حالة التسوية ───────────────────────────────────────
-  isSettled          Boolean         @default(false)
-  settlementStatus   SettlementStatus @default(NOT_STARTED)
+  isSettled            Boolean          @default(false)
+  settlementStatus     SettlementStatus @default(NOT_STARTED)
+  // تاريخ الاعتماد النهائي للتسوية — يُعيَّن تلقائياً عند وصول الحالة إلى APPROVED
+  settlementApprovedAt DateTime?
 
   // ─── تعليق / انتظار موافقة خارجية ──────────────────────
   // عندما تكون السلفة موقوفة بسبب انتظار موافقة عليا (مثل نثريات معالي الرئيس)

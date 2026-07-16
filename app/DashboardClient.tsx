@@ -695,20 +695,29 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
   function openLoanModal() { setLinkedCourse(null); resetLoanForm(); setLoanModalOpen(true) }
 
   async function openEditLoanModal(loanId: string) {
-    const loan = loans.find((l) => l.id === loanId); if (!loan || loan.isSettled || (!isReviewerMode && loan.reviewStatus === 'REVIEWED')) return
+    // المدير يمكنه تعديل أي معاملة بغض النظر عن حالتها
+    // الموظف لا يعدّل المعاملات المعتمدة أو المسوّاة
+    const loan = loans.find((l) => l.id === loanId)
+    if (!loan) return
+    if (!isAdminOrReviewer && (loan.isSettled || loan.reviewStatus === 'REVIEWED')) return
+
     setLoanError(''); setEditingLoanId(loan.id)
     setLoanForm({ requestDate: loan.createdAt.slice(0, 10), refNumber: loan.refNumber, agencyCode: AGENCY_CODE, employee: loan.employee, activity: loan.activity, location: loan.location, startDate: loan.startDate.slice(0, 10), endDate: loan.endDate.slice(0, 10), budgetApproved: loan.budgetApproved })
     setExpenses(loan.items.length > 0 ? loan.items.map((i) => ({ category: i.category, amount: String(i.amount) })) : [{ category: '', amount: '' }])
     setLoanAttachments(Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((att) => [att.key, toStoredFileArray(loan.files?.[att.key]).map((f) => cloneStoredFile(f) as StoredFile)])))
     setLoanModalOpen(true)
+    // جلب البيانات الكاملة (مع المرفقات بالـ base64) من الخادم
     try {
       const res = await fetch(`/api/loans/${loanId}`)
       if (res.ok) {
         const fullLoan = await res.json()
+        // تحديث النموذج بالبيانات الكاملة
+        setLoanForm({ requestDate: fullLoan.createdAt?.slice(0, 10) ?? loan.createdAt.slice(0, 10), refNumber: fullLoan.refNumber ?? loan.refNumber, agencyCode: AGENCY_CODE, employee: fullLoan.employee ?? loan.employee, activity: fullLoan.activity ?? loan.activity, location: fullLoan.location ?? loan.location, startDate: fullLoan.startDate?.slice(0, 10) ?? loan.startDate.slice(0, 10), endDate: fullLoan.endDate?.slice(0, 10) ?? loan.endDate.slice(0, 10), budgetApproved: fullLoan.budgetApproved ?? loan.budgetApproved })
+        if (fullLoan.items?.length > 0) setExpenses(fullLoan.items.map((i: { category: string; amount: number }) => ({ category: i.category, amount: String(i.amount) })))
         setLoanAttachments(Object.fromEntries(LOAN_ATTACHMENT_DEFINITIONS.map((att) => [att.key, toStoredFileArray(fullLoan.files?.[att.key]).map((f) => cloneStoredFile(f) as StoredFile)])))
       }
     } catch {
-      // تجاهل الخطأ والاحتفاظ بالمرفقات المحملة مسبقاً (بدون بيانات الصور)
+      // الاحتفاظ بالبيانات المحملة من قائمة السلف (بدون صور)
     }
   }
 
