@@ -715,7 +715,7 @@ function normalizeSettlementTemplateRows(loan: LoanDocumentRecord): SettlementTe
         ? 'موافقة المعالي'
         : joinValues(invoices.map((invoice) => invoice.type), '<br />'),
       documentDate: joinValues(
-        invoices.map((invoice) => invoice.date?.trim() ? htmlDate(invoice.date) : ''),
+        invoices.map((invoice) => formatDateOrBlank(invoice.date ?? '')),
         '<br />',
       ),
       issuer: isPettyCash ? '' : joinValues(invoices.map((invoice) => invoice.issuer), '<br />'),
@@ -822,7 +822,7 @@ function buildSettlementAttachmentPages(loan: LoanDocumentRecord) {
                 <th>نوع المستند</th>
                 <td>${escapeHtml(documentType || '-')}</td>
                 <th>تاريخ المستند</th>
-                <td>${date ? `<span dir="ltr" style="unicode-bidi:isolate;">${escapeHtml(date)}</span>` : '-'}</td>
+                <td dir="ltr" style="text-align:center;">${escapeHtml(date || '-')}</td>
               </tr>
               <tr>
                 <th>الجهة المصدرة</th>
@@ -1397,7 +1397,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
           <td class="text-right text-top">${escapeHtml(row.category)}</td>
           <td style="width:12%;">${row.amount}</td>
           <td style="width:11%;" class="text-top">${row.documentType}</td>
-          <td style="width:14%;" class="text-top">${row.documentDate}</td>
+          <td style="width:14%;direction:ltr;text-align:center;" class="text-top">${row.documentDate}</td>
           <td style="width:21%;" class="text-top">${row.issuer}</td>
         </tr>
       `,
