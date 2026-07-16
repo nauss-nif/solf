@@ -1298,7 +1298,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${htmlDate(loan.startDate)} إلى ${htmlDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
-      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"><span class="signature-line" style="position:relative;display:inline-block;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;max-height:20px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span></div>
+      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"><span class="signature-line" style="position:relative;display:inline-block;height:40px;min-width:120px;vertical-align:middle;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;height:38px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span></div>
     </div>
 
     <div class="loan-table-wrap">
@@ -1483,7 +1483,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
 
     <div class="official-inline" style="grid-template-columns: 1.35fr 1fr 1fr; direction: rtl; text-align: right; align-items: center;">
       <span>اسم مستلم السلفة: ${escapeHtml(loan.employee)}</span>
-      <span>التوقيع: <span class="signature-line" style="position:relative;display:inline-block;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;max-height:20px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span>
+      <span>التوقيع: <span class="signature-line" style="position:relative;display:inline-block;height:40px;min-width:120px;vertical-align:middle;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;height:38px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span>
       <span>التاريخ: ${loan.settlementApprovedAt ? `<span style="font-weight:700;">${htmlDate(loan.settlementApprovedAt)}</span>` : '<span class="signature-line"></span>'}</span>
     </div>
 
