@@ -150,10 +150,7 @@ function formatDate(value: Date | string | null | undefined) {
   if (!value) return ''
   const date = new Date(value)
 
-  return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(
-    2,
-    '0',
-  )}-${date.getFullYear()}`
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 // يعرض التاريخ بشكل صريح من اليسار لليمين (يوم/شهر/سنة) بغض النظر عن اتجاه السياق العربي
