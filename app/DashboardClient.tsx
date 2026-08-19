@@ -59,7 +59,7 @@ type LoanFormState = { requestDate: string; refNumber: string; agencyCode: strin
 type ActiveTab = 'dashboard' | 'requests' | 'archive' | 'reports' | 'alerts' | 'guide'
 type ReviewerQueueFilter = 'advance' | 'awaitingSettlement' | 'settlement' | 'returned' | 'approved'
 type NotificationItem = { id: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; metadata?: { loanId?: string; refNumber?: string } | null }
-type WorkMode = 'employee' | 'reviewer'
+type WorkMode = 'employee' | 'reviewer' | 'monitor'
 type LinkedCourse = { id: string; code: string; name: string; employeeEmail: string; location: string; startDate: string; endDate: string }
 type ItemUsageStat = { category: string; requestCount: number; requestTotal: number; settlementCount: number; settlementTotal: number }
 
@@ -1046,7 +1046,11 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
   // اخترنا واجهة منفصلة بدل إخفاء الأزرار داخل اللوحة العامة، لأن الإخفاء
   // المتفرّق يترك احتمال تسرّب زر إجراء واحد. هنا لا تُبنى أزرار الإجراءات
   // أصلاً. والحماية الحقيقية في الخادم على أي حال.
-  if (isMonitorOnly) {
+  // تظهر واجهة المراقب في حالتين: مراقب خالص (دوره الوحيد)، أو مدير/مراجع
+  // اختار «معاينة المراقب» من شريط الأوضاع للتأكد مما يراه المراقب فعلاً
+  const showMonitorView = isMonitorOnly || (isAdminOrReviewer && workMode === 'monitor')
+
+  if (showMonitorView) {
     return (
       <div className="app-layout">
         <aside className="app-sidebar">
@@ -1071,11 +1075,18 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
             <div className="flex items-center gap-3">
               <span className="badge" style={{ background: '#EEE9F3', color: '#6B4E8A' }}>مراقب</span>
               <span className="text-sm font-semibold" style={{ color: '#1F3F40' }}>{currentUser.fullName}</span>
-              <button type="button" onClick={handleLogout} className="btn btn-outline btn-sm">تسجيل الخروج</button>
+              {isAdminOrReviewer
+                ? <button type="button" onClick={() => setWorkMode('reviewer')} className="btn btn-outline btn-sm">↩ إنهاء المعاينة</button>
+                : <button type="button" onClick={handleLogout} className="btn btn-outline btn-sm">تسجيل الخروج</button>}
             </div>
           </header>
 
           <main className="app-main">
+            {isAdminOrReviewer && (
+              <div className="alert mb-4" style={{ background: '#EEE9F3', border: '1.5px solid #C9BBDA', color: '#4A3563' }}>
+                👁️ أنت تعاين واجهة <strong>المراقب</strong> — هذا بالضبط ما يراه، بلا أي زر إجراء.
+              </div>
+            )}
             {loadError && <div className="alert alert-error">{loadError}</div>}
             {isLoadingLoans
               ? <div className="section-card p-8 text-center text-sm" style={{ color: '#5A5A5A' }}>جاري تحميل البيان...</div>
@@ -1145,7 +1156,10 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
             {isAdminOrReviewer && (
               <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
                 <button type="button" onClick={() => { showNavigationFeedback(`جاري فتح وضع ${managementModeLabel}...`); setWorkMode('reviewer') }} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{managementModeLabel}</button>
-                <button type="button" onClick={() => { showNavigationFeedback('جاري فتح وضع الموظف...'); setWorkMode('employee') }} className="rounded-lg px-3 py-2" style={{ background: !isReviewerMode ? '#2A6364' : 'transparent', color: !isReviewerMode ? '#fff' : '#5A5A5A' }}>موظف</button>
+                <button type="button" onClick={() => { showNavigationFeedback('جاري فتح وضع الموظف...'); setWorkMode('employee') }} className="rounded-lg px-3 py-2" style={{ background: workMode === 'employee' ? '#2A6364' : 'transparent', color: workMode === 'employee' ? '#fff' : '#5A5A5A' }}>موظف</button>
+                {/* معاينة واجهة المراقب — تتيح للمدير التأكد مما يراه المراقب
+                    فعلاً دون إنشاء حساب منفصل. عرض فقط، بلا أي صلاحية إضافية */}
+                <button type="button" onClick={() => { showNavigationFeedback('جاري فتح معاينة المراقب...'); setWorkMode('monitor') }} className="rounded-lg px-3 py-2" style={{ background: workMode === 'monitor' ? '#6B4E8A' : 'transparent', color: workMode === 'monitor' ? '#fff' : '#5A5A5A' }}>مراقب</button>
               </div>
             )}
             <div className="relative">
