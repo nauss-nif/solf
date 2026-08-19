@@ -47,6 +47,7 @@ export type LoanDashboardRecord = {
   secondSettlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
   user?: { email: string; fullName: string; profileImage?: { dataUrl?: string } | null; employeeNumber?: string | null } | null
+  alerts?: Array<{ sentAt: string; sentBy?: { fullName: string } | null }>
 }
 
 type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'> }
@@ -1087,7 +1088,7 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
             {loadError && <div className="alert alert-error">{loadError}</div>}
             {isLoadingLoans
               ? <div className="section-card p-8 text-center text-sm" style={{ color: '#5A5A5A' }}>جاري تحميل البيان...</div>
-              : <MonitorStatement loans={loans} />}
+              : <MonitorStatement loans={loans} canAlert />}
           </main>
         </div>
       </div>

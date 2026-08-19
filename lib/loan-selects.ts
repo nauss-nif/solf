@@ -16,6 +16,12 @@ export const dashboardLoanInclude = {
   settlementReviewedBy: { select: { id: true, fullName: true } },
   secondSettlementReviewedBy: { select: { id: true, fullName: true } },
   user: { select: { email: true, fullName: true, profileImage: true, employeeNumber: true } },
+  // آخر تنبيه أُرسل — يمنع انهيال تنبيهات متعددة على الموظف في اليوم نفسه
+  alerts: {
+    orderBy: { sentAt: 'desc' },
+    take: 1,
+    select: { sentAt: true, sentBy: { select: { fullName: true } } },
+  },
 } as const
 
 export const fullLoanInclude = {

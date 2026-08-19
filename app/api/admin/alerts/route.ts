@@ -1,5 +1,8 @@
 // app/api/admin/alerts/route.ts
-// إرسال إنذار يدوي من المدير أو المراجع
+// إرسال إنذار يدوي من المدير أو المراجع أو المراقب
+//
+// المراقب: التنبيه هو صلاحيته الوحيدة خارج القراءة، ومقصورة على السلف غير
+// المسوّاة — فالتنبيه على سلفة مكتملة لا معنى له. لا اعتماد ولا تعديل.
 import { NextResponse } from 'next/server'
 import { getSessionUser, hasRole } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -8,10 +11,10 @@ import { sendManualAlert } from '@/lib/notifications'
 export async function POST(request: Request) {
   try {
     const currentUser = getSessionUser()
-    if (
-      !currentUser ||
-      (!hasRole(currentUser, 'ADMIN') && !hasRole(currentUser, 'REVIEWER'))
-    ) {
+    const isManager = hasRole(currentUser, 'ADMIN') || hasRole(currentUser, 'REVIEWER')
+    const isMonitor = hasRole(currentUser, 'MONITOR')
+
+    if (!currentUser || (!isManager && !isMonitor)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -29,6 +32,14 @@ export async function POST(request: Request) {
 
     if (!loan) {
       return NextResponse.json({ error: 'Loan not found' }, { status: 404 })
+    }
+
+    // المراقب لا ينبّه إلا على سلفة لم تُسوَّ بعد
+    if (!isManager && isMonitor && loan.isSettled) {
+      return NextResponse.json(
+        { error: 'السلفة مسوّاة — لا حاجة للتنبيه عنها.' },
+        { status: 400 },
+      )
     }
 
     if (!loan.user?.email) {
