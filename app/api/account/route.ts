@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser, setSessionCookie } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 import { isStoredImageFile } from '@/lib/loan-form-options'
+import { EMPLOYEE_NUMBER_ERROR, normalizeEmployeeNumber } from '@/lib/employee-number'
 
 export async function GET() {
   try {
@@ -20,6 +21,7 @@ export async function GET() {
         email: true,
         mobile: true,
         extension: true,
+        employeeNumber: true,
         role: true,
         roles: true,
         profileImage: true,
@@ -55,6 +57,15 @@ export async function PATCH(request: Request) {
     if (body.mobile) data.mobile = String(body.mobile).trim()
     if (body.extension) data.extension = String(body.extension).trim()
 
+    // الرقم الوظيفي — أرقام فقط، مع تحويل الأرقام العربية (١٢٣) إلى إنجليزية
+    if ('employeeNumber' in body) {
+      const normalized = normalizeEmployeeNumber(body.employeeNumber)
+      if (normalized === null) {
+        return NextResponse.json({ error: EMPLOYEE_NUMBER_ERROR }, { status: 400 })
+      }
+      data.employeeNumber = normalized || null
+    }
+
     if ('profileImage' in body) {
       if (body.profileImage === null) {
         data.profileImage = null
@@ -84,6 +95,7 @@ export async function PATCH(request: Request) {
         email: true,
         mobile: true,
         extension: true,
+        employeeNumber: true,
         role: true,
         roles: true,
         profileImage: true,

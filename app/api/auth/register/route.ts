@@ -10,6 +10,7 @@ import {
 import { ensureAuthSetup } from '@/lib/database-setup'
 import { sendWelcomeEmail } from '@/lib/notifications'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { EMPLOYEE_NUMBER_ERROR, normalizeEmployeeNumber } from '@/lib/employee-number'
 
 export async function POST(request: Request) {
   try {
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     const email = String(body.email ?? '').trim().toLowerCase()
     const mobile = String(body.mobile ?? '').trim()
     const extension = String(body.extension ?? '').trim()
+    const employeeNumber = normalizeEmployeeNumber(body.employeeNumber)
     const password = String(body.password ?? '')
     const passwordConfirm = String(body.passwordConfirm ?? '')
     const rateLimit = checkRateLimit(`register:${getClientIp(request)}`, 5, 30 * 60 * 1000)
@@ -33,6 +35,14 @@ export async function POST(request: Request) {
 
     if (!fullName || !email || !mobile || !extension || !password || !passwordConfirm) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
+    }
+
+    // الرقم الوظيفي إلزامي للحسابات الجديدة — يظهر في نموذجي ١٨ و ١٩
+    if (employeeNumber === null) {
+      return NextResponse.json({ error: EMPLOYEE_NUMBER_ERROR }, { status: 400 })
+    }
+    if (!employeeNumber) {
+      return NextResponse.json({ error: 'الرقم الوظيفي مطلوب' }, { status: 400 })
     }
 
     if (!email.endsWith('@nauss.edu.sa')) {
@@ -58,6 +68,7 @@ export async function POST(request: Request) {
         email,
         mobile,
         extension,
+        employeeNumber,
         passwordHash: hashPassword(password),
         role: 'EMPLOYEE',
         roles: ['EMPLOYEE'],

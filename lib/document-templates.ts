@@ -72,6 +72,9 @@ type DocumentRenderOptions = {
   settings?: SystemSettings
   reviewerSignatures?: StoredFile[]
   applicantSignature?: StoredFile | null
+  // الرقم الوظيفي — يُقرأ حيّاً من الملف الشخصي للموظف عند العرض، تماماً
+  // كالتوقيع الإلكتروني، فيظهر في المعاملات القديمة فور إدخاله مرة واحدة
+  employeeNumber?: string | null
 }
 
 type LoanTemplateRow = {
@@ -1266,6 +1269,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
   const attachmentPages = buildLoanAttachmentPages(loan)
   const reviewerSignatures = (options?.reviewerSignatures ?? []).slice(0, 2)
   const applicantSignature = options?.applicantSignature && isStoredImageFile(options.applicantSignature) ? options.applicantSignature : null
+  const employeeNumber = options?.employeeNumber ?? null
 
   const body = `
     <div class="letterhead-spacer" style="height: 32mm;"></div>
@@ -1294,8 +1298,13 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       <div></div>
       <div class="meta-row"><span class="meta-label">فترة تنفيذ النشاط:</span><span class="meta-value">من ${htmlDate(loan.startDate)} إلى ${htmlDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
-      <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
-      <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"><span class="signature-line" style="position:relative;display:inline-block;overflow:visible;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;height:40px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span></div>
+      <!-- الاسم والرقم الوظيفي والتوقيع في صف واحد — يمتد على عرض الشبكة
+           بثلاثة أعمدة، فلا يتحرك أي حقل آخر عن موضعه في النموذج المعتمد -->
+      <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1.3fr 0.9fr 1.1fr; gap: 5px 14px;">
+        <div class="meta-row"><span class="meta-label">السلفة باسم الموظف:</span><span class="meta-value">${escapeHtml(loan.employee)}</span></div>
+        <div class="meta-row"><span class="meta-label">الرقم الوظيفي:</span><span class="meta-value">${escapeHtml(employeeNumber ?? '')}</span></div>
+        <div class="meta-row"><span class="meta-label">توقيع طالب السلفة:</span><span class="meta-value"><span class="signature-line" style="position:relative;display:inline-block;overflow:visible;">${applicantSignature ? `<img style="position:absolute;bottom:0;left:0;width:100%;height:40px;object-fit:contain;mix-blend-mode:multiply;" src="${applicantSignature.dataUrl}" alt="توقيع الموظف" />` : ''}</span></span></div>
+      </div>
     </div>
 
     <div class="loan-table-wrap">
@@ -1324,11 +1333,14 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
       </div>
     </div>
 
-    <div class="official-inline" style="grid-template-columns: 0.45fr 1fr 1.2fr 1fr;">
+    <!-- التاريخ مضاف يسار التوقيع — بقية صفوف النموذج (المراقب المالي ورئيس
+         الجامعة) فيها التاريخ أصلاً، وهذا الصف وحده كان ينقصه -->
+    <div class="official-inline" style="grid-template-columns: 0.4fr 0.85fr 1.1fr 0.85fr 0.8fr;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: ${escapeHtml(settings.trainingVicePresidentName)}</span>
       <span>التوقيع: <span class="signature-line"></span></span>
+      <span>التاريخ: <span class="signature-line"></span></span>
     </div>
 
     <div class="official-panel" style="min-height: 0; padding: 8px 18px 9px; line-height: 1.18;">
@@ -1384,6 +1396,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
 export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: DocumentRenderOptions) {
   const settings = resolveSettings(options)
   const applicantSignature = options?.applicantSignature && isStoredImageFile(options.applicantSignature) ? options.applicantSignature : null
+  const employeeNumber = options?.employeeNumber ?? null
   const settlement = loan.settlement
   const settlementMeta = normalizeSettlementMeta(settlement?.invoices)
   const rows = normalizeSettlementTemplateRows(loan)
@@ -1427,7 +1440,7 @@ export function buildSettlementWordHtml(loan: LoanDocumentRecord, options?: Docu
       <div class="meta-row"><span class="meta-label">اسم النشاط:</span><span class="meta-value">${escapeHtml(loan.activity)}</span></div>
       <div class="meta-row"><span class="meta-label">مكان التنفيذ:</span><span class="meta-value">${escapeHtml(loan.location ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">الجهة المنفذة للنشاط:</span><span class="meta-value">وكالة التدريب</span></div>
-      <div></div>
+      <div class="meta-row"><span class="meta-label">الرقم الوظيفي:</span><span class="meta-value">${escapeHtml(employeeNumber ?? '')}</span></div>
       <div class="meta-row"><span class="meta-label">تاريخ بداية النشاط:</span><span class="meta-value">${htmlDate(loan.startDate)}</span></div>
       <div class="meta-row"><span class="meta-label">نهاية النشاط:</span><span class="meta-value">${htmlDate(loan.endDate)}</span></div>
       <div class="meta-row"><span class="meta-label">تاريخ بداية الصرف:</span><span class="meta-value">${htmlDate(loan.startDate)}</span></div>

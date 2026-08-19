@@ -33,9 +33,10 @@ export default async function LoanDetailPage({
   const applicantSignature = activeForm === '19'
     ? (loan.isSettled ? loanWithReviewers.user?.signatureImage ?? null : null)
     : (!loan.isDraft ? loanWithReviewers.user?.signatureImage ?? null : null)
+  const employeeNumber = loanWithReviewers.user?.employeeNumber ?? null
   const html = activeForm === '19' && hasSettlement
-    ? buildSettlementWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
-    : buildLoanRequestWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
+    ? buildSettlementWordHtml(loan, { settings, reviewerSignatures, applicantSignature, employeeNumber })
+    : buildLoanRequestWordHtml(loan, { settings, reviewerSignatures, applicantSignature, employeeNumber })
 
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4">

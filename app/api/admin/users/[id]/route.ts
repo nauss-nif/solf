@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 import { isStoredImageFile } from '@/lib/loan-form-options'
+import { EMPLOYEE_NUMBER_ERROR, normalizeEmployeeNumber } from '@/lib/employee-number'
 
 export async function PATCH(
   request: Request,
@@ -31,6 +32,14 @@ export async function PATCH(
     if (body.email) data.email = String(body.email).trim().toLowerCase()
     if (body.mobile) data.mobile = String(body.mobile).trim()
     if (body.extension) data.extension = String(body.extension).trim()
+    // الرقم الوظيفي — يستطيع المدير إدخاله لأي موظف (نفس صلاحية التوقيع)
+    if ('employeeNumber' in body) {
+      const normalized = normalizeEmployeeNumber(body.employeeNumber)
+      if (normalized === null) {
+        return NextResponse.json({ error: EMPLOYEE_NUMBER_ERROR }, { status: 400 })
+      }
+      data.employeeNumber = normalized || null
+    }
     if (body.status) data.status = body.status
     if (body.password) {
       const password = String(body.password)
@@ -72,6 +81,7 @@ export async function PATCH(
         email: true,
         mobile: true,
         extension: true,
+        employeeNumber: true,
         role: true,
         roles: true,
         status: true,

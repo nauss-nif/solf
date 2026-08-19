@@ -8,7 +8,7 @@ export default function RegisterForm() {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
   const [form, setForm] = useState({
-    fullName: '', email: '', mobile: '', extension: '',
+    fullName: '', email: '', mobile: '', extension: '', employeeNumber: '',
     password: '', passwordConfirm: '',
   })
 
@@ -54,6 +54,11 @@ export default function RegisterForm() {
         <Field label="رقم التحويلة الداخلية *">
           <input value={form.extension} onChange={update('extension')}
             className="input-shell" placeholder="1234" required />
+        </Field>
+        <Field label="الرقم الوظيفي *">
+          <input value={form.employeeNumber} onChange={update('employeeNumber')}
+            inputMode="numeric" pattern="[0-9]*"
+            className="input-shell" placeholder="أرقام فقط" required />
         </Field>
         <Field label="كلمة المرور *">
           <input type="password" value={form.password} onChange={update('password')}

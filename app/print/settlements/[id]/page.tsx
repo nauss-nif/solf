@@ -40,7 +40,8 @@ export default async function SettlementPrintPage({
   const hasAnyReviewerSigned = ['AWAITING_SECOND_REVIEW', 'APPROVED'].includes(settlementStatus)
   const reviewerSignatures = hasAnyReviewerSigned ? await getReviewerSignatures(loanWithReviewers.settlementReviewedBy?.id, loanWithReviewers.secondSettlementReviewedBy?.id) : undefined
   const applicantSignature = loan.settlement ? loanWithReviewers.user?.signatureImage ?? null : null
-  const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
+  const employeeNumber = loanWithReviewers.user?.employeeNumber ?? null
+  const html = buildSettlementWordHtml(loan, { settings, reviewerSignatures, applicantSignature, employeeNumber })
 
   return (
     <main className="min-h-screen bg-slate-100 px-2 py-4 print:bg-white print:p-0">

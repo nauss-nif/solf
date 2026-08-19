@@ -49,8 +49,9 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
         ? await getReviewerSignatures(loanWithReviewers.reviewedBy?.id, loanWithReviewers.secondReviewedBy?.id)
         : undefined
     const applicantSignature = !loan.isDraft ? loanWithReviewers.user?.signatureImage ?? null : null
+    const employeeNumber = loanWithReviewers.user?.employeeNumber ?? null
 
-    const html = buildLoanRequestWordHtml(loan, { settings, reviewerSignatures, applicantSignature })
+    const html = buildLoanRequestWordHtml(loan, { settings, reviewerSignatures, applicantSignature, employeeNumber })
     const pdf = await renderHtmlToPdf(html)
 
     return new NextResponse(new Uint8Array(pdf), {

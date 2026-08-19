@@ -42,6 +42,12 @@ async function runAuthSetup() {
     ALTER TABLE "users"
     ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'ACTIVE';
   `)
+
+  // الرقم الوظيفي — يُدخَل مرة واحدة في الملف الشخصي ويظهر في نموذجي ١٨ و ١٩
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "users"
+    ADD COLUMN IF NOT EXISTS "employeeNumber" TEXT;
+  `)
 }
 
 async function runSetup() {

@@ -5,7 +5,7 @@ import { type StoredFile } from '@/lib/loan-form-options'
 import SignatureEditorModal from './SignatureEditorModal'
 
 type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
-type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; signatureImage?: StoredFile | null; profileImage?: StoredFile | null; createdAt: string }
+type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; employeeNumber?: string | null; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; signatureImage?: StoredFile | null; profileImage?: StoredFile | null; createdAt: string }
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string; bg: string }> = [
   { value: 'EMPLOYEE', label: 'موظف',  color: '#2A6364', bg: '#E7F3EE' },
@@ -278,6 +278,40 @@ export default function AdminUsersClient() {
                           <input type="file" className="hidden" accept="image/*" onChange={(e) => handleSignatureFileSelected(user.id, e.target.files)} />
                         </label>
                       )}
+                    </div>
+
+                    <div className="h-4 w-px" style={{ background: '#DADBD9' }} />
+
+                    {/* الرقم الوظيفي — يظهر في نموذجي ١٨ و ١٩ */}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs" style={{ color: '#8A8A8A' }}>الرقم الوظيفي:</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        defaultValue={user.employeeNumber ?? ''}
+                        placeholder="غير مُدخل"
+                        disabled={isPending}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim()
+                          if (next === (user.employeeNumber ?? '')) return
+                          startTransition(async () => {
+                            const res = await fetch(`/api/admin/users/${user.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ employeeNumber: next }),
+                            })
+                            const data = await res.json().catch(() => ({}))
+                            if (!res.ok) {
+                              setLoadError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ الرقم الوظيفي.')
+                              await loadUsers()
+                              return
+                            }
+                            await loadUsers(); showSuccess('تم حفظ الرقم الوظيفي.')
+                          })
+                        }}
+                        className="input-shell"
+                        style={{ width: 110, padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                      />
                     </div>
                   </div>
                 </div>

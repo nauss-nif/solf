@@ -12,6 +12,7 @@ type Account = {
   email: string
   mobile: string
   extension: string
+  employeeNumber?: string | null
   role: Role
   roles?: Role[]
   profileImage?: StoredFile | null
@@ -28,6 +29,7 @@ export default function AccountClient() {
   const [fullName, setFullName] = useState('')
   const [mobile, setMobile] = useState('')
   const [extension, setExtension] = useState('')
+  const [employeeNumber, setEmployeeNumber] = useState('')
   const [savingProfile, setSavingProfile] = useState(false)
   const [profileError, setProfileError] = useState('')
 
@@ -53,6 +55,7 @@ export default function AccountClient() {
     setFullName(data.fullName)
     setMobile(data.mobile)
     setExtension(data.extension)
+    setEmployeeNumber(data.employeeNumber ?? '')
   }
 
   useEffect(() => { void loadAccount() }, [])
@@ -65,7 +68,7 @@ export default function AccountClient() {
       const res = await fetch('/api/account', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullName, mobile, extension }),
+        body: JSON.stringify({ fullName, mobile, extension, employeeNumber }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { setProfileError(typeof data?.error === 'string' ? data.error : 'تعذر حفظ البيانات.'); return }
@@ -213,6 +216,23 @@ export default function AccountClient() {
           <div>
             <label className="text-xs font-semibold block mb-1" style={{ color: '#5A5A5A' }}>التحويلة</label>
             <input type="text" className="input-shell" value={extension} onChange={(e) => setExtension(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold block mb-1" style={{ color: '#5A5A5A' }}>
+              الرقم الوظيفي
+              {!employeeNumber && <span className="mr-1" style={{ color: '#B4544F' }}>— مطلوب</span>}
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="input-shell"
+              value={employeeNumber}
+              placeholder="أرقام فقط"
+              onChange={(e) => setEmployeeNumber(e.target.value)}
+            />
+            <p className="text-[11px] mt-1" style={{ color: '#8A8A8A' }}>
+              يُدخَل مرة واحدة ثم يظهر تلقائياً في نموذجي ١٨ و ١٩ لكل معاملاتك.
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-1">

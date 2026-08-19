@@ -63,6 +63,9 @@ model User {
   email        String   @unique
   mobile       String
   extension    String
+  // الرقم الوظيفي — يُدخَل مرة واحدة في الملف الشخصي ثم يظهر تلقائياً في
+  // نموذجي ١٨ و ١٩ لكل معاملات الموظف (نفس آلية التوقيع الإلكتروني)
+  employeeNumber String?
   passwordHash String
   role         String   @default("EMPLOYEE")  // PRIMARY role للعرض
   roles        Json?                           // مصفوفة الأدوار الكاملة
