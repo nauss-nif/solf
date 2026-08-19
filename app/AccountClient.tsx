@@ -5,7 +5,7 @@ import { fileToStoredFile } from '@/lib/client-files'
 import { type StoredFile } from '@/lib/loan-form-options'
 import SignatureEditorModal from './SignatureEditorModal'
 
-type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'
 type Account = {
   id: string
   fullName: string
@@ -19,7 +19,7 @@ type Account = {
   signatureImage?: StoredFile | null
 }
 
-const ROLE_LABELS: Record<Role, string> = { EMPLOYEE: 'موظف', REVIEWER: 'مراجع', ADMIN: 'مدير' }
+const ROLE_LABELS: Record<Role, string> = { EMPLOYEE: 'موظف', REVIEWER: 'مراجع', ADMIN: 'مدير', MONITOR: 'مراقب' }
 
 export default function AccountClient() {
   const [account, setAccount] = useState<Account | null>(null)

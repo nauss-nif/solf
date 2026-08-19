@@ -4,13 +4,14 @@ import { useEffect, useState, useTransition } from 'react'
 import { type StoredFile } from '@/lib/loan-form-options'
 import SignatureEditorModal from './SignatureEditorModal'
 
-type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+type Role = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'
 type AdminUser = { id: string; fullName: string; email: string; mobile: string; extension: string; employeeNumber?: string | null; role: Role; roles?: Role[]; status: 'ACTIVE' | 'DISABLED'; signatureImage?: StoredFile | null; profileImage?: StoredFile | null; createdAt: string }
 
 const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string; bg: string }> = [
   { value: 'EMPLOYEE', label: 'موظف',  color: '#2A6364', bg: '#E7F3EE' },
   { value: 'REVIEWER', label: 'مراجع', color: '#2E6F8E', bg: '#E4EEF3' },
   { value: 'ADMIN',    label: 'مدير',  color: '#8A6D00', bg: '#F3EDE3' },
+  { value: 'MONITOR',  label: 'مراقب', color: '#6B4E8A', bg: '#EEE9F3' },
 ]
 
 export default function AdminUsersClient() {

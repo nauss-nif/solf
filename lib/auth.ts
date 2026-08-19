@@ -10,7 +10,9 @@ const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 90
 export const SUPER_ADMIN_EMAIL = 'od@nauss.edu.sa'
 let defaultAdminPromise: Promise<void> | null = null
 
-export type SessionRole = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'
+// MONITOR (مراقب): اطّلاع ومطابقة فقط — يرى بيان السلف والتسويات ولا يملك
+// أي صلاحية تعديل أو اعتماد، ولا يفتح نماذج ١٨ و ١٩ الرسمية
+export type SessionRole = 'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'
 
 export type SessionUser = {
   userId: string
@@ -27,7 +29,7 @@ export function normalizeRoles(
   const source = Array.isArray(value) ? value : [fallbackRole]
   const roles = source.filter(
     (item): item is SessionRole =>
-      item === 'EMPLOYEE' || item === 'ADMIN' || item === 'REVIEWER',
+      item === 'EMPLOYEE' || item === 'ADMIN' || item === 'REVIEWER' || item === 'MONITOR',
   )
 
   return roles.length > 0 ? Array.from(new Set(roles)) : [fallbackRole]
@@ -36,6 +38,7 @@ export function normalizeRoles(
 export function getPrimaryRole(roles: SessionRole[]) {
   if (roles.includes('ADMIN')) return 'ADMIN'
   if (roles.includes('REVIEWER')) return 'REVIEWER'
+  if (roles.includes('MONITOR')) return 'MONITOR'
   return 'EMPLOYEE'
 }
 
@@ -47,12 +50,31 @@ export function hasRole(
   return normalizeRoles(user.roles, user.role).includes(role)
 }
 
+// صلاحية الإدارة: اعتماد وتعديل وحذف وفتح النماذج الرسمية.
+// المراقب مستثنى عمداً — ولهذا تبقى كل مسارات التعديل محمية منه تلقائياً
+// دون الحاجة لتعديلها واحداً واحداً.
 export function canManageAllLoans(user: Pick<SessionUser, 'role' | 'roles'> | SessionRole) {
   if (typeof user === 'string') {
     return user === 'ADMIN' || user === 'REVIEWER'
   }
 
   return hasRole(user, 'ADMIN') || hasRole(user, 'REVIEWER')
+}
+
+// صلاحية الاطّلاع على جميع السلف (قراءة فقط) — تشمل المراقب.
+// تُستخدم فقط في مسارات القراءة، ولا تمنح أي حق تعديل.
+export function canViewAllLoans(user: Pick<SessionUser, 'role' | 'roles'> | SessionRole) {
+  if (typeof user === 'string') {
+    return user === 'ADMIN' || user === 'REVIEWER' || user === 'MONITOR'
+  }
+
+  return canManageAllLoans(user) || hasRole(user, 'MONITOR')
+}
+
+// المراقب الخالص: دوره الوحيد المراقبة — واجهته بيان المطابقة فقط
+export function isMonitorOnly(user: Pick<SessionUser, 'role' | 'roles'> | null | undefined) {
+  if (!user) return false
+  return hasRole(user, 'MONITOR') && !canManageAllLoans(user)
 }
 
 export function isSuperAdmin(user: Pick<SessionUser, 'email'> | null | undefined) {

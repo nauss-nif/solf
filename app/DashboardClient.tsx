@@ -20,6 +20,7 @@ import {
 } from '@/lib/loan-form-options'
 import { fileToStoredFile } from '@/lib/client-files'
 import { formatCurrencySar, formatEnglishNumber, numberToArabicWords } from '@/lib/utils'
+import MonitorStatement from './MonitorStatement'
 
 // ── TYPES ────────────────────────────────────────────────────────────────────
 
@@ -45,10 +46,10 @@ export type LoanDashboardRecord = {
   settlementReviewedBy?: { id: string; fullName: string } | null
   secondSettlementReviewedBy?: { id: string; fullName: string } | null
   items: LoanItemRecord[]; settlement: SettlementRecord | null
-  user?: { email: string; fullName: string; profileImage?: { dataUrl?: string } | null } | null
+  user?: { email: string; fullName: string; profileImage?: { dataUrl?: string } | null; employeeNumber?: string | null } | null
 }
 
-type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER'> }
+type CurrentUser = { userId: string; fullName: string; email: string; role: 'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'; roles: Array<'EMPLOYEE' | 'ADMIN' | 'REVIEWER' | 'MONITOR'> }
 type ExpenseDraft = { category: string; amount: string; customLabel?: string }
 type InvoiceDraft = { amount: string; currencyCode: CurrencyCode; exchangeRate: string; sarAmount: number; documentType: SettlementDocumentType; invoiceDate: string; issuer: string; attachment: StoredFile | null }
 type SettlementDraft = { id: string; category: string; budget: number; invoices: InvoiceDraft[]; isAdditional?: boolean }
@@ -316,6 +317,8 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
   const router = useRouter()
   const searchParams = useSearchParams()
   const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
+  // مراقب خالص: يملك دور المراقب ولا يملك أي دور إداري
+  const isMonitorOnly = currentUser.roles.includes('MONITOR') && !isAdminOrReviewer
   const [isPending, startTransition] = useTransition()
   const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans.map(normalizeLoanRecord))
   const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
@@ -1037,6 +1040,51 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   // ── RENDER ────────────────────────────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────────────────────
+  // واجهة المراقب — مستقلة تماماً عن لوحة التحكم العادية.
+  // اخترنا واجهة منفصلة بدل إخفاء الأزرار داخل اللوحة العامة، لأن الإخفاء
+  // المتفرّق يترك احتمال تسرّب زر إجراء واحد. هنا لا تُبنى أزرار الإجراءات
+  // أصلاً. والحماية الحقيقية في الخادم على أي حال.
+  if (isMonitorOnly) {
+    return (
+      <div className="app-layout">
+        <aside className="app-sidebar">
+          <div className="sidebar-logo">
+            <Image src="/nauss-login-brand.png" alt="جامعة نايف العربية للعلوم الأمنية" width={330} height={95} className="h-auto w-full max-w-[205px]" priority />
+            <p className="text-xs mt-3" style={{ color: '#C7B08C' }}>منصة السلف المؤقتة</p>
+          </div>
+          <nav className="flex-1 py-3">
+            <p className="sidebar-section-label">القائمة الرئيسية</p>
+            <button type="button" className="nav-item w-full text-right active">
+              <span style={{ fontSize: '1rem' }}>🗂️</span> الأرشيف
+            </button>
+          </nav>
+        </aside>
+
+        <div className="app-content">
+          <header className="app-topbar">
+            <div>
+              <h1 className="text-base font-bold" style={{ color: '#1F3F40' }}>الأرشيف — بيان المطابقة</h1>
+              <p className="text-xs" style={{ color: '#5A5A5A' }}>وكالة التدريب — جامعة نايف العربية للعلوم الأمنية</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="badge" style={{ background: '#EEE9F3', color: '#6B4E8A' }}>مراقب</span>
+              <span className="text-sm font-semibold" style={{ color: '#1F3F40' }}>{currentUser.fullName}</span>
+              <button type="button" onClick={handleLogout} className="btn btn-outline btn-sm">تسجيل الخروج</button>
+            </div>
+          </header>
+
+          <main className="app-main">
+            {loadError && <div className="alert alert-error">{loadError}</div>}
+            {isLoadingLoans
+              ? <div className="section-card p-8 text-center text-sm" style={{ color: '#5A5A5A' }}>جاري تحميل البيان...</div>
+              : <MonitorStatement loans={loans} />}
+          </main>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="app-layout">

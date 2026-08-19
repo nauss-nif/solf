@@ -1,7 +1,7 @@
 // app/api/loans/route.ts — النسخة المحدّثة
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { canManageAllLoans, getSessionUser } from '@/lib/auth'
+import { canManageAllLoans, canViewAllLoans, getSessionUser, isMonitorOnly } from '@/lib/auth'
 import { ensureDatabaseSetup } from '@/lib/database-setup'
 import { dashboardLoanInclude } from '@/lib/loan-selects'
 import { calcSettlementDeadline } from '@/lib/settlement-deadline'
@@ -61,7 +61,9 @@ export async function GET(request: Request) {
 
     const scope = new URL(request.url).searchParams.get('scope')
     const loans = await prisma.loan.findMany({
-      where: canManageAllLoans(currentUser) && scope !== 'own'
+      // canViewAllLoans تشمل المراقب (قراءة فقط) — مسارات التعديل تبقى
+      // محكومة بـ canManageAllLoans التي لا تشمله
+      where: canViewAllLoans(currentUser) && scope !== 'own'
         ? { isDraft: false }
         : { userId: currentUser.userId },
       orderBy: { createdAt: 'desc' },
@@ -85,6 +87,11 @@ export async function POST(request: Request) {
     const currentUser = getSessionUser()
     if (!currentUser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // المراقب للاطّلاع والمطابقة فقط — لا يرفع طلبات سلفة
+    if (isMonitorOnly(currentUser)) {
+      return NextResponse.json({ error: 'المراقب لا يملك صلاحية رفع طلبات السلفة.' }, { status: 403 })
     }
 
     const body = await request.json()

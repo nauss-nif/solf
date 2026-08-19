@@ -1335,7 +1335,7 @@ export function buildLoanRequestWordHtml(loan: LoanDocumentRecord, options?: Doc
 
     <!-- التاريخ مضاف يسار التوقيع — بقية صفوف النموذج (المراقب المالي ورئيس
          الجامعة) فيها التاريخ أصلاً، وهذا الصف وحده كان ينقصه -->
-    <div class="official-inline" style="grid-template-columns: 0.4fr 0.85fr 1.1fr 0.85fr 0.8fr;">
+    <div class="official-inline" style="grid-template-columns: auto auto 1fr auto auto;">
       <span>مسؤول الجهة:</span>
       <span>وكيل الجامعة للتدريب</span>
       <span>الاسم: ${escapeHtml(settings.trainingVicePresidentName)}</span>
