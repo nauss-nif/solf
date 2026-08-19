@@ -68,7 +68,7 @@ export default function AdminPage() {
           </div>
         </header>
         <main className="app-main">
-          <AdminUsersClient />
+          <AdminUsersClient currentUserId={user.userId} />
         </main>
       </div>
     </div>

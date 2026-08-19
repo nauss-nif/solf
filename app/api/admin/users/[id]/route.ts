@@ -6,6 +6,8 @@ import {
   hashPassword,
   isSuperAdmin,
   normalizeRoles,
+  setSessionCookie,
+  type SessionRole,
 } from '@/lib/auth'
 import { ensureAuthSetup } from '@/lib/database-setup'
 import { isStoredImageFile } from '@/lib/loan-form-options'
@@ -49,7 +51,7 @@ export async function PATCH(
       data.passwordHash = hashPassword(password)
     }
     if (body.role || body.roles) {
-      const roles = normalizeRoles(body.roles, (body.role ?? 'EMPLOYEE') as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER')
+      const roles = normalizeRoles(body.roles, (body.role ?? 'EMPLOYEE') as SessionRole)
       data.roles = roles
       data.role = getPrimaryRole(roles)
     }
@@ -90,10 +92,22 @@ export async function PATCH(
       },
     })
 
-    return NextResponse.json({
-      ...user,
-      roles: normalizeRoles(user.roles, user.role as 'EMPLOYEE' | 'ADMIN' | 'REVIEWER'),
-    })
+    const updatedRoles = normalizeRoles(user.roles, user.role as SessionRole)
+
+    // أدوار الجلسة تُقرأ من ملف تعريف الارتباط المُنشأ وقت الدخول، فلو عدّل
+    // المدير أدوار نفسه لن تسري إلا بعد خروج ودخول. نُعيد إصدار الجلسة فوراً
+    // في هذه الحالة وحدها حتى يسري الدور الجديد مباشرة.
+    if (currentUser.userId === params.id) {
+      setSessionCookie({
+        userId: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: getPrimaryRole(updatedRoles),
+        roles: updatedRoles,
+      })
+    }
+
+    return NextResponse.json({ ...user, roles: updatedRoles })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to update user' },

@@ -14,7 +14,7 @@ const ROLE_OPTIONS: Array<{ value: Role; label: string; color: string; bg: strin
   { value: 'MONITOR',  label: 'مراقب', color: '#6B4E8A', bg: '#EEE9F3' },
 ]
 
-export default function AdminUsersClient() {
+export default function AdminUsersClient({ currentUserId }: { currentUserId?: string }) {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loadError, setLoadError] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -213,8 +213,16 @@ export default function AdminUsersClient() {
                                   : activeRoles.filter((r) => r !== opt.value)
                                 if (nextRoles.length === 0) return
                                 startTransition(async () => {
-                                  await fetch(`/api/admin/users/${user.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles: nextRoles }) })
-                                  await loadUsers(); showSuccess('تم تحديث الصلاحيات.')
+                                  const res = await fetch(`/api/admin/users/${user.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roles: nextRoles }) })
+                                  await loadUsers()
+                                  // عند تعديل المدير أدوار نفسه تُجدَّد جلسته في الخادم،
+                                  // فنعيد تحميل الصفحة ليسري الدور الجديد في الواجهة فوراً
+                                  if (res.ok && user.id === currentUserId) {
+                                    showSuccess('تم تحديث صلاحياتك — يعاد التحميل...')
+                                    setTimeout(() => window.location.reload(), 700)
+                                    return
+                                  }
+                                  showSuccess('تم تحديث الصلاحيات.')
                                 })
                               }}
                             />

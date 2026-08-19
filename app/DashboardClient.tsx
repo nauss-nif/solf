@@ -317,8 +317,9 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
   const router = useRouter()
   const searchParams = useSearchParams()
   const isAdminOrReviewer = currentUser.roles.some((r) => r === 'ADMIN' || r === 'REVIEWER')
+  const hasMonitorRole = currentUser.roles.includes('MONITOR')
   // مراقب خالص: يملك دور المراقب ولا يملك أي دور إداري
-  const isMonitorOnly = currentUser.roles.includes('MONITOR') && !isAdminOrReviewer
+  const isMonitorOnly = hasMonitorRole && !isAdminOrReviewer
   const [isPending, startTransition] = useTransition()
   const [loans, setLoans] = useState<LoanDashboardRecord[]>(initialLoans.map(normalizeLoanRecord))
   const [isLoadingLoans, setIsLoadingLoans] = useState(initialLoans.length === 0)
@@ -1046,9 +1047,10 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
   // اخترنا واجهة منفصلة بدل إخفاء الأزرار داخل اللوحة العامة، لأن الإخفاء
   // المتفرّق يترك احتمال تسرّب زر إجراء واحد. هنا لا تُبنى أزرار الإجراءات
   // أصلاً. والحماية الحقيقية في الخادم على أي حال.
-  // تظهر واجهة المراقب في حالتين: مراقب خالص (دوره الوحيد)، أو مدير/مراجع
-  // اختار «معاينة المراقب» من شريط الأوضاع للتأكد مما يراه المراقب فعلاً
-  const showMonitorView = isMonitorOnly || (isAdminOrReviewer && workMode === 'monitor')
+  // المراقبة دور رسمي لا معاينة: من يحمل دور «مراقب» يفتح واجهته الفعلية.
+  // المراقب الخالص لا يرى غيرها، ومن يحمل معها دوراً إدارياً ينتقل إليها
+  // من شريط الأوضاع كما ينتقل بين «مراجع» و«موظف».
+  const showMonitorView = isMonitorOnly || (hasMonitorRole && workMode === 'monitor')
 
   if (showMonitorView) {
     return (
@@ -1076,17 +1078,12 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
               <span className="badge" style={{ background: '#EEE9F3', color: '#6B4E8A' }}>مراقب</span>
               <span className="text-sm font-semibold" style={{ color: '#1F3F40' }}>{currentUser.fullName}</span>
               {isAdminOrReviewer
-                ? <button type="button" onClick={() => setWorkMode('reviewer')} className="btn btn-outline btn-sm">↩ إنهاء المعاينة</button>
+                ? <button type="button" onClick={() => setWorkMode('reviewer')} className="btn btn-outline btn-sm">↩ {managementModeLabel}</button>
                 : <button type="button" onClick={handleLogout} className="btn btn-outline btn-sm">تسجيل الخروج</button>}
             </div>
           </header>
 
           <main className="app-main">
-            {isAdminOrReviewer && (
-              <div className="alert mb-4" style={{ background: '#EEE9F3', border: '1.5px solid #C9BBDA', color: '#4A3563' }}>
-                👁️ أنت تعاين واجهة <strong>المراقب</strong> — هذا بالضبط ما يراه، بلا أي زر إجراء.
-              </div>
-            )}
             {loadError && <div className="alert alert-error">{loadError}</div>}
             {isLoadingLoans
               ? <div className="section-card p-8 text-center text-sm" style={{ color: '#5A5A5A' }}>جاري تحميل البيان...</div>
@@ -1157,9 +1154,10 @@ export default function DashboardClient({ currentUser, initialLoans, hasSignatur
               <div className="flex rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold">
                 <button type="button" onClick={() => { showNavigationFeedback(`جاري فتح وضع ${managementModeLabel}...`); setWorkMode('reviewer') }} className="rounded-lg px-3 py-2" style={{ background: isReviewerMode ? '#2A6364' : 'transparent', color: isReviewerMode ? '#fff' : '#5A5A5A' }}>{managementModeLabel}</button>
                 <button type="button" onClick={() => { showNavigationFeedback('جاري فتح وضع الموظف...'); setWorkMode('employee') }} className="rounded-lg px-3 py-2" style={{ background: workMode === 'employee' ? '#2A6364' : 'transparent', color: workMode === 'employee' ? '#fff' : '#5A5A5A' }}>موظف</button>
-                {/* معاينة واجهة المراقب — تتيح للمدير التأكد مما يراه المراقب
-                    فعلاً دون إنشاء حساب منفصل. عرض فقط، بلا أي صلاحية إضافية */}
-                <button type="button" onClick={() => { showNavigationFeedback('جاري فتح معاينة المراقب...'); setWorkMode('monitor') }} className="rounded-lg px-3 py-2" style={{ background: workMode === 'monitor' ? '#6B4E8A' : 'transparent', color: workMode === 'monitor' ? '#fff' : '#5A5A5A' }}>مراقب</button>
+                {/* يظهر فقط لمن مُنح دور «مراقب» من إدارة المستخدمين */}
+                {hasMonitorRole && (
+                  <button type="button" onClick={() => { showNavigationFeedback('جاري فتح واجهة المراقب...'); setWorkMode('monitor') }} className="rounded-lg px-3 py-2" style={{ background: workMode === 'monitor' ? '#6B4E8A' : 'transparent', color: workMode === 'monitor' ? '#fff' : '#5A5A5A' }}>مراقب</button>
+                )}
               </div>
             )}
             <div className="relative">
